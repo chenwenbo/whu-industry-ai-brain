@@ -104,7 +104,7 @@
       const dn=DB.disciplines.find(d=>d.id===t.disc);
       return '<div class="ecard track-row pointer" data-name="'+t.name+'" style="margin-bottom:9px;padding:11px 13px">'+
         '<div class="flex justify-between items-center"><div class="flex items-center gap-2">'+
-          '<span class="num" style="width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:700;background:'+(i<3?'linear-gradient(135deg,var(--primary),var(--accent))':'var(--panel-2)')+';color:'+(i<3?'#04122e':'var(--text-dim)')+'">'+(i+1)+'</span>'+
+          '<span class="num" style="width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:700;background:'+(i<3?'linear-gradient(135deg,var(--primary),var(--accent))':'var(--panel-2)')+';color:'+(i<3?'var(--on-brand)':'var(--text-dim)')+'">'+(i+1)+'</span>'+
           '<span class="fw6" style="font-size:13px">'+t.name+'</span></div>'+UI.tag(t.stage, t.stage==='爆发期'?'red':t.stage==='成长期'?'amber':'gray')+'</div>'+
         '<div class="flex gap-3 mt-2 f12 text-mute"><span><i data-lucide="flame"></i> 热度 '+t.heat+'</span><span><i data-lucide="trending-up"></i> +'+t.growth+'%</span><span><i data-lucide="target"></i> 契合 '+t.fit+'</span></div>'+
         UI.bar(t.heat,dn?dn.color:'var(--primary)')+'</div>';
@@ -148,16 +148,16 @@
   // ---------- 技术成熟度曲线(Gartner, 造10点) ----------
   // value:[阶段x(1-5), 市场期望y, 关注度size]
   const hypePoints=[
-    {name:'脑机接口',value:[1.2,42,62],color:'#9254DE'},
-    {name:'量子计算',value:[1.5,55,58],color:'#9254DE'},
-    {name:'具身智能/人形机器人',value:[2.1,95,90],color:'#36CFC9'},
-    {name:'AI大模型与智能体',value:[2.6,98,99],color:'#00E5FF'},
-    {name:'低空经济',value:[2.4,88,88],color:'#73D13D'},
-    {name:'存算一体',value:[3.1,60,70],color:'#FFC857'},
-    {name:'合成生物',value:[3.4,72,80],color:'#73D13D'},
-    {name:'硅光集成',value:[3.9,76,85],color:'#FFA940'},
-    {name:'卫星遥感',value:[4.4,70,75],color:'#9254DE'},
-    {name:'北斗高精度定位',value:[4.8,64,78],color:'#9254DE'},
+    {name:'脑机接口',value:[1.2,42,62],color:'#6d5bd0'},
+    {name:'量子计算',value:[1.5,55,58],color:'#6d5bd0'},
+    {name:'具身智能/人形机器人',value:[2.1,95,90],color:'#13b6c9'},
+    {name:'AI大模型与智能体',value:[2.6,98,99],color:'var(--primary)'},
+    {name:'低空经济',value:[2.4,88,88],color:'#0fa37f'},
+    {name:'存算一体',value:[3.1,60,70],color:'var(--warning)'},
+    {name:'合成生物',value:[3.4,72,80],color:'#0fa37f'},
+    {name:'硅光集成',value:[3.9,76,85],color:'var(--gold)'},
+    {name:'卫星遥感',value:[4.4,70,75],color:'#6d5bd0'},
+    {name:'北斗高精度定位',value:[4.8,64,78],color:'#6d5bd0'},
   ];
   Charts.scatter('hypeChart',{data:hypePoints, xName:'成熟度阶段', yName:'市场期望', symbolField:2});
   // 叠加 Gartner 曲线参考线

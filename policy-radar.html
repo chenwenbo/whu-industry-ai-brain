@@ -115,7 +115,7 @@
         <div style="padding:4px 2px">
           ${[['资格初审','核对主体资质、学科方向与政策范围匹配性'],['材料准备','整理成果证明、专利清单、财务及研发投入材料'],['系统申报',`登录 ${p.level==='国家级'?'国家科技管理信息系统':p.level==='省级'?'湖北省政务服务平台':'武汉光谷一站式服务平台'} 在线提交`],['评审跟踪','配合答辩/现场核查，跟踪评审进度']].map((s,i)=>
             `<div class="flex gap-3" style="align-items:flex-start;padding:7px 0;${i<3?'border-bottom:1px solid var(--border)':''}">
-              <span class="num" style="width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:12px;font-weight:700;background:linear-gradient(135deg,var(--primary),var(--accent));color:#04122e">${i+1}</span>
+              <span class="num" style="width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:12px;font-weight:700;background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--on-brand)">${i+1}</span>
               <div><div class="f13 fw6">${s[0]}</div><div class="f12 text-mute mt-1">${s[1]}</div></div></div>`).join('')}
         </div>
       </div>

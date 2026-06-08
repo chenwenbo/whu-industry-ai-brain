@@ -9,38 +9,38 @@
   /* 科技背景层 */
   .lg-bg{position:fixed;inset:0;z-index:0;overflow:hidden}
   .lg-bg::before{content:"";position:absolute;inset:0;
-    background:radial-gradient(900px 520px at 18% 12%, rgba(0,229,255,.16), transparent 60%),
-               radial-gradient(820px 560px at 88% 88%, rgba(123,97,255,.18), transparent 60%),
-               radial-gradient(700px 480px at 78% 8%, rgba(0,255,163,.08), transparent 60%);}
+    background:radial-gradient(900px 520px at 18% 12%, rgba(47,107,255,.18), transparent 60%),
+               radial-gradient(820px 560px at 88% 88%, rgba(138,19,48,.26), transparent 60%),
+               radial-gradient(700px 480px at 78% 8%, rgba(19,182,201,.07), transparent 60%);}
   .lg-grid{position:absolute;inset:-2px;
     background-image:linear-gradient(rgba(120,170,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(120,170,255,.06) 1px,transparent 1px);
     background-size:46px 46px;mask-image:radial-gradient(circle at 50% 40%,#000,transparent 78%)}
   .lg-orb{position:absolute;border-radius:50%;filter:blur(60px);opacity:.5;animation:float 16s ease-in-out infinite}
-  .lg-orb.a{width:420px;height:420px;left:-120px;top:-80px;background:radial-gradient(circle,#00e5ff,transparent 70%)}
-  .lg-orb.b{width:480px;height:480px;right:-140px;bottom:-120px;background:radial-gradient(circle,#7b61ff,transparent 70%);animation-delay:-6s}
+  .lg-orb.a{width:420px;height:420px;left:-120px;top:-80px;background:radial-gradient(circle,#2f6bff,transparent 70%)}
+  .lg-orb.b{width:480px;height:480px;right:-140px;bottom:-120px;background:radial-gradient(circle,#8a1330,transparent 70%);animation-delay:-6s}
   @keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(34px,30px)}}
   /* 浮动粒子 */
   .lg-particles{position:absolute;inset:0}
-  .pt{position:absolute;width:3px;height:3px;border-radius:50%;background:#00e5ff;box-shadow:0 0 8px #00e5ff;opacity:.6;animation:rise linear infinite}
+  .pt{position:absolute;width:3px;height:3px;border-radius:50%;background:#4f8bff;box-shadow:0 0 8px #4f8bff;opacity:.6;animation:rise linear infinite}
   @keyframes rise{from{transform:translateY(20px);opacity:0}10%{opacity:.7}90%{opacity:.5}to{transform:translateY(-100vh);opacity:0}}
 
   /* 登录卡 */
   .lg-card{position:relative;z-index:2;display:grid;grid-template-columns:1.05fr .95fr;width:min(960px,94vw);min-height:560px;
     background:rgba(11,28,64,.78);backdrop-filter:blur(18px);border:1px solid var(--border-strong);border-radius:22px;overflow:hidden;
-    box-shadow:0 0 0 1px rgba(0,229,255,.08), 0 30px 80px rgba(2,10,36,.6), var(--glow)}
+    box-shadow:0 0 0 1px rgba(47,107,255,.10), 0 30px 80px rgba(2,10,36,.6), var(--glow)}
   /* 左：品牌区 */
   .lg-brand{position:relative;padding:46px 44px;display:flex;flex-direction:column;justify-content:space-between;
-    background:linear-gradient(150deg,rgba(0,229,255,.10),rgba(123,97,255,.10) 60%,rgba(8,22,52,.2));overflow:hidden}
+    background:linear-gradient(150deg,rgba(47,107,255,.10),rgba(138,19,48,.13) 60%,rgba(8,22,52,.2));overflow:hidden}
   .lg-brand::after{content:"";position:absolute;right:-60px;bottom:-60px;width:260px;height:260px;border-radius:50%;
-    border:1px dashed rgba(0,229,255,.22);box-shadow:0 0 60px rgba(0,229,255,.12) inset}
+    border:1px dashed rgba(168,50,76,.30);box-shadow:0 0 60px rgba(138,19,48,.16) inset}
   .lg-shield{display:flex;align-items:center;gap:14px}
-  .lg-shield .crest{width:56px;height:64px;flex-shrink:0;display:grid;place-items:center;font-weight:800;font-size:26px;color:#04122e;
-    background:linear-gradient(135deg,#00e5ff,#7b61ff);box-shadow:0 0 26px rgba(0,229,255,.45);
+  .lg-shield .crest{width:56px;height:64px;flex-shrink:0;display:grid;place-items:center;font-weight:800;font-size:26px;color:#fff;
+    background:linear-gradient(135deg,var(--whu),var(--whu-2));box-shadow:0 12px 28px -8px rgba(138,19,48,.6);
     clip-path:polygon(50% 0,100% 16%,100% 64%,50% 100%,0 64%,0 16%)}
   .lg-shield .t1{font-size:20px;font-weight:800;letter-spacing:.5px;line-height:1.2}
   .lg-shield .t2{font-size:10.5px;color:var(--text-dim);letter-spacing:2px;margin-top:3px}
   .lg-tagline{font-size:26px;font-weight:800;line-height:1.35;margin:6px 0 4px}
-  .lg-tagline .hl{background:linear-gradient(90deg,#00e5ff,#7b61ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lg-tagline .hl{background:linear-gradient(90deg,var(--whu-2),#e0607a);-webkit-background-clip:text;background-clip:text;color:transparent}
   .lg-desc{font-size:13px;color:var(--text-dim);line-height:1.7;max-width:380px}
   .lg-arch{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
   .lg-arch .pill{flex:1;min-width:90px;border:1px solid var(--border);border-radius:12px;padding:12px 12px;background:rgba(13,30,72,.5);position:relative;overflow:hidden}
@@ -66,8 +66,8 @@
   .lg-check{display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--text-dim);user-select:none}
   .lg-check input{accent-color:var(--primary);width:15px;height:15px}
   .lg-row a{color:var(--primary)}
-  .lg-submit{width:100%;height:48px;border:none;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;color:#04122e;
-    background:linear-gradient(135deg,#00e5ff,#7b61ff);box-shadow:0 8px 26px rgba(0,229,255,.32);transition:.18s;letter-spacing:1px}
+  .lg-submit{width:100%;height:48px;border:none;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;color:#fff;
+    background:linear-gradient(135deg,var(--whu),var(--whu-2));box-shadow:0 12px 26px -8px rgba(138,19,48,.5);transition:.18s;letter-spacing:1px}
   .lg-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
   .lg-submit:active{transform:translateY(0)}
   .lg-or{display:flex;align-items:center;gap:12px;margin:22px 0;color:var(--text-mute);font-size:11.5px}
@@ -165,7 +165,7 @@
     p.style.animationDuration=dur+'s';
     p.style.animationDelay='-'+(Math.random()*dur)+'s';
     const s=2+Math.random()*2.5;p.style.width=s+'px';p.style.height=s+'px';
-    if(Math.random()>.5){p.style.background='#7b61ff';p.style.boxShadow='0 0 8px #7b61ff';}
+    if(Math.random()>.5){p.style.background='#a8324c';p.style.boxShadow='0 0 8px #a8324c';}
     box.appendChild(p);
   }
   // 密码显隐

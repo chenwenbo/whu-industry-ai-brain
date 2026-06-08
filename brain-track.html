@@ -59,7 +59,7 @@
   const DISC = DB.disciplines;
   const discById = id=>DISC.find(d=>d.id===id);
   const discName = id=>(discById(id)||{}).name||id;
-  const discColor = id=>(discById(id)||{}).color||'#4D8BFF';
+  const discColor = id=>(discById(id)||{}).color||'#2f6bff';
   const stageType = s=>s==='爆发期'?'red':s==='成长期'?'green':s==='成熟期'?'blue':'gray';
 
   // 默认对比集合: Top3 by fit

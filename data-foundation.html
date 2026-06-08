@@ -81,9 +81,9 @@
   ].join('');
 
   // ---- 综合健康度仪表 ----
-  Charts.gauge('gaugeHealth',{value:92.4,name:'综合健康度',max:100,color:'#00FFA3'});
+  Charts.gauge('gaugeHealth',{value:92.4,name:'综合健康度',max:100,color:'var(--success)'});
   document.getElementById('healthDims').innerHTML=[
-    ['完整性',96,'#00E5FF'],['准确性',94,'#00FFA3'],['时效性',89,'#FFC857']
+    ['完整性',96,'var(--primary)'],['准确性',94,'var(--success)'],['时效性',89,'var(--warning)']
   ].map(([n,v,c])=>`<div style="text-align:center;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:9px 4px">
     <div class="num fw7" style="font-size:19px;color:${c}">${v}</div><div class="f12 text-dim">${n}</div></div>`).join('');
 

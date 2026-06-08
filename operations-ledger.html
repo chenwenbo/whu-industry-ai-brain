@@ -76,7 +76,7 @@
 
   // ---- 续约率仪表 ----
   const avgRenew=Math.round(MC.reduce((s,c)=>s+c.renew,0)/MC.length);
-  Charts.gauge('renewGauge',{value:avgRenew,name:'平均续约率(%)',max:100,color:'#16a34a'});
+  Charts.gauge('renewGauge',{value:avgRenew,name:'平均续约率(%)',max:100,color:'var(--teal)'});
 
   // ---- 订阅版本结构 ----
   const edCount={};

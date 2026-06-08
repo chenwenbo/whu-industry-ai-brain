@@ -5,21 +5,21 @@
 (function(){
   function cssVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim(); }
   function theme(){ return document.body.getAttribute('data-theme')==='light'?'wuda-light':'wuda-dark'; }
-  const PALETTE_DARK=['#00E5FF','#7B61FF','#00FFA3','#FFC857','#FF4D6D','#40A9FF','#36CFC9','#F759AB','#9254DE','#73D13D'];
-  const PALETTE_LIGHT=['#1E3A8A','#2b50b8','#C0392B','#16a34a','#d97706','#0891b2','#7c3aed','#db2777','#0d9488','#ca8a04'];
+  const PALETTE_DARK=['#00E5FF','#4f8bff','#00FFA3','#FFC857','#FF5E7A','#6d5bd0','#36CFC9','#f1a6b5','#9254DE','#73D13D'];
+  const PALETTE_LIGHT=['#2f6bff','#13b6c9','#0fa37f','#d8932a','#6d5bd0','#d24d6a','#8a1330','#4f8bff','#0a8595','#5b49bf'];
 
   function baseTheme(dark){
-    const axis = dark?'#5d739c':'#94a3b8';
-    const split = dark?'rgba(120,170,255,.08)':'#eef2f8';
-    const text = dark?'#c7d6f0':'#475569';
+    const axis = dark?'#5d739c':'#7a899f';
+    const split = dark?'rgba(120,170,255,.08)':'#eef2f7';
+    const text = dark?'#c7d6f0':'#46546e';
     return {
       color: dark?PALETTE_DARK:PALETTE_LIGHT,
       textStyle:{fontFamily:'PingFang SC, Microsoft YaHei, sans-serif', color:text},
-      title:{textStyle:{color:dark?'#e7f0ff':'#1f2937',fontSize:14}},
+      title:{textStyle:{color:dark?'#e7f0ff':'#1a2236',fontSize:14}},
       legend:{textStyle:{color:text},inactiveColor:dark?'#3b4a6b':'#cbd5e1'},
       tooltip:{backgroundColor:dark?'rgba(10,26,58,.94)':'rgba(255,255,255,.98)',
-        borderColor:dark?'rgba(0,229,255,.4)':'#e2e8f0',borderWidth:1,
-        textStyle:{color:dark?'#e7f0ff':'#1f2937',fontSize:12},
+        borderColor:dark?'rgba(0,229,255,.4)':'#e3e8f0',borderWidth:1,
+        textStyle:{color:dark?'#e7f0ff':'#1a2236',fontSize:12},
         extraCssText:dark?'box-shadow:0 0 20px rgba(0,229,255,.2);border-radius:8px':'box-shadow:0 6px 22px rgba(30,41,80,.12);border-radius:8px'},
       categoryAxis:{axisLine:{lineStyle:{color:axis}},axisLabel:{color:text},axisTick:{show:false},splitLine:{show:false,lineStyle:{color:split}}},
       valueAxis:{axisLine:{show:false},axisLabel:{color:text},splitLine:{lineStyle:{color:split,type:'dashed'}}},
@@ -242,7 +242,7 @@
       if(!echarts.getMap(mapName)) echarts.registerMap(mapName, geo);
       return init(el,{tooltip:{trigger:'item',formatter:p=>`${p.name}<br/>产业协同强度: ${p.value||0}`},
         visualMap:{min:0,max,left:10,bottom:10,text:visualText,calculable:true,
-          inRange:{color: theme()==='wuda-light'?['#dbeafe','#3b82f6','#1e3a8a']:['#0b2a5e','#1565c0','#00e5ff']},
+          inRange:{color: theme()==='wuda-light'?['#e3ecff','#6f9bff','#2f6bff']:['#0b2a5e','#1565c0','#00e5ff']},
           textStyle:{color:cssVar('--text-dim')}},
         series:[{type:'map',map:mapName,roam:true,
           label:{show:true,fontSize:9,color:cssVar('--text-dim')},

@@ -15,11 +15,11 @@
 
   // ---- 学科 / 学院 ----
   const disciplines = [
-    {id:'ai', name:'人工智能', icon:'<i data-lucide="brain"></i>', color:'#4D8BFF', colleges:['计算机学院','人工智能学院','国家网络安全学院'], desc:'大模型、智能体、计算机视觉、智能感知'},
-    {id:'robot', name:'机器人', icon:'<i data-lucide="bot"></i>', color:'#36CFC9', colleges:['动力与机械学院','工业科学研究院'], desc:'特种机器人、人形机器人、智能装备、运动控制'},
-    {id:'bio', name:'生物医药', icon:'<i data-lucide="dna"></i>', color:'#73D13D', colleges:['生命科学学院','医学部','药学院','人民医院'], desc:'创新药、医疗器械、合成生物、基因治疗'},
-    {id:'chip', name:'半导体·光芯片', icon:'<i data-lucide="cpu"></i>', color:'#FFA940', colleges:['物理科学与技术学院','电子信息学院','微电子学院'], desc:'硅光集成、化合物半导体、传感芯片、光电器件'},
-    {id:'geo', name:'空间信息·测绘遥感', icon:'<i data-lucide="satellite"></i>', color:'#9254DE', colleges:['测绘学院','遥感信息工程学院','测绘遥感信息工程国家重点实验室'], desc:'北斗导航、卫星遥感、智慧城市、地理信息'},
+    {id:'ai', name:'人工智能', icon:'<i data-lucide="brain"></i>', color:'#2f6bff', colleges:['计算机学院','人工智能学院','国家网络安全学院'], desc:'大模型、智能体、计算机视觉、智能感知'},
+    {id:'robot', name:'机器人', icon:'<i data-lucide="bot"></i>', color:'#13b6c9', colleges:['动力与机械学院','工业科学研究院'], desc:'特种机器人、人形机器人、智能装备、运动控制'},
+    {id:'bio', name:'生物医药', icon:'<i data-lucide="dna"></i>', color:'#0fa37f', colleges:['生命科学学院','医学部','药学院','人民医院'], desc:'创新药、医疗器械、合成生物、基因治疗'},
+    {id:'chip', name:'半导体·光芯片', icon:'<i data-lucide="cpu"></i>', color:'#d8932a', colleges:['物理科学与技术学院','电子信息学院','微电子学院'], desc:'硅光集成、化合物半导体、传感芯片、光电器件'},
+    {id:'geo', name:'空间信息·测绘遥感', icon:'<i data-lucide="satellite"></i>', color:'#6d5bd0', colleges:['测绘学院','遥感信息工程学院','测绘遥感信息工程国家重点实验室'], desc:'北斗导航、卫星遥感、智慧城市、地理信息'},
   ];
   const allColleges = ['计算机学院','人工智能学院','国家网络安全学院','动力与机械学院','工业科学研究院','生命科学学院','医学部','药学院','物理科学与技术学院','电子信息学院','微电子学院','测绘学院','遥感信息工程学院','化学与分子科学学院','资源与环境科学学院','水利水电学院'];
 
@@ -333,11 +333,11 @@
   // 8. 运营 / 实施 / 竞品域
   // =====================================================================
   const revenueTypes=[
-    {key:'托管运营',color:'#4D8BFF',amount:2860,target:3200,desc:'系统建设+数据更新+项目运营+活动组织+驾驶舱维护一体化托管'},
-    {key:'平台订阅',color:'#36CFC9',amount:1240,target:1500,desc:'标准版/专业版/权限账号年度订阅'},
-    {key:'任务包式AI',color:'#9254DE',amount:1680,target:1800,desc:'产业分析/成果项目化/企业画像/招商识别任务包'},
-    {key:'专业服务',color:'#FFA940',amount:960,target:1200,desc:'成果项目化/企业辅导/训练营/IP与政策服务'},
-    {key:'投资协同',color:'#73D13D',amount:520,target:800,desc:'服务换股/投资协同/基金联动(中长期)'},
+    {key:'托管运营',color:'#2f6bff',amount:2860,target:3200,desc:'系统建设+数据更新+项目运营+活动组织+驾驶舱维护一体化托管'},
+    {key:'平台订阅',color:'#13b6c9',amount:1240,target:1500,desc:'标准版/专业版/权限账号年度订阅'},
+    {key:'任务包式AI',color:'#6d5bd0',amount:1680,target:1800,desc:'产业分析/成果项目化/企业画像/招商识别任务包'},
+    {key:'专业服务',color:'#d8932a',amount:960,target:1200,desc:'成果项目化/企业辅导/训练营/IP与政策服务'},
+    {key:'投资协同',color:'#0fa37f',amount:520,target:800,desc:'服务换股/投资协同/基金联动(中长期)'},
   ];
   const revenueTrend = seq(12,i=>({
     month:(i+1)+'月',

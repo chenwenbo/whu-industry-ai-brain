@@ -73,8 +73,8 @@
   document.title = a.name + ' · 武汉大学产业创新AI智脑平台';
 
   const typeColor = {
-    '训练营':'#2b50b8','创新赛事':'#C0392B','投融资对接会':'#16a34a',
-    '科学家—企业家交流会':'#7c3aed','大咖直播':'#d97706','政策宣讲':'#0891b2'
+    '训练营':'var(--blue)','创新赛事':'var(--whu)','投融资对接会':'var(--teal)',
+    '科学家—企业家交流会':'var(--violet)','大咖直播':'var(--gold)','政策宣讲':'var(--cyan)'
   };
   const c = typeColor[a.type]||'var(--primary)';
   const statusTag = s => UI.tag(s,{'已结束':'gray','报名中':'green','筹备中':'amber'}[s]||'blue');

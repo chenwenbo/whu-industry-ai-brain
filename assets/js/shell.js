@@ -125,7 +125,7 @@
   // ---------- 用户菜单 ----------
   document.getElementById('userBtn').onclick=()=>{
     UI.modal('个人中心',`<div style="display:flex;gap:16px;align-items:center;margin-bottom:16px">
-      <div class="av" style="width:54px;height:54px;font-size:22px;border-radius:14px;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;font-weight:800;color:#04122e">管</div>
+      <div class="av" style="width:54px;height:54px;font-size:22px;border-radius:14px;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;font-weight:800;color:var(--on-brand)">管</div>
       <div><div class="fw7 f18">管理员</div><div class="text-dim">资产管理公司 · 平台运营岗</div></div></div>
       ${UI.descList([['所属机构','武汉大学资产经营投资管理有限责任公司'],['角色权限','超级管理员（全模块）'],['上次登录','2026-06-08 09:12'],['绑定手机','138****6688']])}
       <div class="mt-4" style="display:flex;gap:9px"><a class="btn" href="ai-tasks.html">我的AI任务</a><a class="btn" href="notifications.html">我的待办</a><a class="btn" href="login.html">退出登录</a></div>`);
@@ -151,7 +151,7 @@
       <div style="display:flex;gap:8px"><input id="aiInput" class="fb-field" style="flex:1" placeholder="向产业创新大脑提问..." value="${preset||''}">
         <button class="btn btn-primary" id="aiSend">发送 ▸</button></div>`,{width:'520px'});
     const chat=document.getElementById('aiChat');
-    function bubble(role,html){const d=document.createElement('div');d.style.cssText=role==='u'?'align-self:flex-end;background:var(--primary);color:#04122e;padding:9px 13px;border-radius:12px 12px 2px 12px;max-width:85%':'align-self:flex-start;background:var(--panel-2);padding:11px 14px;border-radius:12px 12px 12px 2px;max-width:92%;border:1px solid var(--border)';d.innerHTML=html;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;}
+    function bubble(role,html){const d=document.createElement('div');d.style.cssText=role==='u'?'align-self:flex-end;background:var(--primary);color:var(--on-brand);padding:9px 13px;border-radius:12px 12px 2px 12px;max-width:85%':'align-self:flex-start;background:var(--panel-2);padding:11px 14px;border-radius:12px 12px 12px 2px;max-width:92%;border:1px solid var(--border)';d.innerHTML=html;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;}
     function ask(q){ if(!q)return; bubble('u',UI.esc(q));
       const ans=bubble('ai','<span class="text-mute">大脑正在分析数据底座...</span>');
       setTimeout(()=>{ans.innerHTML='';UI.typewriter(ans,aiAnswer(q));},500);

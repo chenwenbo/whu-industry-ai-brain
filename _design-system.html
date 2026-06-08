@@ -22,7 +22,7 @@
   .ds-label{font-size:11px;color:var(--text-mute);letter-spacing:1px;margin:0 0 10px;text-transform:uppercase}
   .type-sample{border-bottom:1px dashed var(--border);padding:10px 0}
   .type-sample .meta{font-size:11px;color:var(--text-mute);font-family:var(--font-num)}
-  .radius-box{height:56px;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;color:#04122e;font-weight:700;font-size:12px}
+  .radius-box{height:56px;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;color:var(--on-brand);font-weight:700;font-size:12px}
   [data-theme="light"] .radius-box{color:#fff}
   .shadow-box{height:60px;border-radius:12px;background:var(--panel-solid);border:1px solid var(--border);display:grid;place-items:center;font-size:12px;color:var(--text-dim)}
 </style>
@@ -398,8 +398,8 @@
   document.getElementById('dToastOk').onclick=()=>UI.toast('操作成功','ok');
   document.getElementById('dToastWarn').onclick=()=>UI.toast('请注意：存在风险预警','warn');
   document.getElementById('btnToast').onclick=()=>UI.toast('欢迎使用设计系统画廊','ok');
-  document.getElementById('dType').onclick=()=>UI.typewriter('typeOut','产业创新大脑：根据数据底座近30天分析，「具身智能/人形机器人」热度环比 +42%，建议优先布局核心零部件赛道，并启动相关成果项目化任务包。',{speed:20});
-  UI.typewriter('typeOut','点击右侧上方「打字机 Typewriter」按钮，可重新播放 AI 流式输出效果。',{speed:24});
+  document.getElementById('dType').onclick=()=>UI.typewriter('#typeOut','产业创新大脑：根据数据底座近30天分析，「具身智能/人形机器人」热度环比 +42%，建议优先布局核心零部件赛道，并启动相关成果项目化任务包。',{speed:20});
+  UI.typewriter('#typeOut','点击右侧上方「打字机 Typewriter」按钮，可重新播放 AI 流式输出效果。',{speed:24});
 
   // ---------- tabs ----------
   const tabContent={overview:'总览：1 底座 + 1 大脑 + 3 AI角色 + N 场景，贯通成果/企业/园区/活动/资本。',brain:'产业创新大脑：趋势研判、技术路线、赛道选择、企业识别、项目评估五大能力。',role:'AI角色：AI分析师 / AI技术经理人 / AI投资人，以任务包形式交付结构化产出。'};

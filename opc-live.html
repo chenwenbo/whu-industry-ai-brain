@@ -84,7 +84,7 @@
     const isLive = live.status==='直播中';
     document.getElementById('featurePanel').innerHTML=`
       <div class="grid" style="grid-template-columns:1.4fr 1fr;gap:20px;align-items:center">
-        <div style="position:relative;border-radius:14px;overflow:hidden;height:240px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(0,229,255,.18),rgba(123,97,255,.14));border:1px solid var(--border)">
+        <div style="position:relative;border-radius:14px;overflow:hidden;height:240px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(0,229,255,.18),rgba(138,19,48,.14));border:1px solid var(--border)">
           <div style="position:absolute;top:12px;left:12px;display:flex;gap:8px">
             ${isLive?'<span class="tag tag-red" style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#fff;animation:breathe 1s infinite"></span>LIVE 直播中</span>':statusBadge(live.status)}
             <span class="tag tag-gray"><i data-lucide="eye"></i> ${live.views.toLocaleString()}</span>
@@ -112,7 +112,7 @@
   // ---------- 直播详情抽屉 ----------
   function liveDrawer(l){
     const body=`
-      <div style="border-radius:12px;overflow:hidden;height:160px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(0,229,255,.16),rgba(123,97,255,.12));border:1px solid var(--border);margin-bottom:16px">
+      <div style="border-radius:12px;overflow:hidden;height:160px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(0,229,255,.16),rgba(138,19,48,.12));border:1px solid var(--border);margin-bottom:16px">
         <div style="font-size:46px"><i data-lucide="radar"></i></div>
       </div>
       <div class="grid cols-3" style="gap:10px;margin-bottom:16px">
@@ -148,7 +148,7 @@
     wrap.innerHTML=list.map(l=>{
       const isLive=l.status==='直播中';
       return `<div class="ecard" data-card="${l.id}" style="cursor:pointer;padding:0;overflow:hidden">
-        <div style="position:relative;height:120px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(0,229,255,.14),rgba(123,97,255,.10))">
+        <div style="position:relative;height:120px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(0,229,255,.14),rgba(138,19,48,.10))">
           <div style="font-size:38px;opacity:.85"><i data-lucide="radar"></i></div>
           <div style="position:absolute;top:10px;left:10px">${isLive?'<span class="tag tag-red" style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#fff;animation:breathe 1s infinite"></span>LIVE</span>':statusBadge(l.status)}</div>
           <div style="position:absolute;bottom:10px;right:10px" class="tag tag-gray"><i data-lucide="eye"></i> ${(l.views/1000).toFixed(1)}k</div>

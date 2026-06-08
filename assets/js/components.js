@@ -40,7 +40,7 @@
     rankList(items){ // [{name, value, sub}]
       return `<div>${items.map((it,i)=>`<div class="flex items-center gap-3" style="padding:9px 0;border-bottom:1px solid var(--border)">
         <span class="num" style="width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:12px;font-weight:700;
-          background:${i<3?'linear-gradient(135deg,var(--primary),var(--accent))':'var(--panel-2)'};color:${i<3?'#04122e':'var(--text-dim)'}">${i+1}</span>
+          background:${i<3?'linear-gradient(135deg,var(--primary),var(--accent))':'var(--panel-2)'};color:${i<3?'var(--on-brand)':'var(--text-dim)'}">${i+1}</span>
         <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.name)}</div>
           ${it.sub?`<div class="f12 text-mute">${esc(it.sub)}</div>`:''}</div>
         <div class="num text-primary fw7">${it.value}</div></div>`).join('')}</div>`;
