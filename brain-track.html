@@ -1,0 +1,238 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>赛道选择 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="brain-track">
+<main class="wuda-view">
+  <div class="crumb"><a href="brain-overview.html">← 返回产业创新大脑</a></div>
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>赛道选择</div>
+      <div class="page-sub">从市场规模、增速与学校契合度三维评估产业赛道，识别最具布局价值的高潜赛道</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnCompare"><i data-lucide="scale"></i> 赛道对比</button>
+      <button class="btn btn-sm btn-primary" id="btnExport">导出赛道清单</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 赛道气泡矩阵 + 综合评估雷达 -->
+  <div class="grid mt-4" style="grid-template-columns:1.55fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>赛道气泡矩阵</div>
+        <div class="tools"><span class="panel-tag">气泡大小=契合度 · 颜色=学科 · 点击查看赛道</span></div></div>
+      <div class="chart h420" id="bubble"></div>
+      <div class="f12 text-mute mt-2">X 轴：市场规模(亿元) · Y 轴：年增速(%) · 右上象限为高潜赛道</div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>赛道对比雷达</div>
+        <div class="tools"><span class="panel-tag" id="cmpHint">默认对比 Top3 高潜赛道</span></div></div>
+      <div class="chart h340" id="cmpRadar"></div>
+      <div class="f12 text-mute mt-2">维度：市场规模 · 增速 · 契合度 · 热度 · 企业集聚（归一化）</div>
+      <div id="cmpChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- 筛选 + 赛道清单 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>赛道清单</div>
+      <div class="tools"><span class="panel-tag">点击行查看赛道详情 · 勾选加入对比</span></div></div>
+    <div id="trackFilter" class="mb-3"></div>
+    <div id="trackTable"></div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const TRACKS = DB.tracks;
+  const DISC = DB.disciplines;
+  const discById = id=>DISC.find(d=>d.id===id);
+  const discName = id=>(discById(id)||{}).name||id;
+  const discColor = id=>(discById(id)||{}).color||'#4D8BFF';
+  const stageType = s=>s==='爆发期'?'red':s==='成长期'?'green':s==='成熟期'?'blue':'gray';
+
+  // 默认对比集合: Top3 by fit
+  let compareKeys = TRACKS.slice().sort((a,b)=>b.fit-a.fit).slice(0,3).map(t=>t.name);
+
+  // ---------- KPI ----------
+  (function(){
+    const totalMarket = TRACKS.reduce((a,t)=>a+t.market,0);
+    const avgGrowth = Math.round(TRACKS.reduce((a,t)=>a+t.growth,0)/TRACKS.length);
+    const burst = TRACKS.filter(t=>t.stage==='爆发期').length;
+    const ents = TRACKS.reduce((a,t)=>a+t.ents,0);
+    document.getElementById('kpis').innerHTML=[
+      UI.kpi({label:'监测赛道',value:TRACKS.length,unit:'条',icon:'<i data-lucide="route"></i>'}),
+      UI.kpi({label:'市场规模合计',value:(totalMarket/10000).toFixed(2),unit:'万亿',delta:'+'+avgGrowth+'% 均速',deltaUp:true,icon:'<i data-lucide="bar-chart-3"></i>',spark:[28,32,30,38,36,44,42,50,48,56,54,62]}),
+      UI.kpi({label:'爆发期赛道',value:burst,unit:'条',delta:'高潜',deltaUp:true,icon:'<i data-lucide="rocket"></i>'}),
+      UI.kpi({label:'赛道相关企业',value:ents,unit:'家',delta:'+'+DB.util.ri(6,14)+'%',deltaUp:true,icon:'<i data-lucide="building-2"></i>'}),
+    ].join('');
+  })();
+
+  // ---------- 气泡矩阵 ----------
+  let bubbleInst=null;
+  function renderBubble(rows){
+    rows = rows || TRACKS;
+    const data = rows.map(t=>({
+      name:t.name,
+      value:[t.market, t.growth, t.fit],   // x=市场, y=增速, size=契合度
+      color:discColor(t.disc),
+    }));
+    bubbleInst = Charts.scatter('bubble', {
+      data, xName:'市场规模(亿)', yName:'增速(%)', symbolField:2,
+    });
+    bubbleInst && bubbleInst.on('click', p=>{ const t=TRACKS.find(x=>x.name===p.data.name); if(t) openTrack(t); });
+  }
+
+  // ---------- 对比雷达 ----------
+  function norm(v, max){ return Math.round(v/max*100); }
+  const MAX = {
+    market: Math.max(...TRACKS.map(t=>t.market)),
+    growth: Math.max(...TRACKS.map(t=>t.growth)),
+    fit: 100, heat: 100,
+    ents: Math.max(...TRACKS.map(t=>t.ents)),
+  };
+  function renderRadar(){
+    const sel = TRACKS.filter(t=>compareKeys.includes(t.name));
+    document.getElementById('cmpHint').textContent = '正在对比 '+sel.length+' 条赛道';
+    Charts.radar('cmpRadar', {
+      indicators:['市场规模','增速','契合度','热度','企业集聚'],
+      series: sel.map(t=>({name:t.name.length>8?t.name.slice(0,8):t.name,
+        value:[norm(t.market,MAX.market), norm(t.growth,MAX.growth), t.fit, t.heat, norm(t.ents,MAX.ents)]})),
+      legend:true, max:100,
+    });
+    renderCmpChips();
+  }
+  function renderCmpChips(){
+    const box = document.getElementById('cmpChips');
+    box.innerHTML = compareKeys.map(k=>`<span class="chip sel" data-rm="${k}" style="cursor:pointer">${k} <i data-lucide="x"></i></span>`).join('')
+      || '<span class="f12 text-mute">在赛道清单中勾选赛道加入对比</span>';
+    box.querySelectorAll('[data-rm]').forEach(c=>c.onclick=()=>{
+      compareKeys = compareKeys.filter(x=>x!==c.dataset.rm); renderRadar(); syncTableChecks();
+    });
+  }
+
+  // ---------- 赛道详情抽屉 ----------
+  function openTrack(t){
+    const targets = DB.targetEnterprises.filter(e=>e.disc===t.disc).slice(0,6);
+    const quadrant = t.market>=3000 && t.growth>=40 ? '明星赛道(高规模·高增速)' :
+                     t.market>=3000 ? '现金牛赛道(大盘·稳健)' :
+                     t.growth>=40 ? '高成长赛道(增速领先)' : '潜力赛道(待培育)';
+    const body = `
+      <div class="flex items-center gap-3 mb-3">
+        <div style="width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:24px;background:color-mix(in srgb,${discColor(t.disc)} 18%,transparent)">${(discById(t.disc)||{}).icon||'<i data-lucide="route"></i>'}</div>
+        <div>${UI.tag(discName(t.disc),'blue')} ${UI.tag(t.stage, stageType(t.stage))}
+          <div class="text-mute f12 mt-2">${quadrant}</div></div>
+      </div>
+      <div class="grid cols-2" style="gap:10px">
+        <div class="kpi" style="padding:12px"><div class="lab">市场规模</div><div class="val"><span class="num">${t.market.toLocaleString()}</span><span class="unit">亿</span></div></div>
+        <div class="kpi" style="padding:12px"><div class="lab">年增速</div><div class="val"><span class="num text-success">${t.growth}</span><span class="unit">%</span></div></div>
+        <div class="kpi" style="padding:12px"><div class="lab">武大契合度</div><div class="val"><span class="num text-primary">${t.fit}</span><span class="unit">分</span></div></div>
+        <div class="kpi" style="padding:12px"><div class="lab">产业热度</div><div class="val"><span class="num">${t.heat}</span><span class="unit">分</span></div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="f12 text-mute mb-2">综合评估</div>
+      ${UI.descList([
+        ['契合度', UI.bar(t.fit,'var(--primary)')],
+        ['增速分位', UI.bar(norm(t.growth,MAX.growth),'var(--success)')],
+        ['热度', UI.bar(t.heat,'var(--accent)')],
+        ['相关企业', '<span class="num fw7">'+t.ents+'</span> 家'],
+      ])}
+      <div class="divider"></div>
+      <div class="flex justify-between items-center mb-2"><div class="f12 text-mute">该赛道目标企业（按匹配度）</div><span class="tag tag-gray">${targets.length} 家</span></div>
+      ${targets.length? targets.map(e=>`<div class="ecard" style="margin-bottom:8px">
+        <div class="flex justify-between items-center"><div class="et" style="font-size:14px">${e.name}</div>${UI.tag(e.type, e.type==='招商目标'?'green':e.type==='并购标的'?'amber':'blue')}</div>
+        <div class="em mt-2 flex justify-between"><span>${e.city} · 营收约 ${(e.revenue/10000).toFixed(1)} 亿</span><span class="text-primary fw6">匹配 ${e.match}</span></div>
+        <div class="mt-2">${UI.bar(e.match,'var(--primary)')}</div>
+        <div class="f12 text-mute mt-2">${e.reason}</div>
+      </div>`).join('') : UI.empty('暂无目标企业')}
+      <div class="mt-3" style="display:flex;gap:8px">
+        <button class="btn btn-sm btn-primary" id="dwAdd">${compareKeys.includes(t.name)?'已在对比池':'加入对比'}</button>
+        <button class="btn btn-sm" id="dwMatch">启动招商对接</button>
+      </div>`;
+    UI.drawer(t.name, body, {width:'640px'});
+    const add=document.getElementById('dwAdd');
+    add.onclick=()=>{ if(!compareKeys.includes(t.name)){ if(compareKeys.length>=4){UI.toast('对比池最多 4 条赛道','warn');return;} compareKeys.push(t.name); renderRadar(); syncTableChecks(); add.textContent='已在对比池'; UI.toast('已加入对比池','ok'); } };
+    document.getElementById('dwMatch').onclick=()=>{ UI.closeDrawer(); UI.toast('已为「'+t.name+'」启动招商对接流程','ok'); };
+  }
+
+  // ---------- 表格 ----------
+  let tableApi=null;
+  function buildRows(){
+    const v = filterApi? filterApi.read() : {};
+    return TRACKS.filter(t=>{
+      if(v.disc && discName(t.disc)!==v.disc) return false;
+      if(v.stage && t.stage!==v.stage) return false;
+      if(v._q && !t.name.includes(v._q)) return false;
+      return true;
+    });
+  }
+  function checkCell(t){
+    const on = compareKeys.includes(t.name);
+    return `<span class="chip ${on?'sel':''}" data-chk="${t.name}" style="cursor:pointer;padding:2px 10px">${on?'<i data-lucide="check"></i> 对比中':'＋ 对比'}</span>`;
+  }
+  function renderTable(){
+    const rows = buildRows();
+    const cols = [
+      {key:'name', title:'赛道名称', render:t=>`<span class="fw6">${t.name}</span>`},
+      {key:'disc', title:'所属学科', sortVal:t=>discName(t.disc), render:t=>UI.tag(discName(t.disc),'blue')},
+      {key:'market', title:'市场规模(亿)', sortable:true, sortVal:t=>t.market, render:t=>`<span class="num fw7">${t.market.toLocaleString()}</span>`},
+      {key:'growth', title:'增速(%)', sortable:true, sortVal:t=>t.growth, render:t=>`<span class="num text-success fw6">${t.growth}%</span>`},
+      {key:'fit', title:'契合度', sortable:true, sortVal:t=>t.fit, render:t=>`<div style="display:flex;align-items:center;gap:8px;min-width:140px">${UI.bar(t.fit,'var(--primary)')}<span class="num f12" style="width:26px">${t.fit}</span></div>`},
+      {key:'heat', title:'热度', sortable:true, sortVal:t=>t.heat, render:t=>`<span class="num">${t.heat}</span>`},
+      {key:'ents', title:'相关企业', sortable:true, sortVal:t=>t.ents, render:t=>`<span class="num fw6">${t.ents}</span> 家`},
+      {key:'stage', title:'阶段', sortVal:t=>t.stage, render:t=>UI.tag(t.stage, stageType(t.stage))},
+      {key:'op', title:'操作', sortable:false, render:t=>`<div style="display:flex;gap:6px;align-items:center">${checkCell(t)}<span class="text-primary f12 pointer" data-view="${t.name}">详情 →</span></div>`},
+    ];
+    if(tableApi){ tableApi.update(rows); }
+    else { tableApi = UI.table('#trackTable', {columns:cols, rows, pageSize:10, onRow:t=>openTrack(t)}); }
+    bindTableCells();
+  }
+  function bindTableCells(){
+    // 阻止 chip / 详情 触发整行 onRow, 并绑定各自动作
+    document.querySelectorAll('#trackTable [data-chk]').forEach(el=>{
+      el.onclick=(e)=>{ e.stopPropagation(); const name=el.dataset.chk;
+        if(compareKeys.includes(name)){ compareKeys=compareKeys.filter(x=>x!==name); }
+        else { if(compareKeys.length>=4){UI.toast('对比池最多 4 条赛道','warn');return;} compareKeys.push(name); }
+        renderRadar(); renderTable(); };
+    });
+    document.querySelectorAll('#trackTable [data-view]').forEach(el=>{
+      el.onclick=(e)=>{ e.stopPropagation(); const t=TRACKS.find(x=>x.name===el.dataset.view); if(t) openTrack(t); };
+    });
+  }
+  function syncTableChecks(){ renderTable(); }
+
+  // 筛选条
+  let filterApi = UI.filterBar('#trackFilter', {
+    fields:[
+      {key:'disc', label:'全部学科', options:DISC.map(d=>d.name)},
+      {key:'stage', label:'全部阶段', options:['爆发期','成长期','成熟期']},
+    ],
+    search:true, searchPh:'搜索赛道名称…',
+    onChange:()=>renderTable(),
+  });
+
+  // 顶部按钮
+  document.getElementById('btnCompare').onclick=()=>{
+    document.getElementById('cmpRadar').scrollIntoView({behavior:'smooth',block:'center'});
+    UI.toast('已定位赛道对比雷达，可在清单中勾选赛道','ok');
+  };
+  document.getElementById('btnExport').onclick=()=>UI.toast('赛道清单(含目标企业)已生成，正在下载…','ok');
+
+  // 初始化
+  renderBubble();
+  renderRadar();
+  renderTable();
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['产业企业与园区','成果与专利','参股/校属企业']));
+})();</script>
+</body></html>

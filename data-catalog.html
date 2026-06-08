@@ -1,0 +1,196 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数据资产目录 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="data-catalog">
+<main class="wuda-view">
+  <div class="crumb"><a href="data-foundation.html">← 返回数据底座总览</a></div>
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>数据资产目录</div>
+      <div class="page-sub">全量数据资产可检索、可追溯 · 字段明细 · 血缘关系 · 质量监测</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnExport"><i data-lucide="download"></i> 导出目录</button>
+      <button class="btn btn-sm btn-primary" id="btnReg">+ 登记数据资产</button>
+    </div>
+  </div>
+
+  <!-- 顶部小 KPI -->
+  <div class="grid cols-4" id="miniKpis"></div>
+
+  <!-- 各责任方资产数 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>各责任方资产分布</div>
+      <div class="tools"><span class="panel-tag">按登记资产数</span></div></div>
+    <div class="chart h260" id="barOwner"></div>
+  </div>
+
+  <!-- 筛选 + 目录表 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>数据资产清单</div>
+      <div class="tools"><span class="panel-tag" id="resultCnt"></span></div></div>
+    <div id="filter" class="mb-4"></div>
+    <div id="catTbl"></div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const A=DB.dataAssets, D=DB.dataDomains;
+
+  // ---- 顶部小 KPI ----
+  const normalCnt=A.filter(a=>a.status==='正常').length;
+  const syncCnt=A.filter(a=>a.status==='同步中').length;
+  const abnormalCnt=A.filter(a=>a.health<85).length;
+  document.getElementById('miniKpis').innerHTML=[
+    UI.kpi({label:'登记资产总数',value:A.length,unit:'项',icon:'<i data-lucide="library"></i>'}),
+    UI.kpi({label:'状态正常',value:normalCnt,unit:'项',delta:Math.round(normalCnt/A.length*100)+'%',deltaUp:true,icon:'<i data-lucide="check-circle"></i>'}),
+    UI.kpi({label:'同步中',value:syncCnt,unit:'项',icon:'<i data-lucide="refresh-cw"></i>'}),
+    UI.kpi({label:'健康度偏低',value:abnormalCnt,unit:'项',delta:'需关注',deltaUp:false,icon:'<i data-lucide="alert-triangle"></i>'}),
+  ].join('');
+
+  // ---- 各责任方资产数 ----
+  const ownerMap={};
+  A.forEach(a=>{ownerMap[a.owner]=(ownerMap[a.owner]||0)+1;});
+  const owners=Object.keys(ownerMap).sort((a,b)=>ownerMap[b]-ownerMap[a]);
+  Charts.bar('barOwner',{x:owners,series:[{name:'资产数',data:owners.map(o=>ownerMap[o])}]});
+
+  // ---- 状态徽章 ----
+  function statusTag(s){ return s==='正常'?UI.light('g','正常'):s==='同步中'?`<span class="light y"><span class="o"></span>同步中</span>`:UI.light('r',s); }
+  function healthBar(v){ const c=v>=92?'var(--success)':v>=85?'var(--primary)':'var(--warning)';
+    return `<div class="flex items-center gap-2"><div style="width:54px">${UI.bar(v,c)}</div><span class="num f12 fw6">${v}</span></div>`; }
+  function sensTag(s){ return UI.tag(s, s==='受限'?'red':s==='公开'?'green':'blue'); }
+
+  // ---- 筛选条 ----
+  const fb=UI.filterBar('#filter',{
+    fields:[
+      {key:'domain',label:'全部数据域',options:D.map(d=>d.name)},
+      {key:'owner',label:'全部责任方',options:[...new Set(A.map(a=>a.owner))]},
+      {key:'freq',label:'全部频率',options:[...new Set(A.map(a=>a.freq))]},
+      {key:'status',label:'全部状态',options:['正常','同步中']},
+      {key:'sensitive',label:'全部敏感级',options:['公开','内部','受限']},
+    ],
+    search:true, searchPh:'搜索资产名称 / 编号...',
+    onChange:v=>apply(v),
+  });
+
+  // ---- 目录表 ----
+  const columns=[
+    {key:'id',title:'编号',sortable:true,render:r=>`<span class="num f12 text-mute">${r.id}</span>`},
+    {key:'name',title:'资产名称',sortable:true,render:r=>`<div class="fw6">${r.name}</div>`},
+    {key:'domain',title:'所属域',sortable:true,render:r=>{const d=D.find(x=>x.name===r.domain);
+      return `<span class="flex items-center gap-2"><span style="width:8px;height:8px;border-radius:50%;background:${d?d.color:'var(--primary)'}"></span>${r.domain}</span>`;}},
+    {key:'fields',title:'字段数',sortable:true,render:r=>`<span class="num">${r.fields}</span>`},
+    {key:'records',title:'数据量',sortable:true,sortVal:r=>parseFloat(r.records),render:r=>`<span class="num text-primary fw6">${r.records}</span>`},
+    {key:'freq',title:'频率',sortable:true,render:r=>UI.tag(r.freq,'gray')},
+    {key:'updated',title:'最近更新',sortable:false,render:r=>`<span class="f12 text-mute">${r.updated}</span>`},
+    {key:'owner',title:'责任方',sortable:true,render:r=>`<span class="f12">${r.owner}</span>`},
+    {key:'sensitive',title:'敏感级',sortable:true,render:r=>sensTag(r.sensitive)},
+    {key:'status',title:'状态',sortable:true,render:r=>statusTag(r.status)},
+    {key:'health',title:'健康度',sortable:true,render:r=>healthBar(r.health)},
+    {key:'_op',title:'操作',sortable:false,render:r=>`<span class="text-primary pointer f12">查看 →</span>`},
+  ];
+  const tbl=UI.table('#catTbl',{columns,rows:A,pageSize:10,onRow:r=>openAsset(r),empty:'未匹配到数据资产'});
+  document.getElementById('resultCnt').textContent='共 '+A.length+' 项资产';
+
+  function apply(v){
+    const q=(v._q||'').toLowerCase();
+    const rows=A.filter(a=>
+      (!v.domain||a.domain===v.domain)&&
+      (!v.owner||a.owner===v.owner)&&
+      (!v.freq||a.freq===v.freq)&&
+      (!v.status||a.status===v.status)&&
+      (!v.sensitive||a.sensitive===v.sensitive)&&
+      (!q||a.name.toLowerCase().includes(q)||a.id.toLowerCase().includes(q))
+    );
+    tbl.update(rows);
+    document.getElementById('resultCnt').textContent='匹配 '+rows.length+' / '+A.length+' 项';
+  }
+
+  // ---- 字段示例生成（基于资产名造几条专属字段） ----
+  function sampleFields(a){
+    const base=[
+      ['record_id','VARCHAR(32)','主键','是','唯一记录编号'],
+      ['name','VARCHAR(128)','维度','是','名称 / 标题'],
+      ['domain_code','VARCHAR(16)','维度','是','所属数据域编码'],
+    ];
+    const byDomain={
+      '成果与专利':[['patent_no','VARCHAR(32)','维度','否','专利号'],['trl','TINYINT','指标','否','技术成熟度等级'],['leader','VARCHAR(64)','维度','否','成果负责人']],
+      '参股/校属企业':[['equity_ratio','DECIMAL(5,2)','指标','否','学校持股比例(%)'],['valuation','BIGINT','指标','否','企业估值(万元)'],['risk_level','ENUM','维度','否','风险等级 g/y/r']],
+      '产业企业与园区':[['credit_code','VARCHAR(18)','维度','是','统一社会信用代码'],['revenue','BIGINT','指标','否','营业收入(万元)'],['city','VARCHAR(32)','维度','否','所在城市']],
+      '活动与赛事':[['enroll_cnt','INT','指标','否','报名人数'],['leads_cnt','INT','指标','否','沉淀线索数'],['venue','VARCHAR(64)','维度','否','活动场地']],
+      '校友企业':[['alumni_id','VARCHAR(32)','维度','否','校友编号'],['grad_year','SMALLINT','维度','否','毕业年份'],['founded','SMALLINT','维度','否','成立年份']],
+    };
+    const extra=byDomain[a.domain]||[['attr_value','VARCHAR(256)','维度','否','业务属性值'],['amount','BIGINT','指标','否','金额/数量'],['region','VARCHAR(32)','维度','否','所属区域']];
+    return base.concat(extra, [['updated_at','DATETIME','审计','是','最近更新时间'],['data_status','ENUM','审计','是','正常/同步中/异常']]);
+  }
+
+  function openAsset(a){
+    const d=D.find(x=>x.name===a.domain);
+    const lineUp=DB.lineage.filter(l=>l.to===a.domain), lineDown=DB.lineage.filter(l=>l.from===a.domain);
+    const issues=DB.qualityIssues.filter(q=>q.domain===a.domain).slice(0,4);
+    const fcat={'维度':'blue','指标':'green','审计':'gray'};
+    const body=`
+      <div class="flex items-center gap-3 mb-3">
+        <span style="width:11px;height:38px;border-radius:5px;background:${d?d.color:'var(--primary)'}"></span>
+        <div><div class="fw7 f18">${a.name}</div><div class="text-mute f13">${a.id} · ${a.domain}域</div></div>
+        <div style="margin-left:auto">${statusTag(a.status)}</div>
+      </div>
+      <div class="grid cols-4" style="gap:9px">
+        ${[['字段数',a.fields+' 个'],['数据量',a.records],['更新频率',a.freq],['健康度',a.health+' 分']].map(([k,v])=>
+          `<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px"><div class="f12 text-mute">${k}</div><div class="fw7 mt-2">${v}</div></div>`).join('')}
+      </div>
+      <div class="flex items-center gap-3 mt-3"><span class="f12 text-mute">责任方</span><span class="fw6">${a.owner}</span>
+        <span style="margin-left:14px" class="f12 text-mute">敏感级</span>${sensTag(a.sensitive)}
+        <span style="margin-left:14px" class="f12 text-mute">最近更新</span><span class="fw6">${a.updated}</span></div>
+
+      <div class="divider"></div>
+      <div class="fw6 mb-3"><i data-lucide="microscope"></i> 字段明细（示例）</div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>字段名</th><th>类型</th><th>分类</th><th>主键</th><th>说明</th></tr></thead><tbody>
+        ${sampleFields(a).map(f=>`<tr><td class="fw6">${f[0]}</td><td><span class="num f12">${f[1]}</span></td><td>${UI.tag(f[2],fcat[f[2]]||'gray')}</td>
+          <td>${f[3]==='是'?'<span class="text-success fw7">●</span>':'<span class="text-mute">—</span>'}</td><td class="text-dim">${f[4]}</td></tr>`).join('')}
+      </tbody></table></div>
+
+      <div class="divider"></div>
+      <div class="fw6 mb-3"><i data-lucide="link"></i> 数据血缘（域级）</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        ${lineUp.length?lineUp.map(l=>`<div class="f13"><span class="tag tag-blue">上游</span> ${l.from} <span class="text-mute">— ${l.rel} →</span> <span class="text-primary fw6">${a.domain}</span></div>`).join(''):''}
+        ${lineDown.length?lineDown.map(l=>`<div class="f13"><span class="tag tag-green">下游</span> <span class="text-primary fw6">${a.domain}</span> <span class="text-mute">— ${l.rel} →</span> ${l.to}</div>`).join(''):''}
+        ${!lineUp.length&&!lineDown.length?'<div class="text-mute f13">该资产所属域为独立数据源，暂无血缘关系</div>':''}
+      </div>
+
+      <div class="divider"></div>
+      <div class="fw6 mb-3"><i data-lucide="stethoscope"></i> 数据质量监测</div>
+      ${issues.length?`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>问题类型</th><th>受影响资产</th><th>记录数</th><th>等级</th><th>状态</th></tr></thead><tbody>
+        ${issues.map(q=>`<tr><td>${q.type}</td><td class="text-dim f12">${q.asset}</td><td class="num">${q.count.toLocaleString()}</td>
+          <td>${UI.tag(q.level, q.level==='高'?'red':q.level==='中'?'amber':'gray')}</td><td>${UI.tag(q.status, q.status==='已解决'?'green':q.status==='处理中'?'blue':'gray')}</td></tr>`).join('')}
+      </tbody></table></div>`:'<div class="text-success f13"><i data-lucide="check"></i> 该域当前无未处理质量问题</div>'}
+    `;
+    UI.drawer(a.name,body,{width:'680px'});
+  }
+
+  // ---- 交互 ----
+  document.getElementById('btnExport').onclick=()=>UI.toast('数据资产目录已导出为 Excel（'+A.length+' 项）','ok');
+  document.getElementById('btnReg').onclick=()=>UI.modal('登记数据资产',
+    `<div class="text-dim f13 mb-4">将新数据表纳入资产目录统一治理，需填写元数据并指定责任方。</div>
+     <div style="display:grid;gap:12px">
+       <div><div class="f12 text-mute mb-2">资产名称</div><input type="text" class="w-full" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel-2);color:var(--text)" placeholder="例：高价值专利评估表"></div>
+       <div class="grid cols-2" style="gap:12px">
+         <div><div class="f12 text-mute mb-2">所属数据域</div><select class="w-full" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel-2);color:var(--text)">${D.map(d=>`<option>${d.name}</option>`).join('')}</select></div>
+         <div><div class="f12 text-mute mb-2">敏感级</div><select class="w-full" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel-2);color:var(--text)"><option>内部</option><option>公开</option><option>受限</option></select></div>
+       </div>
+     </div>`,
+    {footer:`<button class="btn btn-sm btn-ghost" onclick="UI.closeModal()">取消</button><button class="btn btn-sm btn-primary" onclick="UI.closeModal();UI.toast('数据资产登记成功，已纳入目录治理','ok')">确认登记</button>`});
+
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','活动与赛事','校友企业']);
+})();</script>
+</body></html>

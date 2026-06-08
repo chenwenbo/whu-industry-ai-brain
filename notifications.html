@@ -1,0 +1,231 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>通知·待办中心 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="notifications">
+<main class="wuda-view">
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>通知 · 待办中心</div>
+    <div class="page-sub">汇聚预警 / 任务 / 工单 / 活动 / 数据等全平台消息，统一处置与跟进</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn" id="btnReadAll">全部标记已读</button>
+      <button class="btn btn-primary" id="btnRefresh">⟳ 刷新</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 主体：左列表 / 右概览 -->
+  <div class="grid mt-4" style="grid-template-columns:1.7fr 1fr">
+    <!-- 列表区 -->
+    <div class="panel">
+      <div class="panel-h">
+        <div class="t"><span class="bar"></span>消息列表</div>
+        <div class="tools"><span class="panel-tag" id="cntTag">—</span></div>
+      </div>
+      <div id="notiTabs"></div>
+      <div id="notiList" class="stagger"></div>
+    </div>
+
+    <!-- 右侧概览 -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>按类型分布</div></div>
+        <div class="chart h260" id="typePie"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>待办任务</div><div class="tools"><span class="panel-tag">SLA / 截止</span></div></div>
+        <div id="todoList"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>快捷入口</div></div>
+        <div id="quickLinks" style="display:flex;flex-direction:column;gap:9px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  // 通知数据(本地副本，可改读态)
+  const NOTI = DB.notifications.map((n,i)=>({...n, id:'N'+(i+1)}));
+  const TYPE_LINK = {预警:'post-investment.html',任务:'ai-tasks.html',工单:'park-list.html',入驻:'park-list.html',活动:'activity-calendar.html',数据:'data-foundation.html'};
+  const TYPE_ICON = {预警:'<i data-lucide="alert-triangle"></i>',任务:'<i data-lucide="clipboard-list"></i>',工单:'<i data-lucide="wrench"></i>',入驻:'<i data-lucide="building"></i>',活动:'<i data-lucide="calendar"></i>',数据:'<i data-lucide="database"></i>'};
+
+  let curFilter='all';
+
+  function counts(){
+    return {
+      all:NOTI.length,
+      unread:NOTI.filter(n=>!n.read).length,
+      预警:NOTI.filter(n=>n.type==='预警').length,
+      任务:NOTI.filter(n=>n.type==='任务').length,
+      工单:NOTI.filter(n=>n.type==='工单').length,
+    };
+  }
+
+  function renderKPI(){
+    const c=counts();
+    const todoCnt = NOTI.filter(n=>['任务','工单','入驻'].includes(n.type)).length;
+    document.getElementById('kpis').innerHTML=[
+      UI.kpi({label:'未读消息',value:c.unread,unit:'条',delta:'今日',deltaUp:true,icon:'<i data-lucide="mail"></i>',spark:[2,3,3,4,5,4,6,5,6,4,5,c.unread]}),
+      UI.kpi({label:'风险预警',value:c.预警,unit:'条',delta:'需处置',deltaUp:false,icon:'<i data-lucide="alert-triangle"></i>',spark:[0,1,1,2,1,2,1,1,2,1,1,c.预警]}),
+      UI.kpi({label:'待办任务',value:todoCnt,unit:'项',delta:'进行中',deltaUp:true,icon:'<i data-lucide="check-circle"></i>',spark:[3,4,5,4,6,5,7,6,5,6,5,todoCnt]}),
+      UI.kpi({label:'今日新增',value:NOTI.length,unit:'条',delta:'+'+NOTI.length,deltaUp:true,icon:'<i data-lucide="bell"></i>',spark:[4,5,6,5,7,6,8,7,6,7,6,NOTI.length]}),
+    ].join('');
+  }
+
+  // 类型分布饼
+  let pieReady=false;
+  function renderPie(){
+    const map={};
+    NOTI.forEach(n=>map[n.type]=(map[n.type]||0)+1);
+    const data=Object.keys(map).map(k=>({name:k,value:map[k]}));
+    Charts.pie('typePie',{data,ring:true,legend:true,center:['38%','52%']});
+    pieReady=true;
+  }
+
+  // Tabs
+  function renderTabs(){
+    UI.tabs('#notiTabs',[
+      {key:'all',label:'全部'},
+      {key:'unread',label:'未读'},
+      {key:'预警',label:'预警'},
+      {key:'任务',label:'任务'},
+      {key:'工单',label:'工单'},
+    ],k=>{ curFilter=k; renderList(); });
+  }
+
+  function filtered(){
+    if(curFilter==='all')return NOTI;
+    if(curFilter==='unread')return NOTI.filter(n=>!n.read);
+    return NOTI.filter(n=>n.type===curFilter);
+  }
+
+  function renderList(){
+    const list=filtered();
+    document.getElementById('cntTag').textContent='共 '+list.length+' 条 · 未读 '+counts().unread;
+    const box=document.getElementById('notiList');
+    if(!list.length){ box.innerHTML=UI.empty('该分类下暂无消息'); return; }
+    box.innerHTML=list.map(n=>`
+      <div class="ecard ntcard" data-id="${n.id}" style="margin-bottom:10px;cursor:pointer;${n.read?'opacity:.72':''};border-left:3px solid ${n.level==='r'?'var(--danger)':n.level==='y'?'var(--warning)':'var(--success)'}">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-3" style="min-width:0">
+            <span style="width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:18px;flex-shrink:0;background:${n.level==='r'?'color-mix(in srgb,var(--danger) 14%,transparent)':n.level==='y'?'color-mix(in srgb,var(--warning) 16%,transparent)':'color-mix(in srgb,var(--success) 14%,transparent)'}">${TYPE_ICON[n.type]||'<i data-lucide="bell"></i>'}</span>
+            <div style="min-width:0">
+              <div class="flex items-center gap-2">
+                ${UI.light(n.level,'')}
+                <span class="fw7" style="font-size:14px">${n.title}</span>
+                ${UI.tag(n.type,'gray')}
+                ${n.read?'':'<span class="tag tag-blue">未读</span>'}
+              </div>
+              <div class="text-dim mt-2" style="font-size:13px">${n.desc}</div>
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;white-space:nowrap;margin-left:10px">
+            <div class="f12 text-mute">${n.time}</div>
+            <div class="mt-2"><span class="tag ${n.read?'tag-gray':'tag-amber'} pointer" data-act="toggle">${n.read?'已读':'标记已读'}</span></div>
+          </div>
+        </div>
+      </div>`).join('');
+    // 事件绑定
+    box.querySelectorAll('.ntcard').forEach(card=>{
+      const id=card.dataset.id; const n=NOTI.find(x=>x.id===id);
+      card.querySelector('[data-act="toggle"]').onclick=(e)=>{
+        e.stopPropagation(); n.read=!n.read;
+        UI.toast(n.read?'已标记为已读':'已标记为未读', n.read?'ok':'warn');
+        refresh();
+      };
+      card.onclick=()=>openDrawer(n);
+    });
+  }
+
+  function openDrawer(n){
+    if(!n.read){ n.read=true; refresh(); }
+    UI.drawer('消息详情',`
+      <div class="flex items-center gap-3 mb-4">
+        <span style="width:48px;height:48px;border-radius:12px;display:grid;place-items:center;font-size:24px;background:color-mix(in srgb,var(--primary) 12%,transparent)">${TYPE_ICON[n.type]||'<i data-lucide="bell"></i>'}</span>
+        <div><div class="fw7 f18">${n.title}</div><div class="text-dim mt-2">${UI.light(n.level,n.level==='r'?'预警':n.level==='y'?'关注':'正常')} · ${n.type} · ${n.time}</div></div>
+      </div>
+      ${UI.panel('消息内容',`<div style="font-size:13.5px;line-height:1.7">${n.desc}</div>`)}
+      <div class="mt-4">${UI.descList([
+        ['消息编号',n.id],
+        ['消息类型',UI.tag(n.type,'gray')],
+        ['优先级',n.level==='r'?UI.tag('高','red'):n.level==='y'?UI.tag('中','amber'):UI.tag('低','green')],
+        ['状态',n.read?'已读':'未读'],
+        ['时间',n.time],
+        ['建议处置',n.type==='预警'?'派单技术经理人介入投后辅导':n.type==='任务'?'进入AI任务中心执行生成':n.type==='工单'?'优先受理，临近SLA':'知悉/按需跟进'],
+      ])}</div>
+      <div class="mt-4" style="display:flex;gap:9px">
+        <a class="btn btn-primary" href="${TYPE_LINK[n.type]||'index.html'}">前往处理 ▸</a>
+        <button class="btn" onclick="UI.closeDrawer();UI.toast('已忽略该消息','warn')">忽略</button>
+      </div>`,{width:'560px'});
+  }
+
+  // 待办任务(取工单 + AI任务 + 入驻)
+  function renderTodo(){
+    const todos=[];
+    DB.tickets.filter(t=>t.status!=='已完成').slice(0,3).forEach(t=>todos.push({
+      txt:t.type+' · '+t.ent.slice(0,8), sub:t.park, badge:t.sla<=0?UI.tag('已超期','red'):t.sla<=6?UI.tag('剩'+t.sla+'h','amber'):UI.tag('剩'+t.sla+'h','blue'), link:'park-list.html'
+    }));
+    DB.aiTasks.filter(t=>t.status==='待生成').slice(0,2).forEach(t=>todos.push({
+      txt:'AI任务 · '+t.title, sub:t.role, badge:UI.tag('待生成','purple'), link:'ai-tasks.html'
+    }));
+    DB.onboarding.filter(o=>o.step!=='已入驻').slice(0,2).forEach(o=>todos.push({
+      txt:'入驻审核 · '+o.ent.slice(0,8), sub:o.park, badge:UI.tag(o.step,'amber'), link:'park-list.html'
+    }));
+    document.getElementById('todoList').innerHTML=todos.map(t=>`
+      <a href="${t.link}" class="flex items-center gap-3" style="padding:10px 0;border-bottom:1px solid var(--border);text-decoration:none">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--primary);flex-shrink:0"></span>
+        <div style="flex:1;min-width:0"><div class="fw6" style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.txt}</div><div class="f12 text-mute">${t.sub}</div></div>
+        ${t.badge}
+      </a>`).join('')+'<div class="mt-3" style="text-align:center"><a href="ai-tasks.html" class="f12 text-primary">查看全部待办 →</a></div>';
+  }
+
+  // 快捷入口
+  function renderQuick(){
+    const links=[
+      {i:'<i data-lucide="alert-triangle"></i>',t:'投后跟踪预警',d:'参股企业风险处置',u:'post-investment.html'},
+      {i:'<i data-lucide="clipboard-list"></i>',t:'AI任务中心',d:'生成/复用任务包',u:'ai-tasks.html'},
+      {i:'<i data-lucide="building"></i>',t:'园区载体管理',d:'工单/入驻受理',u:'park-list.html'},
+      {i:'<i data-lucide="calendar"></i>',t:'活动归口台账',d:'报名/签到/线索',u:'activity-calendar.html'},
+    ];
+    document.getElementById('quickLinks').innerHTML=links.map(l=>`
+      <a href="${l.u}" class="flex items-center gap-3" style="padding:9px 10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;transition:.15s" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+        <span style="width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:17px;background:color-mix(in srgb,var(--primary) 12%,transparent)">${l.i}</span>
+        <div style="flex:1"><div class="fw6" style="font-size:13px">${l.t}</div><div class="f12 text-mute">${l.d}</div></div>
+        <span class="text-primary">→</span>
+      </a>`).join('');
+  }
+
+  function refresh(){
+    renderKPI(); renderList();
+    document.getElementById('cntTag').textContent='共 '+filtered().length+' 条 · 未读 '+counts().unread;
+  }
+
+  // 初始化
+  renderKPI();
+  renderTabs();
+  renderList();
+  renderPie();
+  renderTodo();
+  renderQuick();
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['参股/校属企业','活动与赛事','科技园与创意园','产业企业与园区']);
+
+  document.getElementById('btnReadAll').onclick=()=>{ NOTI.forEach(n=>n.read=true); UI.toast('已将全部消息标记为已读','ok'); refresh(); };
+  document.getElementById('btnRefresh').onclick=()=>{ refresh(); UI.toast('消息已刷新','ok'); };
+})();
+</script>
+</body></html>

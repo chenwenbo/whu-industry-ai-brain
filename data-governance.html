@@ -1,0 +1,194 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数据治理质量 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="data-governance">
+<main class="wuda-view">
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>数据治理 · 质量监测</div>
+      <div class="page-sub">完整性 / 准确性 / 及时性 / 一致性 / 规范性 五维监测 · 8 域质量画像与问题闭环</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnRule">质量规则库</button>
+      <button class="btn btn-sm btn-primary" id="btnScan">发起质量巡检</button>
+    </div>
+  </div>
+
+  <!-- 综合质量分 + 四维 -->
+  <div class="grid mt-1" style="grid-template-columns:1fr 2.4fr">
+    <div class="panel glow" style="display:flex;flex-direction:column">
+      <div class="panel-h"><div class="t"><span class="bar"></span>综合质量分</div><div class="tools"><span class="panel-tag">实时</span></div></div>
+      <div class="chart" id="overallGauge" style="height:230px"></div>
+      <div class="flex justify-between f12 text-dim" style="margin-top:auto;padding-top:8px;border-top:1px solid var(--border)">
+        <span>较上月 <span class="text-success fw7">▲ 1.8</span></span><span>目标 90.0 <i data-lucide="check"></i></span></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>四维质量明细</div><div class="tools"><span class="panel-tag">环形=达标率</span></div></div>
+      <div class="grid cols-4" id="dimCards"></div>
+    </div>
+  </div>
+
+  <!-- 各域雷达 + 趋势 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>各数据域质量五维画像</div>
+        <div class="tools"><span class="panel-tag" id="radarPick">前 4 域</span></div></div>
+      <div class="chart h380" id="domRadar"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>综合质量分近 12 月趋势</div>
+        <div class="tools"><span class="panel-tag">虚线=目标 90</span></div></div>
+      <div class="chart h380" id="trendLine"></div>
+    </div>
+  </div>
+
+  <!-- 问题分布 + 同步任务 -->
+  <div class="grid mt-4" style="grid-template-columns:1.1fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>质量问题按类型分布</div></div>
+      <div class="chart h300" id="typeBar"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>数据同步任务监控</div><div class="tools"><span class="panel-tag">近期</span></div></div>
+      <div id="syncList" style="max-height:300px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- 问题清单 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>数据质量问题清单</div><div class="tools" id="issueFilter"></div></div>
+    <div id="issueTable"></div>
+  </div>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const D=DB.dataDomains, Q=DB.qualityIssues, S=DB.syncTasks;
+  const cs=getComputedStyle(document.body);
+  const cv=n=>cs.getPropertyValue(n).trim();
+  const domColor=d=>{const m=/var\((--dom-\d)\)/.exec(d.color);return m?cv(m[1]):d.color;};
+
+  // ---------- 综合质量分 ----------
+  Charts.gauge('overallGauge',{value:92.4,name:'综合数据质量',max:100,color:cv('--primary')});
+
+  // ---------- 四维质量卡 (progressRing) ----------
+  const dims=[
+    {k:'完整性',v:94.2,c:'--dom-2',d:'非空字段占比'},
+    {k:'准确性',v:91.0,c:'--dom-1',d:'校验通过率'},
+    {k:'及时性',v:89.5,c:'--dom-5',d:'按时更新率'},
+    {k:'一致性',v:95.1,c:'--dom-6',d:'跨表一致率'},
+  ];
+  document.getElementById('dimCards').innerHTML=dims.map(d=>`
+    <div class="panel" style="padding:14px;text-align:center;margin:0">
+      <div class="f13 fw6 mb-2">${d.k}</div>
+      <div class="chart" id="ring-${d.k}" style="height:120px"></div>
+      <div class="f12 text-mute mt-2">${d.d}</div>
+      <div class="f12 ${d.v>=92?'text-success':d.v>=90?'text-warning':'text-danger'} fw6 mt-2">${d.v>=92?'优秀':d.v>=90?'良好':'待提升'}</div>
+    </div>`).join('');
+  dims.forEach(d=>Charts.progressRing('ring-'+d.k,{value:d.v,color:cv(d.c)}));
+
+  // ---------- 各域五维雷达 ----------
+  const indicators=['完整性','准确性','及时性','一致性','规范性'];
+  // 用 health 作为基准派生五维(确定性)
+  function domDims(d){
+    const h=d.health, r=DB.util;
+    return [Math.min(99,h+2),h,Math.max(78,h-4),Math.min(99,h+1),Math.max(80,h-2)];
+  }
+  const radarSeries=D.slice(0,4).map(d=>({name:d.name,value:domDims(d)}));
+  Charts.radar('domRadar',{indicators,series:radarSeries,legend:true,max:100});
+
+  // ---------- 12月趋势(目标线90) ----------
+  const months=Array.from({length:12},(_,i)=>(i+1)+'月');
+  const base=[88.1,88.6,89.2,89.0,90.1,90.6,91.2,91.0,91.8,92.0,92.2,92.4];
+  Charts.init('trendLine',{
+    tooltip:{trigger:'axis'},
+    grid:{left:8,right:14,top:30,bottom:6,containLabel:true},
+    legend:{top:0,right:0,data:['综合质量分','目标线']},
+    xAxis:{type:'category',data:months,boundaryGap:false},
+    yAxis:{type:'value',min:85,max:96},
+    series:[
+      {name:'综合质量分',type:'line',smooth:true,showSymbol:false,data:base,
+        lineStyle:{width:2.6,color:cv('--primary')},itemStyle:{color:cv('--primary')},
+        areaStyle:{opacity:.16,color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:cv('--primary')},{offset:1,color:'transparent'}])}},
+      {name:'目标线',type:'line',data:months.map(()=>90),showSymbol:false,
+        lineStyle:{type:'dashed',width:1.6,color:cv('--warning')},itemStyle:{color:cv('--warning')}},
+    ]});
+
+  // ---------- 问题按类型分布 ----------
+  const typeAgg={};
+  Q.forEach(q=>typeAgg[q.type]=(typeAgg[q.type]||0)+1);
+  const types=Object.keys(typeAgg);
+  Charts.bar('typeBar',{x:types,series:[{name:'问题数',data:types.map(t=>typeAgg[t])}]});
+
+  // ---------- 同步任务监控 ----------
+  const stColor={'运行中':'y','成功':'g','失败':'r'};
+  document.getElementById('syncList').innerHTML=S.map(t=>`
+    <div class="flex items-center gap-3" style="padding:9px 0;border-bottom:1px solid var(--border)">
+      ${UI.light(stColor[t.status]||'g',t.status)}
+      <div style="flex:1;min-width:0"><div class="f13 fw6" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.name}</div>
+        <div class="f12 text-mute">${t.domain} · ${t.records.toLocaleString()} 条 · 耗时 ${t.duration}</div></div>
+      <div class="f12 text-mute">${t.time}</div></div>`).join('');
+
+  // ---------- 问题清单表 ----------
+  const levelTag=l=>({高:'red',中:'amber',低:'gray'}[l]||'gray');
+  const statusTag=s=>({待处理:'red',处理中:'amber',已解决:'green'}[s]||'gray');
+  let tbl;
+  function rowsFor(vals){
+    return Q.filter(q=>(!vals.level||q.level===vals.level)&&(!vals.status||q.status===vals.status)&&(!vals.type||q.type===vals.type));
+  }
+  const cols=[
+    {key:'id',title:'编号'},
+    {key:'domain',title:'数据域'},
+    {key:'type',title:'类型',render:r=>UI.tag(r.type,'blue')},
+    {key:'asset',title:'资产'},
+    {key:'count',title:'影响条数',sortable:true,sortVal:r=>r.count,render:r=>`<span class="num">${r.count.toLocaleString()}</span>`},
+    {key:'level',title:'严重级',sortable:true,sortVal:r=>({高:3,中:2,低:1}[r.level]),render:r=>UI.tag(r.level,levelTag(r.level))},
+    {key:'date',title:'发现时间'},
+    {key:'owner',title:'责任方'},
+    {key:'status',title:'状态',render:r=>UI.tag(r.status,statusTag(r.status))},
+    {key:'op',title:'操作',sortable:false,render:r=>`<a class="text-primary pointer">详情</a>`},
+  ];
+  tbl=UI.table('#issueTable',{columns:cols,rows:Q,pageSize:8,onRow:openIssue,empty:'暂无质量问题'});
+
+  UI.filterBar('#issueFilter',{fields:[
+    {key:'level',label:'全部严重级',options:['高','中','低']},
+    {key:'status',label:'全部状态',options:['待处理','处理中','已解决']},
+    {key:'type',label:'全部类型',options:types},
+  ],onChange:v=>tbl.update(rowsFor(v))});
+
+  function openIssue(q){
+    const body=`
+      ${UI.descList([
+        ['问题编号',q.id],['数据域',q.domain],['关联资产',q.asset],
+        ['问题类型',UI.tag(q.type,'blue')],['严重级别',UI.tag(q.level,levelTag(q.level))],
+        ['影响条数',`<span class="num text-danger">${q.count.toLocaleString()}</span>`],
+        ['发现时间',q.date],['责任方',q.owner],['当前状态',UI.tag(q.status,statusTag(q.status))],
+      ])}
+      <div class="divider"></div>
+      <div class="fw6 f13 mb-3"><i data-lucide="wrench"></i> 建议处置</div>
+      <div class="f13 text-dim" style="line-height:1.7">检测到「${q.asset}」存在 <b class="text-danger">${q.count.toLocaleString()}</b> 条${q.type}，建议由 ${q.owner} 在 3 个工作日内完成${q.type==='更新超期'?'数据补录与同步':q.type==='缺失值'?'缺失字段回填或来源校验':q.type==='重复记录'?'去重合并并建立唯一约束':q.type==='格式错误'?'格式标准化清洗':'业务逻辑校验与修正'}，并回写治理工单。</div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-sm btn-primary" onclick="UI.toast('已派单至 ${q.owner}','ok');UI.closeDrawer()">派单处理</button>
+        <button class="btn btn-sm" onclick="UI.toast('已标记为已解决','ok');UI.closeDrawer()">标记解决</button>
+      </div>`;
+    UI.drawer('质量问题 · '+q.id,body,{width:'560px'});
+  }
+
+  // ---------- 顶部按钮 ----------
+  document.getElementById('btnScan').onclick=()=>UI.toast('质量巡检已发起，预计 2 分钟完成','ok');
+  document.getElementById('btnRule').onclick=()=>UI.modal('数据质量规则库',
+    `<div class="f13 text-dim mb-3">共 86 条质量规则，覆盖五维质量维度。</div>
+     ${UI.table ? '' : ''}
+     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+     ${indicators.map((d,i)=>`<div class="ecard" style="cursor:default"><div class="et">${d}规则</div><div class="em mt-2">${[18,22,14,20,12][i]} 条规则 · 自动校验</div><div class="mt-2">${UI.bar([94,91,90,95,88][i],cv('--primary'))}</div></div>`).join('')}
+     </div>`,{footer:'<button class="btn btn-sm" onclick="UI.closeModal()">关闭</button>'});
+
+  document.querySelector('main').insertAdjacentHTML('beforeend',UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','活动与赛事','校友企业']));
+})();</script>
+</body></html>

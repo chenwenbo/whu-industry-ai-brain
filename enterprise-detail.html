@@ -1,0 +1,367 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>企业画像 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="enterprise-detail">
+<main class="wuda-view">
+  <div class="crumb"><a href="enterprise-library.html">← 返回企业检索库</a></div>
+
+  <!-- 头部画像卡 -->
+  <div class="panel" id="header"></div>
+
+  <!-- Tabs -->
+  <div id="tabs" class="mt-4"></div>
+  <div id="tabBody" class="mt-3"></div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const id = window.qparam('id');
+  const E = (id && DB.enterprises.find(e=>e.id===id)) || DB.enterprises[0];
+  const fmtW = v => v>=10000 ? (v/10000).toFixed(2)+' 亿元' : v.toLocaleString()+' 万元';
+  const disc = DB.disciplines.find(d=>d.id===E.discipline) || {color:'var(--primary)',icon:'<i data-lucide="building-2"></i>'};
+  const typeColor = {'孵化企业':'blue','参股企业':'purple','校属企业':'green','校友企业':'amber'};
+  const ri = DB.util.ri;
+
+  // ===== 头部 =====
+  document.getElementById('header').innerHTML = `
+    <div class="flex justify-between" style="gap:18px;flex-wrap:wrap">
+      <div class="flex gap-4" style="align-items:flex-start">
+        <div style="width:62px;height:62px;border-radius:16px;display:grid;place-items:center;font-size:30px;flex-shrink:0;
+          background:color-mix(in srgb,${disc.color} 16%,transparent);border:1px solid color-mix(in srgb,${disc.color} 30%,transparent)">${disc.icon}</div>
+        <div>
+          <div style="font-size:21px;font-weight:800;line-height:1.3">${UI.esc(E.name)}</div>
+          <div class="flex items-center gap-2 mt-2" style="flex-wrap:wrap">
+            ${UI.tag(E.type,typeColor[E.type])}${UI.tag(E.disciplineName,'gray')}
+            <span class="text-mute f13">${E.stage}</span><span class="text-mute f13">·</span>
+            <span class="text-mute f13">${E.city} ${E.district}</span><span class="text-mute f13">·</span>
+            <span class="text-mute f13">成立于 ${E.founded} 年</span>
+          </div>
+          <div class="flex items-center gap-2 mt-3" style="flex-wrap:wrap">${E.tags.map(t=>UI.tag(t,'blue')).join('')}</div>
+        </div>
+      </div>
+      <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+        <div class="flex items-center gap-3">${UI.light(E.risk)}
+          <span class="f13 text-mute">综合评分 <span class="num fw7 text-primary" style="font-size:18px">${E.score}</span></span></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="btnTicket">＋ 发起服务工单</button>
+          <button class="btn btn-primary btn-sm" id="btnReport">生成画像报告</button>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="grid cols-5" style="gap:0;text-align:center">
+      ${[
+        ['注册资本',E.reg.toLocaleString()+' 万'],
+        ['营业收入',fmtW(E.revenue)],
+        ['估值',fmtW(E.valuation)],
+        ['员工规模',E.employees+' 人'],
+        ['累计专利',E.patents+' 件'],
+      ].map((m,i)=>`<div style="${i?'border-left:1px solid var(--border);':''}padding:4px 8px">
+        <div class="text-mute f12">${m[0]}</div><div class="num fw7" style="font-size:17px;margin-top:3px">${m[1]}</div></div>`).join('')}
+    </div>`;
+  document.getElementById('btnTicket').onclick=()=>UI.toast('已为「'+E.name+'」创建服务工单（演示）','ok');
+  document.getElementById('btnReport').onclick=()=>UI.toast('AI 正在生成《'+E.name+'》一企一档深度报告…','ok');
+
+  // ===== Tabs =====
+  UI.tabs('#tabs',[
+    {key:'overview',label:'企业概况'},
+    {key:'equity',label:'股权结构'},
+    {key:'finance',label:'融资历史'},
+    {key:'ip',label:'知识产权'},
+    {key:'invest',label:'投后跟踪'},
+    {key:'service',label:'服务记录'},
+  ], switchTab);
+
+  function switchTab(key){
+    const b=document.getElementById('tabBody');
+    if(key==='overview') renderOverview(b);
+    else if(key==='equity') renderEquity(b);
+    else if(key==='finance') renderFinance(b);
+    else if(key==='ip') renderIP(b);
+    else if(key==='invest') renderInvest(b);
+    else if(key==='service') renderService(b);
+  }
+
+  // ---- 企业概况 ----
+  function renderOverview(b){
+    const years=['2021','2022','2023','2024','2025'];
+    // 反推近5年营收(以当前营收 + 增速回推)
+    const g=(E.revGrowth/100)||0.2;
+    let cur=E.revenue, rev=[];
+    for(let i=4;i>=0;i--){ rev[i]=Math.round(cur); cur=cur/(1+Math.max(0.05,g)); }
+    const emp = years.map((_,i)=>Math.round(E.employees*(0.45+i*0.14)));
+    b.innerHTML=`
+      <div class="grid" style="grid-template-columns:1fr 1.4fr">
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>工商与基础信息</div></div>
+          ${UI.descList([
+            ['企业编号',`<span class="num">${E.id}</span>`],
+            ['企业类型',UI.tag(E.type,typeColor[E.type])],
+            ['所属学科',`${disc.icon} ${E.disciplineName}`],
+            ['发展阶段',E.stage],
+            ['法定代表人',E.founder],
+            ['成立年份',E.founded+' 年'],
+            ['注册资本',`<span class="num">${E.reg.toLocaleString()}</span> 万元`],
+            ['注册地址',E.city+' · '+E.district],
+            ['入驻载体',`<a class="text-primary" href="park-list.html">${E.park}</a>`],
+            ['融资阶段',E.financingRound],
+            ['学校持股',E.equity>0?`<span class="num text-primary fw7">${E.equity}%</span>`:'<span class="text-mute">非参股</span>'],
+            ['风险状态',UI.light(E.risk)],
+          ])}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="panel">
+            <div class="panel-h"><div class="t"><span class="bar"></span>经营指标趋势 · 近 5 年</div>
+              <div class="tools"><span class="panel-tag">营业收入(万元)</span></div></div>
+            <div class="chart h260" id="revLine"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-h"><div class="t"><span class="bar"></span>企业简介</div></div>
+            <div class="text-dim" style="line-height:1.8;font-size:13px">${UI.esc(E.desc)}主营产品聚焦${E.disciplineName}领域，已形成核心技术壁垒与稳定客户群。当前处于${E.stage}，营收同比${E.revGrowth>=0?'增长':'下滑'} <span class="num fw7 ${E.revGrowth>=0?'text-success':'text-danger'}">${Math.abs(E.revGrowth)}%</span>，团队规模 ${E.employees} 人。</div>
+            <div class="grid cols-3 mt-3" style="text-align:center">
+              ${[['营收增速',(E.revGrowth>=0?'+':'')+E.revGrowth+'%',E.revGrowth>=0?'text-success':'text-danger'],
+                 ['场景匹配度',E.score+'',''],['累计专利',E.patents+' 件','']].map(m=>
+                `<div style="background:var(--panel-2);border-radius:10px;padding:10px"><div class="text-mute f12">${m[0]}</div><div class="num fw7 ${m[2]}" style="font-size:18px;margin-top:3px">${m[1]}</div></div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="panel mt-4">
+        <div class="panel-h"><div class="t"><span class="bar"></span>营收与人员协同增长</div><div class="tools"><span class="panel-tag">双轴</span></div></div>
+        <div class="chart h300" id="empBar"></div>
+      </div>`;
+    Charts.line('revLine',{x:years, series:[{name:'营业收入',data:rev}], area:true, smooth:true});
+    Charts.init('empBar',{
+      tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
+      legend:{top:0,right:0},
+      grid:{left:8,right:14,top:28,bottom:6,containLabel:true},
+      xAxis:{type:'category',data:years},
+      yAxis:[{type:'value',name:'营收(万)'},{type:'value',name:'人员(人)'}],
+      series:[
+        {name:'营业收入',type:'bar',data:rev,barMaxWidth:30,itemStyle:{borderRadius:[4,4,0,0],color:Charts.grad(disc.color,'rgba(0,0,0,0.04)')}},
+        {name:'员工规模',type:'line',yAxisIndex:1,data:emp,smooth:true,lineStyle:{width:2.4},showSymbol:true,symbolSize:6},
+      ]});
+  }
+
+  // ---- 股权结构 ----
+  function renderEquity(b){
+    const schoolPct = E.equity>0 ? E.equity : 0;
+    let parts=[];
+    if(schoolPct>0){
+      parts=[
+        {name:'武汉大学/资产公司',value:schoolPct},
+        {name:'创始团队',value:Math.round((100-schoolPct)*0.52)},
+        {name:'核心员工持股平台',value:Math.round((100-schoolPct)*0.16)},
+        {name:'外部投资机构',value:Math.round((100-schoolPct)*0.22)},
+      ];
+    } else {
+      parts=[
+        {name:'创始团队',value:58},
+        {name:'员工持股平台',value:12},
+        {name:'天使/财务投资人',value:20},
+        {name:'其他股东',value:10},
+      ];
+    }
+    const sum=parts.reduce((a,p)=>a+p.value,0); parts[1].value+=100-sum; // 配平
+    const fmtBook = E.equity>0?Math.round(E.valuation*E.equity/100):0;
+    b.innerHTML=`
+      <div class="grid" style="grid-template-columns:1.1fr 1fr">
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>股权结构占比</div>
+            <div class="tools"><span class="panel-tag">${E.equity>0?'学校参股':'市场化股权'}</span></div></div>
+          <div class="chart h340" id="eqPie"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="panel">
+            <div class="panel-h"><div class="t"><span class="bar"></span>股东明细</div></div>
+            <div id="shList"></div>
+          </div>
+          <div class="panel ${E.equity>0?'':''}">
+            <div class="panel-h"><div class="t"><span class="bar"></span>学校权益概览</div></div>
+            ${E.equity>0?UI.descList([
+              ['学校持股比例',`<span class="num text-primary fw7">${E.equity}%</span>`],
+              ['企业估值',fmtW(E.valuation)],
+              ['持股账面价值',`<span class="num fw7 text-success">${fmtW(fmtBook)}</span>`],
+              ['入股方式',ri(0,1)?'技术作价入股':'现金增资入股'],
+              ['退出预期',DB.postInvest.find(p=>p.entId===E.id)?.stage||'投后稳定'],
+            ]):`<div class="empty"><div class="ei"><i data-lucide="building-2"></i></div>该企业为${E.type}，学校未直接持股<br><span class="f12">通过孵化载体 / 校友网络保持产业协同</span></div>`}
+          </div>
+        </div>
+      </div>`;
+    Charts.pie('eqPie',{data:parts, ring:true, legend:true, rose:false, center:['38%','52%']});
+    document.getElementById('shList').innerHTML = UI.rankList(
+      parts.slice().sort((a,b)=>b.value-a.value).map(p=>({name:p.name,value:p.value+'%',sub:p.name.includes('武汉大学')?'国有股 · 资产管理公司持有':p.name.includes('创始')?'实际控制人':p.name.includes('员工')?'有限合伙':'财务投资'})));
+  }
+
+  // ---- 融资历史 ----
+  function renderFinance(b){
+    const fins = DB.financings.filter(f=>f.entId===E.id).sort((a,b)=>a.date.localeCompare(b.date));
+    if(!fins.length){
+      b.innerHTML=`<div class="panel">${UI.empty('该企业暂无公开融资记录（'+E.financingRound+'）')}</div>`;
+      return;
+    }
+    const total=fins.reduce((a,f)=>a+f.amount,0);
+    b.innerHTML=`
+      <div class="grid cols-4">
+        ${UI.kpi({label:'累计融资轮次',value:fins.length,unit:'轮',icon:'<i data-lucide="trending-up"></i>'})}
+        ${UI.kpi({label:'累计融资额',value:(total/10000>=1?(total/10000).toFixed(2):total.toLocaleString()),unit:total/10000>=1?'亿元':'万元',icon:'<i data-lucide="banknote"></i>'})}
+        ${UI.kpi({label:'当前轮次',value:E.financingRound,unit:'',icon:'<i data-lucide="target"></i>'})}
+        ${UI.kpi({label:'参投机构',value:[...new Set(fins.map(f=>f.investor))].length,unit:'家',icon:'<i data-lucide="landmark"></i>'})}
+      </div>
+      <div class="grid mt-4" style="grid-template-columns:1fr 1.1fr">
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>融资时间线</div></div>
+          <div>${UI.timeline(fins.map(f=>({time:f.date,type:'投资',txt:`<b>${f.round}</b> · 融资 <span class="num fw7">${f.amount.toLocaleString()}</span> 万元 · 领投 ${f.investor}`})))}</div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>融资金额走势</div><div class="tools"><span class="panel-tag">万元</span></div></div>
+          <div class="chart h300" id="finBar"></div>
+        </div>
+      </div>
+      <div class="panel mt-4">
+        <div class="panel-h"><div class="t"><span class="bar"></span>融资明细</div></div>
+        <div id="finTbl"></div>
+      </div>`;
+    Charts.bar('finBar',{x:fins.map(f=>f.round), series:[{name:'融资额',data:fins.map(f=>f.amount)}]});
+    UI.table('#finTbl',{
+      columns:[
+        {key:'round',title:'轮次',render:r=>UI.tag(r.round,'purple')},
+        {key:'amount',title:'融资额(万元)',render:r=>`<span class="num fw6">${r.amount.toLocaleString()}</span>`,sortVal:r=>r.amount},
+        {key:'date',title:'完成时间',render:r=>r.date},
+        {key:'investor',title:'领投/参投机构',render:r=>r.investor},
+      ], rows:fins, pageSize:6,
+    });
+  }
+
+  // ---- 知识产权 ----
+  function renderIP(b){
+    const types=['发明专利','实用新型','软件著作权','商标','PCT国际专利'];
+    // 用确定性拆分专利总数
+    const split=[0.42,0.26,0.18,0.1,0.04].map(p=>Math.max(1,Math.round(E.patents*p)));
+    const ipData=types.map((t,i)=>({name:t,value:split[i]}));
+    const list=DB.util.picks(['面向'+E.disciplineName+'的核心算法/工艺方法','一种高可靠'+E.disciplineName.slice(0,2)+'装置','智能化系统及其控制方法','数据处理与优化方法','关键材料/器件制备工艺','一种'+E.disciplineName.slice(0,2)+'检测系统'],4)
+      .map((t,i)=>({name:t,year:2020+ri(0,5),type:DB.util.pick(types),status:DB.util.pick(['已授权','已授权','实审中','已公开'])}));
+    b.innerHTML=`
+      <div class="grid cols-4">
+        ${UI.kpi({label:'专利与软著总数',value:E.patents,unit:'件',icon:'<i data-lucide="file-text"></i>'})}
+        ${UI.kpi({label:'发明专利',value:split[0],unit:'件',icon:'<i data-lucide="microscope"></i>'})}
+        ${UI.kpi({label:'软件著作权',value:split[2],unit:'件',icon:'<i data-lucide="laptop"></i>'})}
+        ${UI.kpi({label:'PCT国际专利',value:split[4],unit:'件',icon:'<i data-lucide="globe"></i>'})}
+      </div>
+      <div class="grid mt-4" style="grid-template-columns:1fr 1.4fr">
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>知识产权构成</div></div>
+          <div class="chart h300" id="ipPie"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>代表性专利</div><div class="tools"><span class="panel-tag">核心壁垒</span></div></div>
+          <div id="ipTbl"></div>
+        </div>
+      </div>`;
+    Charts.pie('ipPie',{data:ipData, ring:true, legend:true, center:['40%','52%']});
+    UI.table('#ipTbl',{
+      columns:[
+        {key:'name',title:'专利/软著名称',render:r=>`<div class="fw6">${UI.esc(r.name)}</div>`},
+        {key:'type',title:'类型',render:r=>UI.tag(r.type,'blue')},
+        {key:'year',title:'申请年份',render:r=>r.year,sortVal:r=>r.year},
+        {key:'status',title:'状态',render:r=>UI.tag(r.status,r.status==='已授权'?'green':r.status==='实审中'?'amber':'gray')},
+      ], rows:list, pageSize:6,
+    });
+  }
+
+  // ---- 投后跟踪 ----
+  function renderInvest(b){
+    const pi = DB.postInvest.find(p=>p.entId===E.id);
+    const alerts = DB.riskAlerts.filter(a=>a.entId===E.id);
+    if(!pi){
+      b.innerHTML=`<div class="panel">${UI.empty('该企业为'+E.type+'，未纳入投后管理体系<br><span class="f12">如学校后续作价入股，将自动建立投后跟踪档案</span>')}</div>`;
+      return;
+    }
+    const months=['1月','2月','3月','4月','5月','6月'];
+    const kpiTrend=months.map((_,i)=>Math.round(pi.kpi*(0.86+i*0.028)));
+    b.innerHTML=`
+      <div class="grid cols-4">
+        ${UI.kpi({label:'投后状态',value:pi.stage,unit:'',icon:'<i data-lucide="bar-chart-3"></i>'})}
+        ${UI.kpi({label:'持股账面价值',value:(pi.bookValue/10000>=1?(pi.bookValue/10000).toFixed(2):pi.bookValue.toLocaleString()),unit:pi.bookValue/10000>=1?'亿元':'万元',icon:'<i data-lucide="gem"></i>'})}
+        ${UI.kpi({label:'经营健康度',value:pi.kpi,unit:'分',icon:'<i data-lucide="heart"></i>',spark:kpiTrend})}
+        ${UI.kpi({label:'最近报送',value:pi.lastReport,unit:'',icon:'<i data-lucide="calendar"></i>'})}
+      </div>
+      <div class="grid mt-4" style="grid-template-columns:1.3fr 1fr">
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>经营健康度趋势</div><div class="tools">${UI.light(pi.risk)}</div></div>
+          <div class="chart h300" id="kpiLine"></div>
+        </div>
+        <div class="panel ${pi.risk!=='g'?'':''}">
+          <div class="panel-h"><div class="t"><span class="bar"></span>风险预警 <span class="tag tag-${pi.risk==='r'?'red':pi.risk==='y'?'amber':'green'}">${alerts.length} 条</span></div></div>
+          <div id="alertBox"></div>
+        </div>
+      </div>`;
+    Charts.line('kpiLine',{x:months, series:[{name:'健康度',data:kpiTrend}], area:true, smooth:true});
+    const ab=document.getElementById('alertBox');
+    if(alerts.length){
+      ab.innerHTML = alerts.map(a=>`<div class="ecard" style="margin-bottom:10px;border-left:3px solid var(--${a.level==='r'?'danger':'warning'})">
+        <div class="flex justify-between items-center"><span class="fw6">${UI.tag(a.type,a.level==='r'?'red':'amber')} ${UI.esc(a.desc)}</span>
+          <span class="f12 text-mute">${a.date}</span></div>
+        <div class="flex justify-between items-center mt-2"><span class="f12 text-mute">处置状态：${a.status}</span>
+          <button class="btn btn-sm btn-ghost" onclick="UI.toast('已派单技术经理人跟进：${UI.esc(a.desc)}','ok')">派单跟进</button></div></div>`).join('');
+    } else {
+      ab.innerHTML = UI.empty('当前无风险预警，经营平稳');
+    }
+  }
+
+  // ---- 服务记录 ----
+  function renderService(b){
+    // 该企业相关工单
+    const tks = DB.tickets.filter(t=>t.ent===E.name);
+    const fallback = tks.length?tks:DB.tickets.slice(0,4).map(t=>({...t,ent:E.name,park:E.park}));
+    const svc = DB.opcServices.slice(0,4).map((s,i)=>({...s,date:'2026-0'+(i+1)+'-'+(10+i*4),by:DB.util.person()}));
+    b.innerHTML=`
+      <div class="grid cols-4">
+        ${UI.kpi({label:'累计服务工单',value:fallback.length,unit:'单',icon:'<i data-lucide="wrench"></i>'})}
+        ${UI.kpi({label:'已交付服务包',value:svc.length,unit:'项',icon:'<i data-lucide="package"></i>'})}
+        ${UI.kpi({label:'入驻载体',value:E.park.length>8?E.park.slice(0,6)+'…':E.park,unit:'',icon:'<i data-lucide="building"></i>'})}
+        ${UI.kpi({label:'服务满意度',value:(4.2+DB.util.ri(0,7)/10).toFixed(1),unit:'分',icon:'<i data-lucide="star"></i>'})}
+      </div>
+      <div class="panel mt-4">
+        <div class="panel-h"><div class="t"><span class="bar"></span>服务工单记录</div>
+          <div class="tools"><button class="btn btn-sm btn-ghost" onclick="UI.toast('已发起新服务工单（演示）','ok')">＋ 新工单</button></div></div>
+        <div id="svcTbl"></div>
+      </div>
+      <div class="panel mt-4">
+        <div class="panel-h"><div class="t"><span class="bar"></span>已采购服务包</div></div>
+        <div class="grid cols-2" id="svcCards"></div>
+      </div>`;
+    UI.table('#svcTbl',{
+      columns:[
+        {key:'id',title:'工单号',render:r=>`<span class="num f12">${r.id}</span>`},
+        {key:'type',title:'服务类型',render:r=>UI.tag(r.type,'blue')},
+        {key:'level',title:'优先级',render:r=>UI.tag(r.level,r.level==='紧急'||r.level==='加急'?'red':'gray')},
+        {key:'owner',title:'负责人',render:r=>r.owner},
+        {key:'sla',title:'SLA剩余',render:r=>r.sla<0?`<span class="text-danger num">逾期${-r.sla}h</span>`:`<span class="num">${r.sla}h</span>`,sortVal:r=>r.sla},
+        {key:'status',title:'状态',render:r=>UI.tag(r.status,r.status==='已完成'?'green':r.status==='处理中'?'amber':'gray')},
+        {key:'created',title:'创建',render:r=>`<span class="f12 text-mute">${r.created}</span>`},
+      ], rows:fallback, pageSize:8, empty:'暂无服务工单',
+    });
+    document.getElementById('svcCards').innerHTML = svc.map(s=>UI.entityCard({
+      title:s.name,
+      meta:`<div class="text-dim f12">${UI.esc(s.desc)}</div>
+        <div class="flex justify-between items-center mt-3"><span class="text-mute f12">交付：${s.date} · ${s.by}</span>
+          <span class="num fw7 text-primary">${s.price} 万/${s.unit}</span></div>`,
+      tags:[s.cat],
+    })).join('');
+  }
+
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['参股/校属企业','成果与专利','活动与赛事','产业企业与园区']);
+})();</script>
+</body></html>

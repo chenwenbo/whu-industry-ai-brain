@@ -1,0 +1,217 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>直播推广 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="opc-live">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>直播推广 · 珞珈创新大讲堂</div>
+      <div class="page-sub">通过大咖直播沉淀产业认知、扩大平台影响、为成果项目与社群运营导流，覆盖直播 / 预告 / 回放全场景</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <a class="btn btn-sm" href="opc-community.html">返回社区</a>
+      <button class="btn btn-primary btn-sm" id="btnNew">＋ 创建直播</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 直播间(直播中/即将开始) -->
+  <div class="panel glow mt-4" id="featurePanel"></div>
+
+  <!-- 直播卡片墙 -->
+  <div class="panel glow mt-4">
+    <div class="panel-h" style="flex-wrap:wrap;gap:12px">
+      <div class="t"><span class="bar"></span>全部直播 <span class="tag tag-gray" id="cntTag"></span></div>
+      <div class="tools"><div class="seg" id="segStatus"><button data-s="" class="on">全部</button><button data-s="直播中">直播中</button><button data-s="预告">预告</button><button data-s="回放">回放</button></div></div>
+    </div>
+    <div class="grid cols-3 mt-4" id="liveGrid"></div>
+  </div>
+
+  <!-- 图表 -->
+  <div class="grid mt-4" style="grid-template-columns:1.5fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>直播观看趋势</div><div class="tools"><span class="panel-tag">近6月</span></div></div>
+      <div class="chart h340" id="viewLine"></div>
+    </div>
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>热门直播榜</div><div class="tools"><span class="panel-tag">按观看量</span></div></div>
+      <div id="hotList" style="padding-top:6px"></div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const L = DB.lives;
+
+  // ---------- KPI ----------
+  const totalViews = L.reduce((s,x)=>s+x.views,0);
+  const totalLikes = L.reduce((s,x)=>s+x.likes,0);
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'直播场次',value:L.length,unit:'场',delta:'3 场',deltaUp:true,icon:'<i data-lucide="clapperboard"></i>',spark:[2,3,3,4,4,5,5,6,6,7,7,8]}),
+    UI.kpi({label:'累计观看',value:(totalViews/10000).toFixed(1),unit:'万',delta:'22.4%',deltaUp:true,icon:'<i data-lucide="eye"></i>',spark:[20,28,26,35,33,44,52,49,58,61,70,78]}),
+    UI.kpi({label:'累计点赞',value:(totalLikes/1000).toFixed(1),unit:'k',delta:'18.1%',deltaUp:true,icon:'<i data-lucide="thumbs-up"></i>',spark:[8,12,11,16,18,22,26,24,30,33,38,42]}),
+    UI.kpi({label:'平均时长',value:68,unit:'分',delta:'5 分',deltaUp:true,icon:'<i data-lucide="timer"></i>',spark:[50,52,55,58,60,62,64,63,66,65,67,68]}),
+  ].join('');
+
+  // ---------- 工具 ----------
+  function statusBadge(s){
+    const map={'直播中':'red','预告':'amber','回放':'blue'};
+    return UI.tag(s,map[s]||'gray');
+  }
+  function actionBtn(l){
+    if(l.status==='直播中') return `<button class="btn btn-primary btn-sm" data-watch="${l.id}">▶ 进入直播</button>`;
+    if(l.status==='预告') return `<button class="btn btn-sm" data-book="${l.id}"><i data-lucide="bell"></i> 预约提醒</button>`;
+    return `<button class="btn btn-sm" data-watch="${l.id}">↺ 观看回放</button>`;
+  }
+
+  // ---------- 特色直播间 ----------
+  const live = L.find(l=>l.status==='直播中') || L.find(l=>l.status==='预告') || L[0];
+  function renderFeature(){
+    const isLive = live.status==='直播中';
+    document.getElementById('featurePanel').innerHTML=`
+      <div class="grid" style="grid-template-columns:1.4fr 1fr;gap:20px;align-items:center">
+        <div style="position:relative;border-radius:14px;overflow:hidden;height:240px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(0,229,255,.18),rgba(123,97,255,.14));border:1px solid var(--border)">
+          <div style="position:absolute;top:12px;left:12px;display:flex;gap:8px">
+            ${isLive?'<span class="tag tag-red" style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#fff;animation:breathe 1s infinite"></span>LIVE 直播中</span>':statusBadge(live.status)}
+            <span class="tag tag-gray"><i data-lucide="eye"></i> ${live.views.toLocaleString()}</span>
+          </div>
+          <div style="text-align:center;z-index:1">
+            <div style="font-size:54px"><i data-lucide="radar"></i></div>
+            <button class="btn btn-primary" data-watch="${live.id}" style="margin-top:8px">${isLive?'▶ 进入直播间':live.status==='预告'?'<i data-lucide="bell"></i> 预约直播':'↺ 观看回放'}</button>
+          </div>
+        </div>
+        <div>
+          <div class="f12 text-primary fw6" style="letter-spacing:1.5px">${isLive?'正在直播':'本期推荐'} · 珞珈创新大讲堂</div>
+          <div style="font-size:22px;font-weight:800;margin:8px 0;line-height:1.4">${UI.esc(live.title)}</div>
+          <div class="text-dim mb-3">主讲嘉宾 <b class="text-primary">${UI.esc(live.host)}</b> · 开播时间 ${live.date}</div>
+          <div class="grid cols-3" style="gap:10px">
+            ${UI.entityCard({title:'观看人次',meta:`<span class="num fw7 text-primary f18">${live.views.toLocaleString()}</span>`,onclick:''})}
+            ${UI.entityCard({title:'点赞',meta:`<span class="num fw7 text-primary f18">${live.likes.toLocaleString()}</span>`,onclick:''})}
+            ${UI.entityCard({title:'状态',meta:statusBadge(live.status),onclick:''})}
+          </div>
+        </div>
+      </div>`;
+    bindActions(document.getElementById('featurePanel'));
+  }
+  renderFeature();
+
+  // ---------- 直播详情抽屉 ----------
+  function liveDrawer(l){
+    const body=`
+      <div style="border-radius:12px;overflow:hidden;height:160px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(0,229,255,.16),rgba(123,97,255,.12));border:1px solid var(--border);margin-bottom:16px">
+        <div style="font-size:46px"><i data-lucide="radar"></i></div>
+      </div>
+      <div class="grid cols-3" style="gap:10px;margin-bottom:16px">
+        ${UI.entityCard({title:'观看',meta:`<span class="num fw7 text-primary f18">${l.views.toLocaleString()}</span>`,onclick:''})}
+        ${UI.entityCard({title:'点赞',meta:`<span class="num fw7 text-primary f18">${l.likes.toLocaleString()}</span>`,onclick:''})}
+        ${UI.entityCard({title:'状态',meta:statusBadge(l.status),onclick:''})}
+      </div>
+      ${UI.panel('直播信息', UI.descList([
+        ['直播编号', `<span class="num">${l.id}</span>`],
+        ['标题', UI.esc(l.title)],
+        ['主讲嘉宾', UI.esc(l.host)],
+        ['开播时间', `<span class="num">${l.date}</span>`],
+        ['观看人次', `<span class="num fw7">${l.views.toLocaleString()}</span>`],
+        ['点赞数', `<span class="num fw7">${l.likes.toLocaleString()}</span>`],
+        ['直播状态', statusBadge(l.status)],
+      ]))}
+      ${UI.panel('内容简介', `<div class="text-dim f13" style="line-height:1.7">本期「珞珈创新大讲堂」聚焦《${UI.esc(l.title)}》，由 ${UI.esc(l.host)} 主讲，结合武大优势学科与产业前沿，深入剖析技术趋势、商业机会与转化路径，为创业项目与产业伙伴提供决策参考。</div>`)}
+      <div style="display:flex;gap:9px;margin-top:6px">
+        ${l.status==='直播中'?`<button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('正在进入直播间...','ok')">▶ 进入直播</button>`:l.status==='预告'?`<button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('已预约，开播前将提醒','ok')"><i data-lucide="bell"></i> 预约提醒</button>`:`<button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('正在播放回放...','ok')">↺ 观看回放</button>`}
+        <button class="btn btn-sm" onclick="UI.closeDrawer();UI.toast('已生成分享海报','ok')">分享推广</button>
+        <button class="btn btn-ghost btn-sm" onclick="UI.closeDrawer()">关闭</button>
+      </div>`;
+    UI.drawer(`<div class="page-title" style="font-size:18px">${UI.esc(l.title)}</div><div class="page-sub" style="margin-top:4px">${l.host} · ${l.date}</div>`, body, {width:'600px'});
+  }
+
+  // ---------- 卡片墙 ----------
+  let curStatus='';
+  function renderGrid(){
+    const list = curStatus?L.filter(l=>l.status===curStatus):L;
+    document.getElementById('cntTag').textContent='共 '+list.length+' 场';
+    const wrap=document.getElementById('liveGrid');
+    if(!list.length){ wrap.innerHTML=UI.empty('暂无此类直播'); return; }
+    wrap.innerHTML=list.map(l=>{
+      const isLive=l.status==='直播中';
+      return `<div class="ecard" data-card="${l.id}" style="cursor:pointer;padding:0;overflow:hidden">
+        <div style="position:relative;height:120px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(0,229,255,.14),rgba(123,97,255,.10))">
+          <div style="font-size:38px;opacity:.85"><i data-lucide="radar"></i></div>
+          <div style="position:absolute;top:10px;left:10px">${isLive?'<span class="tag tag-red" style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#fff;animation:breathe 1s infinite"></span>LIVE</span>':statusBadge(l.status)}</div>
+          <div style="position:absolute;bottom:10px;right:10px" class="tag tag-gray"><i data-lucide="eye"></i> ${(l.views/1000).toFixed(1)}k</div>
+        </div>
+        <div style="padding:13px">
+          <div class="et" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${UI.esc(l.title)}</div>
+          <div class="em mt-2">
+            <div class="text-mute f12">${UI.esc(l.host)} · ${l.date}</div>
+            <div class="flex justify-between items-center mt-3">
+              <span class="f12 text-primary"><i data-lucide="thumbs-up"></i> ${l.likes.toLocaleString()}</span>
+              ${actionBtn(l)}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    // 卡片点击进抽屉
+    wrap.querySelectorAll('[data-card]').forEach(el=>{
+      el.onclick=()=>liveDrawer(L.find(l=>l.id===el.dataset.card));
+    });
+    bindActions(wrap);
+  }
+  function bindActions(scope){
+    scope.querySelectorAll('[data-watch]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();UI.toast('正在进入直播 / 回放...','ok');});
+    scope.querySelectorAll('[data-book]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();UI.toast('已预约直播，开播前将提醒','ok');});
+  }
+  renderGrid();
+
+  // ---------- 状态切换 ----------
+  document.getElementById('segStatus').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    [...e.currentTarget.children].forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); curStatus=b.dataset.s; renderGrid();
+  });
+
+  // ---------- 观看趋势 ----------
+  const months=['1月','2月','3月','4月','5月','6月'];
+  Charts.line('viewLine',{
+    x:months,
+    series:[
+      {name:'观看人次',data:[8200,12600,15400,21800,28600,35200]},
+      {name:'点赞数',data:[1200,2100,2800,3600,4400,5600]},
+    ],
+    legend:true, area:true, smooth:true
+  });
+
+  // ---------- 热门榜 ----------
+  const hot=[...L].sort((a,b)=>b.views-a.views).slice(0,6);
+  document.getElementById('hotList').innerHTML = UI.rankList(hot.map(l=>({
+    name:l.title, value:(l.views/1000).toFixed(1)+'k', sub:l.host+' · <i data-lucide="thumbs-up"></i> '+l.likes.toLocaleString()
+  })));
+
+  // ---------- 创建直播 ----------
+  document.getElementById('btnNew').onclick=()=>{
+    UI.modal('创建直播', `
+      <div class="text-dim mb-3">填写直播主题与嘉宾信息，发布后将在社区与社群同步推广，并支持预约提醒。</div>
+      <div class="grid cols-2" style="gap:10px">
+        ${UI.entityCard({title:'多端推广',meta:'社区首页 · 社群推送 · 活动日历联动',onclick:''})}
+        ${UI.entityCard({title:'转化导流',meta:'直播沉淀线索 → 线索池 → 成果项目化',onclick:''})}
+      </div>`,
+      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-primary btn-sm" onclick="UI.closeModal();UI.toast('直播已创建并进入预告状态','ok')">创建并发布预告</button>`});
+  };
+
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['活动与赛事','成果与专利']);
+})();</script>
+</body></html>

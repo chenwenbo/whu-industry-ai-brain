@@ -1,0 +1,161 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>学科产业方向图 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="discipline-industry-map">
+<main class="wuda-view">
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>学科产业方向图</div>
+      <div class="page-sub">武大 5 大优势学科 · 成果转化漏斗 · 赛道契合 · 重点成果 · 目标企业一屏直达</div></div>
+    <div style="display:flex;gap:9px">
+      <a class="btn btn-sm" href="brain-overview.html">产业创新大脑 ▸</a>
+      <button class="btn btn-sm btn-primary" id="btnReport">生成学科产业简报</button>
+    </div>
+  </div>
+
+  <!-- 学科 Tab -->
+  <div id="discTabs"></div>
+
+  <!-- 学科概况卡 -->
+  <div class="grid cols-5" id="overviewKpi"></div>
+
+  <!-- 漏斗 + 赛道 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1.25fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span><span id="funnelTitle">成果转化漏斗</span></div>
+        <div class="tools"><span class="panel-tag">按转化阶段</span></div></div>
+      <div class="chart h380" id="convFunnel"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>相关产业赛道契合度</div>
+        <div class="tools"><span class="panel-tag">契合度 fit</span></div></div>
+      <div class="chart h380" id="trackBar"></div>
+      <div class="f12 text-mute" id="trackNote" style="text-align:center;margin-top:4px"></div>
+    </div>
+  </div>
+
+  <!-- 重点成果 + 目标企业 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1.3fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>重点成果 TOP（按估值）</div>
+        <div class="tools"><span class="panel-tag">点击查看</span></div></div>
+      <div id="achRank"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>目标企业 / 招商对接池</div>
+        <div class="tools"><span class="panel-tag" id="targetCnt"></span></div></div>
+      <div class="grid cols-2" id="targetCards"></div>
+    </div>
+  </div>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const DISC=DB.disciplines, ACH=DB.achievements, TEAM=DB.teams, ENT=DB.enterprises,
+        TRACK=DB.tracks, TGT=DB.targetEnterprises;
+  const cs=getComputedStyle(document.body);
+  const cv=n=>cs.getPropertyValue(n).trim();
+  const convStages=['待评估','已立项','概念验证','中试放大','已签约','已转化'];
+
+  function render(discId){
+    const d=DISC.find(x=>x.id===discId);
+    const ach=ACH.filter(a=>a.discipline===discId);
+    const teams=TEAM.filter(t=>t.discipline===discId);
+    const ents=ENT.filter(e=>e.discipline===discId);
+    const tracks=TRACK.filter(t=>t.disc===discId);
+    const targets=TGT.filter(t=>t.disc===discId);
+    const patentSum=ach.reduce((s,a)=>s+a.patents,0);
+    const avgMat=ach.length?Math.round(ach.reduce((s,a)=>s+a.maturity,0)/ach.length):0;
+    const c=d.color;
+
+    // ---- 概况 KPI ----
+    document.getElementById('overviewKpi').innerHTML=[
+      UI.kpi({label:'科技成果',value:ach.length,unit:'项',icon:d.icon,delta:'本学科',deltaUp:true,spark:[3,4,4,5,6,6,7,8]}),
+      UI.kpi({label:'科研团队',value:teams.length,unit:'个',icon:'<i data-lucide="users"></i>',delta:teams.reduce((s,t)=>s+t.members,0)+' 人',deltaUp:true}),
+      UI.kpi({label:'关联企业',value:ents.length,unit:'家',icon:'<i data-lucide="building-2"></i>',delta:ents.filter(e=>e.equity>0).length+' 家参股',deltaUp:true}),
+      UI.kpi({label:'专利合计',value:patentSum,unit:'件',icon:'<i data-lucide="scroll-text"></i>',delta:'+'+Math.round(patentSum*0.08),deltaUp:true,spark:[20,28,34,40,52,60,72,patentSum/4]}),
+      UI.kpi({label:'平均成熟度',value:avgMat,unit:'TRL%',icon:'<i data-lucide="trending-up"></i>',delta:avgMat>=70?'就绪度高':'培育中',deltaUp:avgMat>=70}),
+    ].join('');
+
+    // ---- 概况卡顶部主色条:用 inline 渲染学科描述带 ----
+    document.getElementById('overviewKpi').insertAdjacentHTML('afterbegin','');
+
+    // ---- 转化漏斗 ----
+    document.getElementById('funnelTitle').textContent=d.name+' · 成果转化漏斗';
+    const stageAgg=convStages.map(s=>({name:s,value:ach.filter(a=>a.status===s).length}));
+    // 漏斗需递减:做成累计向上口径(各阶段及之后)
+    const cum=convStages.map((s,i)=>({name:s,value:ach.length-stageAgg.slice(0,i).reduce((p,x)=>p+x.value,0)}));
+    Charts.funnel('convFunnel',{data:cum.map(x=>({name:x.name,value:Math.max(1,x.value)}))});
+
+    // ---- 赛道契合度横向条 ----
+    if(tracks.length){
+      const sorted=tracks.slice().sort((a,b)=>a.fit-b.fit);
+      Charts.bar('trackBar',{x:sorted.map(t=>t.name),series:[{name:'契合度',data:sorted.map(t=>t.fit)}],horizontal:true});
+      document.getElementById('trackNote').textContent='共 '+tracks.length+' 个相关赛道 · 平均市场规模 '+Math.round(tracks.reduce((s,t)=>s+t.market,0)/tracks.length)+' 亿元';
+    }else{
+      document.getElementById('trackBar').innerHTML=UI.empty('暂无关联赛道');
+      document.getElementById('trackNote').textContent='';
+    }
+
+    // ---- 重点成果榜 ----
+    const top=ach.slice().sort((a,b)=>b.value-a.value).slice(0,8);
+    document.getElementById('achRank').innerHTML=UI.rankList(top.map(a=>({
+      name:a.title,value:(a.value/10000).toFixed(2)+'亿',sub:`${a.college} · TRL${a.trl} · ${a.status}`,
+    })));
+    // 绑定点击
+    setTimeout(()=>{
+      document.querySelectorAll('#achRank > div > div').forEach((row,i)=>{
+        if(top[i]){row.style.cursor='pointer';row.onclick=()=>openAch(top[i]);}
+      });
+    },20);
+
+    // ---- 目标企业卡 ----
+    document.getElementById('targetCnt').textContent=targets.length+' 家匹配';
+    document.getElementById('targetCards').innerHTML=targets.length?targets.map(t=>`
+      <div class="ecard" onclick="UI.toast('已加入「${d.name}」招商对接池','ok')">
+        <div class="flex justify-between items-center"><div class="et">${t.name}</div>
+          <span class="tag tag-${t.match>=90?'green':t.match>=80?'blue':'amber'}">匹配 ${t.match}</span></div>
+        <div class="em mt-2">${t.city} · ${t.type} · 营收约 ${(t.revenue/10000).toFixed(1)} 亿</div>
+        <div class="f12 text-dim mt-2">${t.reason}</div>
+        <div class="mt-2">${UI.bar(t.match,c)}</div>
+      </div>`).join(''):UI.empty('暂无目标企业');
+
+    function openAch(a){
+      UI.drawer(a.title,`
+        ${UI.descList([
+          ['成果编号',a.id],['所属学科',UI.tag(a.disciplineName,'blue')],['依托学院',a.college],
+          ['负责人',a.leader],['技术成熟度','TRL '+a.trl+' / '+a.maturity+'%'],
+          ['专利 / 论文',a.patents+' 件 / '+a.papers+' 篇'],
+          ['评估估值',`<span class="num text-primary">${(a.value/10000).toFixed(2)} 亿元</span>`],
+          ['转化状态',UI.tag(a.status,a.status==='已转化'?'green':a.status==='已签约'?'blue':'amber')],
+          ['场景匹配度',a.match+' 分'],['更新',a.updated],
+        ])}
+        <div class="divider"></div>
+        <div class="fw6 f13 mb-3"><i data-lucide="target"></i> 适配场景</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${a.scenes.map(s=>UI.tag(s,'purple')).join('')}</div>
+        <div class="fw6 f13 mb-3"><i data-lucide="pencil"></i> 成果简介</div>
+        <div class="f13 text-dim" style="line-height:1.7">${a.desc}</div>
+        <div style="margin-top:16px"><button class="btn btn-sm btn-primary" onclick="UI.toast('已发起成果项目化评估','ok');UI.closeDrawer()">发起项目化评估</button></div>
+      `,{width:'560px'});
+    }
+    window.__curDisc={d,ach,ents,tracks,targets};
+  }
+
+  // ---- Tab ----
+  UI.tabs('#discTabs',DISC.map(d=>({key:d.id,label:d.icon+' '+d.name})),render);
+
+  document.getElementById('btnReport').onclick=()=>{
+    const x=window.__curDisc;
+    UI.toast('正在生成《'+x.d.name+'产业方向简报》：'+x.ach.length+' 成果 / '+x.tracks.length+' 赛道 / '+x.targets.length+' 目标企业','ok');
+  };
+
+  document.querySelector('main').insertAdjacentHTML('beforeend',UI.srcNote(['成果与专利','学院与团队','参股/校属企业','产业企业与园区']));
+})();</script>
+</body></html>

@@ -1,0 +1,274 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OPC线上项目社区 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="opc-community">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>OPC 线上项目社区 · 虚拟孵化</div>
+      <div class="page-sub">Online Project Community — 线上招募、虚拟陪跑、专家辅导、资源对接，让早期项目在云端完成项目化加速</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <a class="btn btn-sm" href="opc-services.html">服务菜单</a>
+      <a class="btn btn-sm" href="opc-live.html">直播推广</a>
+      <button class="btn btn-primary btn-sm" id="btnNew">＋ 发起项目</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 图表 -->
+  <div class="grid mt-4" style="grid-template-columns:1.4fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>在孵项目阶段漏斗</div><div class="tools"><span class="panel-tag">招募→毕业</span></div></div>
+      <div class="chart h300" id="stageFunnel"></div>
+    </div>
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>学科分布</div><div class="tools"><span class="panel-tag">5大学科</span></div></div>
+      <div class="chart h300" id="discPie"></div>
+    </div>
+  </div>
+
+  <!-- 项目展示墙 -->
+  <div class="panel glow mt-4">
+    <div class="panel-h" style="flex-wrap:wrap;gap:12px">
+      <div class="t"><span class="bar"></span>项目展示墙 <span class="tag tag-gray" id="cntTag"></span></div>
+      <div class="tools"></div>
+    </div>
+    <div id="filter"></div>
+    <div id="projGrid" class="grid cols-3 mt-4"></div>
+  </div>
+
+  <!-- 专家库 -->
+  <div class="panel glow mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>陪跑专家库</div><div class="tools"><span class="panel-tag" id="expCnt"></span></div></div>
+    <div id="expFilter"></div>
+    <div id="expGrid" class="grid cols-4 mt-4"></div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const P = DB.opcProjects, E = DB.experts, disciplines = DB.disciplines;
+
+  // ---------- KPI ----------
+  const incubating = P.filter(p=>p.stage==='陪跑中').length;
+  const graduated = P.filter(p=>p.stage==='已毕业').length;
+  const totalViews = P.reduce((s,p)=>s+p.views,0);
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'在孵项目',value:P.length,unit:'个',delta:'4 个',deltaUp:true,icon:'<i data-lucide="globe"></i>',spark:[8,9,10,11,12,13,14,15,16,17,18,18]}),
+    UI.kpi({label:'陪跑中',value:incubating,unit:'个',delta:'2 个',deltaUp:true,icon:'<i data-lucide="activity"></i>',spark:[3,4,4,5,5,6,6,7,7,8,8,8]}),
+    UI.kpi({label:'已毕业项目',value:graduated,unit:'个',delta:'1 个',deltaUp:true,icon:'<i data-lucide="graduation-cap"></i>',spark:[0,1,1,1,2,2,2,3,3,3,4,4]}),
+    UI.kpi({label:'累计浏览量',value:(totalViews/1000).toFixed(1),unit:'k',delta:'18.6%',deltaUp:true,icon:'<i data-lucide="eye"></i>',spark:[20,28,26,35,33,44,52,49,58,61,70,78]}),
+  ].join('');
+
+  // ---------- 阶段漏斗 ----------
+  const stages=['招募中','陪跑中','路演期','已毕业'];
+  Charts.funnel('stageFunnel',{
+    data:stages.map(s=>({name:s,value:P.filter(p=>p.stage===s).length}))
+  });
+
+  // ---------- 学科分布饼 ----------
+  Charts.pie('discPie',{
+    data:disciplines.map(d=>({name:d.name,value:P.filter(p=>p.discipline===d.id).length})).filter(x=>x.value>0),
+    ring:true,legend:true,center:['38%','52%']
+  });
+
+  // ---------- 工具 ----------
+  function discColor(id){ return (disciplines.find(d=>d.id===id)||{}).color||'var(--primary)'; }
+  function stageBadge(s){
+    const map={'招募中':'amber','陪跑中':'blue','路演期':'purple','已毕业':'green'};
+    return UI.tag(s, map[s]||'gray');
+  }
+
+  // ---------- 项目抽屉 ----------
+  function projDrawer(p){
+    const c=discColor(p.discipline);
+    const taskPct=Math.round(p.tasksDone/p.tasks*100);
+    // 模拟陪跑任务列表
+    const tasks=['项目立项与目标对齐','技术成熟度复核 (TRL)','商业模式画布梳理','商业计划书包装','场景客户需求验证','投融资路演彩排','资源对接与落地'];
+    const taskHtml = tasks.map((t,i)=>{
+      const done=i<p.tasksDone;
+      return `<div class="flex items-center gap-3" style="padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:11px;background:${done?'var(--success)':'var(--panel-2)'};color:${done?'#04122e':'var(--text-mute)'}">${done?'<i data-lucide="check"></i>':i+1}</span>
+        <span class="${done?'':'text-mute'}" style="flex:1;font-size:13px">${t}</span>
+        ${done?UI.tag('已完成','green'):i===p.tasksDone?UI.tag('进行中','amber'):UI.tag('待开始','gray')}
+      </div>`;
+    }).join('');
+    // 专家辅导(取2-3位)
+    const mentors = DB.util.picks(E,3);
+    const mentorHtml = mentors.map(m=>`<div class="ecard" style="cursor:default;padding:11px">
+      <div class="flex items-center gap-3">
+        <span class="av" style="width:34px;height:34px;font-size:14px">${UI.esc(m.name.slice(0,1))}</span>
+        <div style="flex:1;min-width:0"><div class="fw6 f13">${UI.esc(m.name)}</div><div class="f12 text-mute">${m.role} · ${m.field}</div></div>
+        <span class="num text-warning fw7 f12">★ ${m.rating}</span>
+      </div></div>`).join('');
+    const body=`
+      <div class="text-dim mb-3" style="line-height:1.7">${UI.esc(p.desc)}</div>
+      <div class="grid cols-3" style="gap:10px;margin-bottom:16px">
+        ${UI.entityCard({title:'陪跑进度',meta:`<span class="num fw7 f18" style="color:${c}">${p.progress}%</span>`,onclick:''})}
+        ${UI.entityCard({title:'任务完成',meta:`<span class="num fw7 text-primary f18">${p.tasksDone}/${p.tasks}</span>`,onclick:''})}
+        ${UI.entityCard({title:'浏览量',meta:`<span class="num fw7 text-primary f18">${p.views.toLocaleString()}</span>`,onclick:''})}
+      </div>
+      ${UI.panel('项目信息', UI.descList([
+        ['项目编号', `<span class="num">${p.id}</span>`],
+        ['所属学科', `<span style="color:${c};font-weight:600">${p.disciplineName}</span>`],
+        ['当前阶段', stageBadge(p.stage)],
+        ['陪跑导师', UI.esc(p.mentor)],
+        ['团队成员', `<span class="num fw7">${p.members}</span> 人`],
+        ['融资状态', UI.tag(p.funding,'amber')],
+      ]))}
+      ${UI.panel('陪跑任务进度', `<div class="flex items-center gap-2 mb-3"><div style="flex:1">${UI.bar(taskPct,c)}</div><span class="num fw7 f12" style="color:${c}">${taskPct}%</span></div>`+taskHtml)}
+      ${UI.panel('专家辅导团', mentorHtml)}
+      ${UI.panel('资源对接', `
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${UI.tag('中试场地','blue')}${UI.tag('天使基金','green')}${UI.tag('IP布局','purple')}${UI.tag('场景客户','amber')}${UI.tag('政策申报','blue')}
+        </div>
+        <div class="text-mute f12 mt-3">系统已根据项目阶段智能匹配 5 类对接资源，可一键发起对接请求。</div>`)}
+      <div style="display:flex;gap:9px;margin-top:6px">
+        <button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('已发起资源对接请求','ok')">发起资源对接</button>
+        <button class="btn btn-sm" onclick="UI.closeDrawer();UI.toast('已预约专家辅导时段','ok')">预约辅导</button>
+        <button class="btn btn-ghost btn-sm" onclick="UI.closeDrawer()">关闭</button>
+      </div>`;
+    UI.drawer(`<div class="page-title" style="font-size:18px">${UI.esc(p.name)}</div><div class="page-sub" style="margin-top:4px">${p.id} · ${p.disciplineName}</div>`, body, {width:'640px'});
+  }
+
+  // ---------- 项目筛选 + 展示墙 ----------
+  let cur = P.slice();
+  UI.filterBar('#filter',{
+    fields:[
+      {key:'disc',label:'全部学科',options:disciplines.map(d=>d.name)},
+      {key:'stage',label:'全部阶段',options:stages},
+    ],
+    search:true, searchPh:'搜索项目名 / 导师...',
+    onChange:v=>{
+      cur = P.filter(p=>{
+        if(v.disc && p.disciplineName!==v.disc) return false;
+        if(v.stage && p.stage!==v.stage) return false;
+        if(v._q){const q=v._q.toLowerCase();if(!(p.name+p.mentor+p.disciplineName).toLowerCase().includes(q))return false;}
+        return true;
+      });
+      renderProj();
+    }
+  });
+  function renderProj(){
+    document.getElementById('cntTag').textContent='共 '+cur.length+' 个';
+    const wrap=document.getElementById('projGrid');
+    if(!cur.length){ wrap.innerHTML=UI.empty('未匹配到项目，试试调整筛选'); return; }
+    wrap.innerHTML=cur.map((p,i)=>{
+      const c=discColor(p.discipline);
+      return `<div class="ecard" data-id="${p.id}" style="cursor:pointer">
+        <div class="flex justify-between items-center">
+          <div class="et">${UI.esc(p.name)}</div>
+          ${stageBadge(p.stage)}
+        </div>
+        <div class="em mt-2">
+          <div class="flex items-center gap-3" style="margin-bottom:6px">
+            <span style="font-size:11px;border:1px solid ${c};color:${c};border-radius:6px;padding:1px 7px;font-weight:600">${p.disciplineName}</span>
+            <span class="text-mute f12">${p.mentor}</span>
+          </div>
+          <div class="flex items-center gap-2" style="margin-top:6px">
+            <span class="f12 text-mute" style="white-space:nowrap">陪跑进度</span>
+            <div style="flex:1">${UI.bar(p.progress,c)}</div>
+            <span class="num fw7 f12" style="color:${c}">${p.progress}%</span>
+          </div>
+          <div class="flex justify-between items-center" style="margin-top:9px">
+            <span class="f12 text-mute"><i data-lucide="users"></i> ${p.members} 人 · <i data-lucide="check-circle"></i> ${p.tasksDone}/${p.tasks} 任务</span>
+            <span class="f12 text-primary"><i data-lucide="eye"></i> ${p.views.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    wrap.querySelectorAll('.ecard').forEach(el=>{
+      el.onclick=()=>projDrawer(P.find(p=>p.id===el.dataset.id));
+    });
+  }
+  renderProj();
+
+  // ---------- 专家库 ----------
+  let expCur = E.slice();
+  UI.filterBar('#expFilter',{
+    fields:[
+      {key:'field',label:'全部领域',options:[...new Set(E.map(e=>e.field))]},
+      {key:'role',label:'全部角色',options:[...new Set(E.map(e=>e.role))]},
+    ],
+    search:true, searchPh:'搜索专家姓名 / 机构...',
+    onChange:v=>{
+      expCur = E.filter(e=>{
+        if(v.field && e.field!==v.field) return false;
+        if(v.role && e.role!==v.role) return false;
+        if(v._q){const q=v._q.toLowerCase();if(!(e.name+e.org+e.field).toLowerCase().includes(q))return false;}
+        return true;
+      });
+      renderExp();
+    }
+  });
+  function renderExp(){
+    document.getElementById('expCnt').textContent=expCur.length+' 位专家';
+    const wrap=document.getElementById('expGrid');
+    if(!expCur.length){ wrap.innerHTML=UI.empty('未匹配到专家'); return; }
+    wrap.innerHTML=expCur.map(e=>`<div class="ecard" data-id="${e.id}" style="cursor:pointer">
+      <div class="flex items-center gap-3">
+        <span class="av" style="width:42px;height:42px;font-size:17px">${UI.esc(e.name.slice(0,1))}</span>
+        <div style="flex:1;min-width:0">
+          <div class="et" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${UI.esc(e.name)}</div>
+          <div class="f12 text-mute">${e.role}</div>
+        </div>
+      </div>
+      <div class="mt-3" style="display:flex;gap:5px;flex-wrap:wrap">${UI.tag(e.field,'blue')}${UI.tag(e.org,'gray')}</div>
+      <div class="flex justify-between items-center mt-3">
+        <span class="f12 text-mute">辅导 ${e.sessions} 场</span>
+        <span class="num text-warning fw7 f12">★ ${e.rating}</span>
+      </div>
+    </div>`).join('');
+    wrap.querySelectorAll('.ecard').forEach(el=>{
+      el.onclick=()=>{const e=E.find(x=>x.id===el.dataset.id);expDrawer(e);};
+    });
+  }
+  function expDrawer(e){
+    const body=`
+      <div class="flex items-center gap-3 mb-3">
+        <span class="av" style="width:54px;height:54px;font-size:22px">${UI.esc(e.name.slice(0,1))}</span>
+        <div><div class="fw7 f18">${UI.esc(e.name)}</div><div class="text-mute">${e.role} · ${e.org}</div></div>
+      </div>
+      ${UI.panel('专家信息', UI.descList([
+        ['擅长领域', UI.tag(e.field,'blue')],
+        ['导师角色', e.role],
+        ['所属机构', e.org],
+        ['累计辅导', `<span class="num fw7">${e.sessions}</span> 场`],
+        ['专家评分', `<span class="num text-warning fw7">★ ${e.rating}</span>`],
+      ]))}
+      <div style="display:flex;gap:9px;margin-top:6px">
+        <button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('已向 ${UI.esc(e.name)} 发起辅导预约','ok')">预约辅导</button>
+        <button class="btn btn-ghost btn-sm" onclick="UI.closeDrawer()">关闭</button>
+      </div>`;
+    UI.drawer('专家详情', body, {width:'520px'});
+  }
+  renderExp();
+
+  // ---------- 操作 ----------
+  document.getElementById('btnNew').onclick=()=>{
+    UI.modal('发起线上孵化项目', `
+      <div class="text-dim mb-3">提交项目基本信息后，将进入 OPC 招募阶段，并由系统智能匹配陪跑导师与对接资源。</div>
+      <div class="grid cols-2" style="gap:10px">
+        ${UI.entityCard({title:'虚拟陪跑',meta:'7 步标准化陪跑任务 + 专家辅导团',onclick:''})}
+        ${UI.entityCard({title:'资源对接',meta:'中试场地 · 天使基金 · IP · 场景客户',onclick:''})}
+      </div>`,
+      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-primary btn-sm" onclick="UI.closeModal();UI.toast('项目已发起，进入招募阶段','ok')">发起项目</button>`});
+  };
+
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['成果与专利','学院与团队','活动与赛事']);
+})();</script>
+</body></html>

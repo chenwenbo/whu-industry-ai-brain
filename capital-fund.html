@@ -1,0 +1,239 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>基金资本协同 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="capital-fund">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>基金资本协同</div>
+      <div class="page-sub">校属基金矩阵 · 投资偏好匹配 · 联合投资协同 · 投融资对接漏斗</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnPipe">＋ 录入对接线索</button>
+      <button class="btn btn-sm btn-primary" id="btnMatch"><i data-lucide="zap"></i> AI 资方撮合</button>
+    </div>
+  </div>
+
+  <!-- 核心 KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 基金台账 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>基金台账</div>
+      <div class="tools"><span class="panel-tag">点击任意行查看基金详情</span></div></div>
+    <div id="fundFilter" class="mb-3"></div>
+    <div id="fundTable"></div>
+  </div>
+
+  <!-- 两栏：偏好匹配矩阵 + 投资阶段分布 -->
+  <div class="grid mt-4" style="grid-template-columns:1.55fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>基金 × 学科 投资偏好匹配</div>
+        <div class="tools"><span class="panel-tag">按基金关注方向聚合的覆盖强度</span></div></div>
+      <div class="chart h380" id="prefBar"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>基金阶段分布</div>
+        <div class="tools"><span class="panel-tag">管理规模合计 <span id="scaleTag"></span></span></div></div>
+      <div class="chart h380" id="stagePie"></div>
+    </div>
+  </div>
+
+  <!-- 联合投资记录 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>联合投资记录</div>
+      <div class="tools"><span class="panel-tag">校属基金联动资方共同参投</span></div></div>
+    <div id="coInvFilter" class="mb-3"></div>
+    <div id="coInvTable"></div>
+  </div>
+
+  <!-- 投融资对接漏斗 + 漏斗台账 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1.4fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>投融资对接漏斗</div>
+        <div class="tools"><span class="panel-tag">线索→对接→尽调→投资</span></div></div>
+      <div class="chart h380" id="pipeFunnel"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>资本协同线索池</div>
+        <div class="tools"><span class="panel-tag" id="pipeCntTag"></span></div></div>
+      <div id="pipeTable"></div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const funds=DB.funds, discs=DB.disciplines, fins=DB.financings, ents=DB.enterprises;
+  const totalScale=funds.reduce((s,f)=>s+f.scale,0);
+  const totalInvested=funds.reduce((s,f)=>s+f.invested,0);
+  const totalReserved=funds.reduce((s,f)=>s+f.reserved,0);
+
+  // ---- KPI ----
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'校属协同基金',value:funds.length,unit:'支',delta:'矩阵化布局',deltaUp:true,icon:'<i data-lucide="briefcase"></i>'}),
+    UI.kpi({label:'管理规模合计',value:totalScale.toFixed(1),unit:'亿元',delta:'+'+(totalScale*0.12).toFixed(1)+'亿',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[60,66,70,74,78,82,88,92,98,104,110,Math.round(totalScale)]}),
+    UI.kpi({label:'已投项目',value:totalInvested,unit:'个',delta:'覆盖 5 学科',deltaUp:true,icon:'<i data-lucide="rocket"></i>'}),
+    UI.kpi({label:'储备项目',value:totalReserved,unit:'个',delta:'待对接',deltaUp:true,icon:'<i data-lucide="clipboard-list"></i>'}),
+  ].join('');
+
+  document.getElementById('scaleTag').textContent=totalScale.toFixed(1)+' 亿';
+
+  // ---- 基金台账 表格 ----
+  const fundCols=[
+    {key:'name',title:'基金名称',render:f=>'<div class="fw6">'+UI.esc(f.name)+'</div><div class="f12 text-mute">'+UI.esc(f.id)+'</div>'},
+    {key:'scale',title:'规模(亿)',sortable:true,render:f=>'<span class="num text-primary fw7">'+f.scale.toFixed(1)+'</span>'},
+    {key:'focus',title:'关注方向',sortable:false,render:f=>'<div style="display:flex;gap:4px;flex-wrap:wrap">'+f.focus.map(x=>UI.tag(x,'blue')).join('')+'</div>'},
+    {key:'stage',title:'投资阶段',sortable:true,render:f=>UI.tag(f.stage, f.stage==='种子/天使'?'green':f.stage==='早期VC'?'blue':f.stage==='成长期PE'?'purple':'amber')},
+    {key:'invested',title:'已投',sortable:true,render:f=>'<span class="num">'+f.invested+'</span>'},
+    {key:'reserved',title:'储备',sortable:true,render:f=>'<span class="num">'+f.reserved+'</span>'},
+    {key:'op',title:'操作',sortable:false,render:f=>'<button class="btn btn-sm btn-ghost">详情</button>'},
+  ];
+  const fundTbl=UI.table('#fundTable',{columns:fundCols,rows:funds.slice(),pageSize:8,onRow:openFund});
+  UI.filterBar('#fundFilter',{
+    fields:[
+      {key:'stage',label:'全部阶段',options:['种子/天使','早期VC','成长期PE','并购']},
+      {key:'focus',label:'全部方向',options:discs.map(d=>d.name)},
+    ],
+    search:true, searchPh:'搜索基金名称...',
+    onChange:v=>fundTbl.update(funds.filter(f=>
+      (!v.stage||f.stage===v.stage)
+      &&(!v.focus||f.focus.includes(v.focus))
+      &&(!v._q||f.name.includes(v._q))
+    ))
+  });
+
+  function openFund(f){
+    const deployed=Math.round(f.scale*100*(0.3+f.invested/60));
+    const body=`
+      <div class="flex items-center gap-3 mb-3">${UI.tag(f.stage,'purple')}${UI.tag('规模 '+f.scale.toFixed(1)+' 亿','blue')}</div>
+      ${UI.descList([
+        ['基金编号', UI.esc(f.id)],
+        ['基金规模', '<span class="num text-primary fw7">'+f.scale.toFixed(1)+'</span> 亿元'],
+        ['投资阶段', UI.esc(f.stage)],
+        ['关注方向', f.focus.map(x=>UI.tag(x,'blue')).join(' ')],
+        ['已投项目', '<span class="num fw7">'+f.invested+'</span> 个'],
+        ['储备项目', '<span class="num">'+f.reserved+'</span> 个'],
+        ['已投金额(估)', '<span class="num">'+deployed.toLocaleString()+'</span> 万元'],
+        ['出资节奏', Math.round(f.invested/(f.invested+f.reserved)*100)+'% 已落地'],
+      ])}
+      <div class="divider"></div>
+      <div class="fw6 mb-2">基金投向学科分布</div>
+      <div class="chart h220" id="drFundPie"></div>
+      <div class="divider"></div>
+      <div class="fw6 mb-2">关注方向匹配的成果项目</div>
+      ${matchAch(f)}
+      <div class="mt-4 flex gap-2">
+        <button class="btn btn-sm btn-primary" onclick="UI.toast('已为该基金推送匹配项目清单','ok')">推送匹配项目</button>
+        <button class="btn btn-sm" onclick="UI.toast('已发起基金联动出资意向','ok')">发起联动出资</button>
+      </div>`;
+    UI.drawer(f.name, body, {width:'620px'});
+    setTimeout(()=>{
+      Charts.pie('drFundPie',{ring:true,legend:true,data:f.focus.map((nm,i)=>({name:nm,value:DB.util.ri(20,60)}))});
+    },30);
+  }
+  function matchAch(f){
+    const list=DB.achievements.filter(a=>f.focus.includes(a.disciplineName)&&a.match>=78).slice(0,4);
+    if(!list.length) return UI.empty('暂无强匹配成果项目');
+    return UI.rankList(list.map(a=>({name:a.title,value:a.match,sub:a.disciplineName+' · TRL'+a.trl+' · 估值'+a.value+'万'})));
+  }
+
+  // ---- 基金 × 学科 偏好匹配 ----
+  const prefMap={}; discs.forEach(d=>prefMap[d.name]=0);
+  funds.forEach(f=>f.focus.forEach(nm=>{ if(prefMap[nm]!=null) prefMap[nm]+=f.scale; }));
+  Charts.bar('prefBar',{
+    x:discs.map(d=>d.name),
+    series:[{name:'基金关注规模(亿)',data:discs.map(d=>+prefMap[d.name].toFixed(1))}],
+  });
+
+  // ---- 基金阶段分布 ----
+  const stages=['种子/天使','早期VC','成长期PE','并购'];
+  Charts.pie('stagePie',{ring:true,rose:true,legend:true,
+    data:stages.map(s=>({name:s,value:funds.filter(f=>f.stage===s).reduce((a,f)=>a+f.scale,0)})).filter(d=>d.value>0)});
+
+  // ---- 联合投资记录(基于 financings 造资方协同表) ----
+  const coInv=fins.map((fc,i)=>{
+    const lead=fc.investor;
+    const coFund=funds[i%funds.length];
+    return {ent:fc.ent, entId:fc.entId, round:fc.round, amount:fc.amount, date:fc.date,
+      lead:lead, coFund:coFund.name, share:DB.util.ri(15,45)};
+  });
+  const coInvCols=[
+    {key:'ent',title:'被投企业',render:r=>'<span class="fw6">'+UI.esc(r.ent)+'</span>'},
+    {key:'round',title:'轮次',render:r=>UI.tag(r.round,'blue')},
+    {key:'amount',title:'本轮金额(万)',sortable:true,render:r=>'<span class="num text-primary fw7">'+r.amount.toLocaleString()+'</span>'},
+    {key:'lead',title:'领投方',render:r=>UI.esc(r.lead)},
+    {key:'coFund',title:'校属基金联动',render:r=>'<span class="f13">'+UI.esc(r.coFund)+'</span>'},
+    {key:'share',title:'联动出资占比',sortable:true,render:r=>'<div class="flex items-center gap-2" style="min-width:110px">'+UI.bar(r.share,'var(--accent)')+'<span class="num f12 fw7">'+r.share+'%</span></div>'},
+    {key:'date',title:'日期',sortable:true,render:r=>'<span class="num f12">'+UI.esc(r.date)+'</span>'},
+  ];
+  const coInvTbl=UI.table('#coInvTable',{columns:coInvCols,rows:coInv.slice(),pageSize:6,onRow:r=>{
+    UI.modal('联合投资 · '+r.ent, UI.descList([
+      ['被投企业',UI.esc(r.ent)],['投资轮次',UI.esc(r.round)],['本轮金额','<span class="num">'+r.amount.toLocaleString()+'</span> 万元'],
+      ['领投方',UI.esc(r.lead)],['校属基金联动',UI.esc(r.coFund)],['联动出资占比',r.share+'%'],['投资日期',UI.esc(r.date)],
+    ]),{footer:'<button class="btn btn-sm" onclick="UI.closeModal()">关闭</button>'});
+  }});
+  UI.filterBar('#coInvFilter',{
+    fields:[
+      {key:'round',label:'全部轮次',options:['天使轮','Pre-A','A轮','B轮','战略融资']},
+      {key:'coFund',label:'全部基金',options:[...new Set(funds.map(f=>f.name))]},
+    ],
+    search:true, searchPh:'搜索被投企业...',
+    onChange:v=>coInvTbl.update(coInv.filter(r=>
+      (!v.round||r.round===v.round)
+      &&(!v.coFund||r.coFund===v.coFund)
+      &&(!v._q||r.ent.includes(v._q))
+    ))
+  });
+
+  // ---- 投融资对接漏斗 ----
+  const cl=DB.customerLeads.filter(l=>l.intent==='投资协同');
+  const stageOrder=['初步接触','需求确认','方案沟通','商务谈判','已签约'];
+  const funnelMap={线索:0,对接:0,尽调:0,投资:0};
+  // 用 projectLeads 的阶段聚合做投融资漏斗
+  const pl=DB.projectLeads;
+  const fStages=[
+    {name:'线索', value: pl.filter(p=>['线索','初筛'].includes(p.stage)).length + 18},
+    {name:'对接', value: pl.filter(p=>['初筛','尽调'].includes(p.stage)).length + 12},
+    {name:'尽调', value: pl.filter(p=>['尽调','拟立项'].includes(p.stage)).length + 6},
+    {name:'投资', value: pl.filter(p=>p.stage==='已入池').length + 3},
+  ];
+  Charts.funnel('pipeFunnel',{data:fStages});
+
+  // ---- 资本协同线索池(投资协同意向客户) ----
+  document.getElementById('pipeCntTag').textContent='共 '+cl.length+' 条投资协同线索';
+  const pipeCols=[
+    {key:'name',title:'机构/线索',render:l=>'<div class="fw6">'+UI.esc(l.name)+'</div><div class="f12 text-mute">'+UI.esc(l.type)+'</div>'},
+    {key:'contact',title:'对接人',render:l=>UI.esc(l.contact)},
+    {key:'value',title:'意向金额(万)',sortable:true,render:l=>'<span class="num text-primary fw7">'+l.value.toLocaleString()+'</span>'},
+    {key:'stage',title:'对接阶段',sortable:true,sortVal:l=>stageOrder.indexOf(l.stage),render:l=>UI.tag(l.stage, l.stage==='已签约'?'green':l.stage==='商务谈判'?'amber':'gray')},
+    {key:'owner',title:'负责人',render:l=>UI.esc(l.owner)},
+  ];
+  const pipeTbl=UI.table('#pipeTable',{columns:pipeCols,rows:cl.slice(),pageSize:6,empty:'暂无投资协同线索',onRow:l=>{
+    UI.drawer('对接线索 · '+l.name, UI.descList([
+      ['机构名称',UI.esc(l.name)],['机构类型',UI.esc(l.type)],['对接人',UI.esc(l.contact)],
+      ['意向',UI.tag(l.intent,'purple')],['意向金额','<span class="num">'+l.value.toLocaleString()+'</span> 万元'],
+      ['当前阶段',UI.esc(l.stage)],['来源',UI.esc(l.source)],['负责人',UI.esc(l.owner)],
+    ])+'<div class="mt-4 flex gap-2"><button class="btn btn-sm btn-primary" onclick="UI.toast(\'已推进至下一对接阶段\',\'ok\');UI.closeDrawer()">推进阶段</button><button class="btn btn-sm" onclick="UI.toast(\'已匹配适配基金\',\'ok\')">匹配基金</button></div>',{width:'520px'});
+  }});
+
+  // ---- 顶部按钮 ----
+  document.getElementById('btnPipe').onclick=()=>UI.modal('录入投融资对接线索',
+    '<div class="f13 text-dim mb-3">手动登记新的资本协同线索，进入对接漏斗后由 AI 投资人辅助匹配适配基金。</div>'+
+    UI.descList([['当前线索池',cl.length+' 条'],['可联动基金',funds.length+' 支'],['累计储备项目',totalReserved+' 个']]),
+    {footer:'<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-sm btn-primary" onclick="UI.closeModal();UI.toast(\'对接线索已录入漏斗\',\'ok\')">录入</button>'});
+  document.getElementById('btnMatch').onclick=()=>UI.toast('AI 投资人正在为储备项目撮合适配基金...','ok');
+
+  // ---- 数据来源脚注 ----
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['参股/校属企业','活动与赛事','成果与专利']));
+})();</script>
+</body></html>

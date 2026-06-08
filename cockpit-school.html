@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>校级产业创新驾驶舱 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="cockpit-school">
+<main class="wuda-view">
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>校级产业创新驾驶舱</div>
+      <div class="page-sub">面向学校领导与资产管理公司 · 把分散科研资源转化为可组织、可运营、可放大的产业创新能力</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <div class="seg" id="rangeSeg"><button class="on" data-r="本年">本年</button><button data-r="近12月">近12月</button><button data-r="累计">累计</button></div>
+      <button class="btn btn-ghost btn-sm" id="btnRefresh">↻ 刷新</button>
+      <button class="btn btn-primary btn-sm" id="btnFull"><i data-lucide="maximize"></i> 全屏</button>
+    </div>
+  </div>
+
+  <!-- 核心 KPI 带 -->
+  <div class="grid cols-4 mt-3" id="kpiRow1"></div>
+  <div class="grid cols-4 mt-3" id="kpiRow2"></div>
+
+  <!-- 主区 第一行: 能力雷达 + 转化漏斗 + 洞察 -->
+  <div class="grid mt-4" style="grid-template-columns:1.1fr 1.1fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>重点产业方向能力雷达</div><div class="tools"><span class="panel-tag">5学科 · 5维度</span></div></div>
+      <div class="chart h340" id="radarChart"></div>
+      <div class="f12 text-mute" style="text-align:center;margin-top:2px">维度：成果储备 / 团队实力 / 企业集聚 / 区域契合 / 资本关注</div>
+    </div>
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>成果转化全链条漏斗</div><div class="tools"><span class="panel-tag">点击环节查看明细</span></div></div>
+      <div class="chart h340" id="funnelChart"></div>
+      <div class="f12 text-mute" style="text-align:center;margin-top:2px">需求识别 → 科研组织 → 成果项目化 → 企业孵化 → 资本协同</div>
+    </div>
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>大脑智能洞察</div><div class="tools"><span class="panel-tag">AI实时</span></div></div>
+      <div id="insightBox" style="max-height:340px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- 主区 第二行: 区域地图 + 合作图谱 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>湖北区域产业协同地图</div><div class="tools"><span class="panel-tag">点击市州查看详情</span></div></div>
+      <div class="chart h420" id="mapChart"></div>
+    </div>
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>校企合作网络知识图谱</div><div class="tools"><span class="panel-tag">点击节点查看详情</span></div></div>
+      <div class="chart h420" id="graphChart"></div>
+    </div>
+  </div>
+
+  <!-- 主区 第三行: 转化趋势 + 重点项目TOP + 重点企业TOP -->
+  <div class="grid mt-4" style="grid-template-columns:1.4fr 1fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>产业转化趋势 · 近12月</div><div class="tools"><span class="panel-tag" id="trendTotal"></span></div></div>
+      <div class="chart h340" id="trendChart"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>重点项目 TOP10</div><div class="tools"><span class="panel-tag">按估值</span></div></div>
+      <div id="projRank" style="max-height:340px;overflow-y:auto"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>重点企业 TOP10</div><div class="tools"><span class="panel-tag">按估值</span></div></div>
+      <div id="entRank" style="max-height:340px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- 主区 第四行: 学科分布 + 园区运营 + 风险态势 -->
+  <div class="grid mt-4 cols-3">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>成果学科分布</div><div class="tools"><span class="panel-tag" id="achTotal"></span></div></div>
+      <div class="chart h300" id="discPie"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>园区载体运营态势</div><div class="tools"><span class="panel-tag">6 园区</span></div></div>
+      <div class="chart h300" id="parkBar"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>参股企业风险态势</div><div class="tools"><span class="panel-tag" id="riskCnt"></span></div></div>
+      <div id="riskBox" style="max-height:300px;overflow-y:auto"></div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/geo/hubei.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  const k=DB.topKPI;
+
+  // ---------- KPI 带 ----------
+  document.getElementById('kpiRow1').innerHTML=[
+    UI.kpi({label:'科技成果总数',value:k.achievements.toLocaleString(),unit:'项',delta:k.achGrowth+'%',deltaUp:true,icon:'<i data-lucide="microscope"></i>',spark:[42,48,46,55,52,61,58,66,63,70,72,78]}),
+    UI.kpi({label:'在孵 / 参股企业',value:k.enterprises,unit:'家',delta:k.entGrowth+'%',deltaUp:true,icon:'<i data-lucide="building-2"></i>',spark:[20,24,26,28,30,32,35,34,36,38,40,42]}),
+    UI.kpi({label:'对接产业伙伴',value:k.partners.toLocaleString(),unit:'家',delta:k.partnerGrowth+'%',deltaUp:true,icon:'<i data-lucide="handshake"></i>',spark:[60,68,72,80,84,92,98,104,110,118,124,132]}),
+    UI.kpi({label:'本年成果转化额',value:k.convAmount,unit:'亿元',delta:k.convGrowth+'%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[32,41,38,52,49,61,58,72,69,78,81,86]}),
+  ].join('');
+  document.getElementById('kpiRow2').innerHTML=[
+    UI.kpi({label:'重点项目',value:k.projects,unit:'个',delta:'入池在跟',deltaUp:true,icon:'<i data-lucide="package"></i>',spark:[180,196,210,225,238,246,252,258,262,265,266,268]}),
+    UI.kpi({label:'参股 / 校属企业',value:k.equity,unit:'家',delta:'国资穿透',deltaUp:true,icon:'<i data-lucide="trending-up"></i>',spark:[40,44,48,51,54,56,58,60,61,62,63,64]}),
+    UI.kpi({label:'产业园区载体',value:k.parks,unit:'个',delta:'4市州布局',deltaUp:true,icon:'<i data-lucide="building"></i>',spark:[3,3,4,4,5,5,5,6,6,6,6,6]}),
+    UI.kpi({label:'年度活动场次',value:k.activities,unit:'场',delta:'训练营·赛事·对接',deltaUp:true,icon:'<i data-lucide="calendar"></i>',spark:[60,68,76,84,92,100,108,114,120,124,126,128]}),
+  ].join('');
+
+  // ---------- 能力雷达 (5学科叠加) ----------
+  Charts.radar('radarChart',{
+    indicators:DB.directionDims,
+    series:DB.directionScores.map(d=>({name:d.name,value:d.scores})),
+    legend:true, max:100,
+  });
+
+  // ---------- 转化漏斗 (含钻取) ----------
+  const funnelDetail={
+    '产业需求识别':{tip:'从龙头企业、园区、政府征集的真实技术需求',
+      rows:DB.targetEnterprises.slice(0,8).map(t=>({name:t.discName+' · '+t.name,sub:t.type+' · '+t.city,val:t.match+'分'}))},
+    '科研组织协同':{tip:'已组织科研团队对接、跨学科协同的研究方向',
+      rows:DB.teams.slice(0,8).map(t=>({name:t.name,sub:t.disciplineName+' · '+t.college,val:t.demand+'项需求'}))},
+    '成果项目化':{tip:'完成成熟度评估、进入项目包装阶段的成果',
+      rows:DB.achievements.filter(a=>['概念验证','中试放大','已立项'].includes(a.status)).slice(0,8).map(a=>({name:a.title,sub:a.disciplineName+' · TRL'+a.trl,val:a.value+'万'}))},
+    '企业孵化成长':{tip:'已孵化落地、处于成长通道的企业',
+      rows:DB.enterprises.filter(e=>e.type==='孵化企业'||e.stage==='成长期').slice(0,8).map(e=>({name:e.name,sub:e.disciplineName+' · '+e.stage,val:(e.valuation/10000).toFixed(1)+'亿估值'}))},
+    '资本协同放大':{tip:'已完成融资或学校参股、进入资本放大期的企业',
+      rows:DB.enterprises.filter(e=>e.equity>0).slice(0,8).map(e=>({name:e.name,sub:e.financingRound+' · 持股'+e.equity+'%',val:(e.valuation/10000).toFixed(1)+'亿估值'}))},
+  };
+  const funnelInst=Charts.funnel('funnelChart',{data:DB.convFunnel});
+  funnelInst.on('click',p=>{
+    const d=funnelDetail[p.name]; if(!d) return;
+    const body=`<div class="text-dim mb-3">${d.tip}</div>
+      <div class="flex items-center gap-3 mb-3">
+        <div class="kpi" style="flex:1;margin:0"><div class="lab">本环节规模</div><div class="val"><span class="num">${p.value}</span></div></div>
+        <div class="kpi" style="flex:1;margin:0"><div class="lab">环比转化率</div><div class="val"><span class="num text-success">${Math.round(p.value/DB.convFunnel[0].value*100)}%</span></div></div>
+      </div>
+      ${UI.rankList(d.rows.map(r=>({name:r.name,sub:r.sub,value:r.val})))}`;
+    UI.drawer('转化环节 · '+p.name,body,{width:'600px'});
+  });
+
+  // ---------- 大脑智能洞察 ----------
+  const lvMap={high:'r',warn:'y',normal:'g'};
+  const lvTxt={high:'高优先',warn:'需关注',normal:'参考'};
+  document.getElementById('insightBox').innerHTML=DB.brainInsights.map(it=>{
+    const lv=lvMap[it.level]||'g';
+    return `<div class="ecard" style="margin-bottom:9px;cursor:default">
+      <div class="flex justify-between items-center">
+        ${UI.tag(it.tag,it.level==='high'?'red':it.level==='warn'?'amber':'blue')}
+        ${UI.light(lv,lvTxt[it.level]||'参考')}
+      </div>
+      <div class="em mt-2" style="line-height:1.6">${UI.esc(it.txt)}</div>
+    </div>`;
+  }).join('') + `<div style="text-align:center;margin-top:6px"><a class="btn btn-sm btn-ghost" href="brain-overview.html">进入产业创新大脑 →</a></div>`;
+
+  // ---------- 区域地图 (湖北) ----------
+  const mapInst=Charts.map('mapChart',{geo:HUBEI_GEOJSON,mapName:'hubei',data:DB.regionData,max:200,visualText:['强','弱']});
+  mapInst.on('click',p=>{
+    const r=DB.regionData.find(x=>p.name&&p.name.indexOf(x.name.replace(/[市州]$/,''))>=0)||DB.regionData.find(x=>x.name===p.name);
+    if(!r){ UI.toast('该区域暂无协同数据','warn'); return; }
+    const ents=DB.enterprises.filter(e=>e.city===r.name).slice(0,6);
+    const acts=DB.activities.filter(a=>a.venue&&a.venue.indexOf(r.name.slice(0,2))>=0);
+    const body=`<div class="grid cols-2 gap-3 mb-3">
+        <div class="kpi" style="margin:0"><div class="lab">产业协同强度</div><div class="val"><span class="num">${r.value}</span></div></div>
+        <div class="kpi" style="margin:0"><div class="lab">区域内企业</div><div class="val"><span class="num">${ents.length||DB.util.ri(2,12)}</span><span class="unit">家</span></div></div>
+      </div>
+      <div class="panel-h" style="margin-top:0"><div class="t"><span class="bar"></span>区域内重点企业</div></div>
+      ${ents.length?UI.rankList(ents.map(e=>({name:e.name,sub:e.disciplineName+' · '+e.stage,value:(e.valuation/10000).toFixed(1)+'亿'}))):UI.empty('该市州暂无在库企业，可作为招商拓展区域')}`;
+    UI.drawer('区域产业协同 · '+r.name,body,{width:'560px'});
+  });
+
+  // ---------- 合作图谱 ----------
+  const g=DB.coopGraph;
+  const graphInst=Charts.graph('graphChart',{nodes:g.nodes,links:g.links,cats:g.cats,layout:'force',roam:true});
+  graphInst.on('click',p=>{
+    if(p.dataType!=='node') return;
+    const node=g.nodes.find(n=>n.name===p.name); if(!node) return;
+    const catName=g.cats[node.cat]||'节点';
+    // 关联节点
+    const rel=new Set();
+    g.links.forEach(l=>{ if(l.source===node.id)rel.add(l.target); if(l.target===node.id)rel.add(l.source); });
+    const relNodes=g.nodes.filter(n=>rel.has(n.id));
+    let extra='';
+    if(node.cat===1){ // 优势学科 -> 列成果数与企业数
+      const d=DB.disciplines.find(x=>x.id===node.id);
+      const achN=DB.achievements.filter(a=>a.discipline===node.id).length;
+      const entN=DB.enterprises.filter(e=>e.discipline===node.id).length;
+      extra=`<div class="grid cols-2 gap-3 mb-3">
+        <div class="kpi" style="margin:0"><div class="lab">相关成果</div><div class="val"><span class="num">${achN}</span><span class="unit">项</span></div></div>
+        <div class="kpi" style="margin:0"><div class="lab">相关企业</div><div class="val"><span class="num">${entN}</span><span class="unit">家</span></div></div>
+      </div><div class="text-dim mb-3">${d?d.desc:''}</div>`;
+    }
+    const body=`<div class="flex items-center gap-3 mb-3">${UI.tag(catName,node.cat===0?'purple':node.cat===1?'blue':node.cat===2?'green':'amber')}
+      <span class="text-mute f12">合作连接 ${relNodes.length} 个</span></div>
+      ${extra}
+      <div class="panel-h" style="margin-top:0"><div class="t"><span class="bar"></span>关联节点</div></div>
+      ${UI.rankList(relNodes.map(n=>({name:n.name,sub:g.cats[n.cat],value:''})))}`;
+    UI.drawer('合作网络 · '+node.name,body,{width:'520px'});
+  });
+
+  // ---------- 产业转化趋势 ----------
+  function buildTrend(){
+    // 由收入趋势聚合近12月转化金额(万元)
+    return DB.revenueTrend.map(m=>m.托管运营+m.平台订阅+m.任务包式AI+m.专业服务+m.投资协同);
+  }
+  const trendData=buildTrend();
+  document.getElementById('trendTotal').textContent='累计 '+(trendData.reduce((a,b)=>a+b,0)/10000).toFixed(2)+' 亿元';
+  Charts.line('trendChart',{x:DB.revenueTrend.map(m=>m.month),series:[{name:'转化金额(万元)',data:trendData}],area:true,smooth:true});
+
+  // ---------- 重点项目 TOP10 (按估值) ----------
+  const topProj=[...DB.achievements].sort((a,b)=>b.value-a.value).slice(0,10);
+  document.getElementById('projRank').innerHTML=UI.rankList(topProj.map(a=>({
+    name:a.title, sub:a.disciplineName+' · TRL'+a.trl+' · '+a.status, value:a.value+'万'
+  })));
+
+  // ---------- 重点企业 TOP10 (按估值) ----------
+  const topEnt=[...DB.enterprises].sort((a,b)=>b.valuation-a.valuation).slice(0,10);
+  document.getElementById('entRank').innerHTML=UI.rankList(topEnt.map(e=>({
+    name:e.name, sub:e.disciplineName+' · '+e.stage+' · '+e.financingRound, value:(e.valuation/10000).toFixed(1)+'亿'
+  })));
+
+  // ---------- 成果学科分布 ----------
+  document.getElementById('achTotal').textContent=DB.achievements.length+' 项';
+  const discCount=DB.disciplines.map(d=>({name:d.name,value:DB.achievements.filter(a=>a.discipline===d.id).length}));
+  Charts.pie('discPie',{data:discCount,ring:true,legend:true,center:['38%','52%']});
+
+  // ---------- 园区运营态势 ----------
+  Charts.bar('parkBar',{
+    x:DB.parks.map(p=>p.name.replace('武汉大学','武大').slice(0,8)),
+    series:[{name:'入驻率(%)',data:DB.parks.map(p=>p.occupancy)}],
+    horizontal:true,
+  });
+
+  // ---------- 参股企业风险态势 ----------
+  const alerts=DB.riskAlerts;
+  const cntR=alerts.filter(a=>a.level==='r').length, cntY=alerts.filter(a=>a.level==='y').length;
+  document.getElementById('riskCnt').textContent='预警'+cntR+' · 关注'+cntY;
+  document.getElementById('riskBox').innerHTML = alerts.length? alerts.map(a=>`<div class="ecard" style="margin-bottom:8px;cursor:pointer" onclick="UI.toast('已派单技术经理人跟进：${UI.esc(a.ent)}','ok')">
+      <div class="flex justify-between items-center">
+        <div class="et" style="font-size:13px">${UI.esc(a.ent)}</div>
+        ${UI.light(a.level,a.level==='r'?'预警':'关注')}
+      </div>
+      <div class="em mt-2">${UI.tag(a.type,a.level==='r'?'red':'amber')} ${UI.esc(a.desc)}</div>
+      <div class="f12 text-mute mt-2">${UI.esc(a.date)} · ${UI.esc(a.status)}</div>
+    </div>`).join('') : UI.empty('暂无风险预警');
+
+  // ---------- 顶栏交互 ----------
+  document.getElementById('btnFull').onclick=()=>{
+    const el=document.documentElement;
+    if(!document.fullscreenElement){ (el.requestFullscreen?el.requestFullscreen():null); UI.toast('已进入全屏大屏模式','ok'); }
+    else { document.exitFullscreen&&document.exitFullscreen(); UI.toast('已退出全屏','ok'); }
+  };
+  document.getElementById('btnRefresh').onclick=()=>UI.toast('驾驶舱数据已刷新（数据底座8域实时汇聚）','ok');
+  document.getElementById('rangeSeg').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    [...e.currentTarget.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    UI.toast('已切换统计口径：'+b.dataset.r,'ok');
+  });
+
+  // ---------- 数据来源脚注 ----------
+  document.querySelector('main').insertAdjacentHTML('beforeend',
+    UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','活动与赛事','科技园与创意园']));
+})();
+</script>
+</body>
+</html>

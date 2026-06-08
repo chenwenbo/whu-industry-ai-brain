@@ -1,0 +1,196 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数据地图·血缘 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="data-map">
+<main class="wuda-view">
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>数据地图 · 血缘图谱</div>
+      <div class="page-sub">8 类数据域统一汇聚 · 跨域字段关联 · 数据流向产业创新大脑与 AI 角色 / 业务场景</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnRel">查看血缘关系</button>
+      <button class="btn btn-sm btn-primary" id="btnSync">刷新血缘扫描</button>
+    </div>
+  </div>
+
+  <!-- 统计条 -->
+  <div class="grid cols-4" id="statRow"></div>
+
+  <!-- 主区:血缘大图 -->
+  <div class="panel glow mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>数据域血缘关系图谱<span class="tag tag-gray">8 域 · 节点大小=资产记录量</span></div>
+      <div class="tools"><span class="panel-tag">点击节点查看上下游与消费方</span></div></div>
+    <div class="chart h480" id="lineageGraph"></div>
+    <div id="graphLegend" style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text-dim);margin-top:6px"></div>
+  </div>
+
+  <!-- 跨域数据流向 sankey -->
+  <div class="grid mt-4" style="grid-template-columns:1.55fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>跨域数据流向 · 域 → 产业创新大脑 → AI角色 / 业务场景</div>
+        <div class="tools"><span class="panel-tag">链路宽度=日均流转记录(万)</span></div></div>
+      <div class="chart h480" id="flowSankey"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>数据域汇聚明细</div><div class="tools"><span class="panel-tag">健康度</span></div></div>
+      <div id="domainList" style="max-height:480px;overflow-y:auto"></div>
+    </div>
+  </div>
+</main>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const D=DB.dataDomains, A=DB.dataAssets, L=DB.lineage;
+  // 解析 var(--dom-N) -> 实际色值
+  const cs=getComputedStyle(document.body);
+  const domColor=d=>{const m=/var\((--dom-\d)\)/.exec(d.color);return m?cs.getPropertyValue(m[1]).trim():d.color;};
+  const byName=Object.fromEntries(D.map(d=>[d.name,d]));
+
+  // ---------- 统计条 ----------
+  const isolated=D.filter(d=>!L.some(l=>l.from===d.name||l.to===d.name));
+  const crossFields=L.length*DB.util.ri(6,14); // 跨域关联字段估算
+  const reuse=Math.round((D.length-isolated.length)/D.length*100*1.0);
+  document.getElementById('statRow').innerHTML=[
+    UI.kpi({label:'已打通域对',value:L.length,unit:'对',delta:'+2',deltaUp:true,icon:'<i data-lucide="link"></i>',spark:[3,4,4,5,5,6,6,7,7]}),
+    UI.kpi({label:'跨域关联字段',value:crossFields,unit:'个',delta:'12.4%',deltaUp:true,icon:'<i data-lucide="puzzle"></i>',spark:[30,34,40,42,48,52,58,62,68]}),
+    UI.kpi({label:'孤立资产',value:isolated.length,unit:'域',delta:isolated.length+' 待关联',deltaUp:false,icon:'<i data-lucide="alert-triangle"></i>'}),
+    UI.kpi({label:'数据复用率',value:reuse,unit:'%',delta:'+5.1%',deltaUp:true,icon:'<i data-lucide="recycle"></i>',spark:[60,62,66,70,72,78,82,85,88]}),
+  ].join('');
+
+  // ---------- 主区血缘大图 ----------
+  // 每个域记录量 = 该域资产记录(万)加总
+  const domRecords=Object.fromEntries(D.map(d=>[d.name,
+    A.filter(a=>a.domainId===d.id).reduce((s,a)=>s+(parseFloat(a.records)||0),0)]));
+  const maxRec=Math.max(...Object.values(domRecords));
+  const nodes=D.map(d=>{
+    const c=domColor(d);
+    return {id:d.name,name:d.name,
+      symbolSize:30+Math.round((domRecords[d.name]/maxRec)*44),
+      itemStyle:{color:c,shadowBlur:18,shadowColor:c,borderColor:'#fff',borderWidth:d.status==='同步中'?0:0},
+      label:{show:true,color:'#eaf4ff',fontSize:12,fontWeight:600},
+      _domain:d};
+  });
+  const links=L.map(l=>{
+    const c=domColor(byName[l.from]);
+    return {source:l.from,target:l.to,rel:l.rel,
+      lineStyle:{color:c,opacity:.55,width:2.2,curveness:.16},
+      label:{show:false,formatter:l.rel}};
+  });
+  const g=echarts.init(document.getElementById('lineageGraph'),'wuda-dark');
+  g.setOption({
+    tooltip:{formatter:p=>p.dataType==='edge'
+      ? `<b>${p.data.source} → ${p.data.target}</b><br/>关联关系：${p.data.rel}`
+      : `<b>${p.data.name}</b><br/>资产记录：${Math.round(domRecords[p.data.name])} 万<br/>负责方：${p.data._domain.owner}<br/>更新：${p.data._domain.updated} · ${p.data._domain.status}`},
+    series:[{type:'graph',layout:'force',roam:true,draggable:true,
+      force:{repulsion:520,edgeLength:[120,220],gravity:.06},
+      edgeSymbol:['none','arrow'],edgeSymbolSize:9,
+      label:{position:'right'},
+      lineStyle:{opacity:.55},
+      emphasis:{focus:'adjacency',lineStyle:{width:4,opacity:.95},label:{fontWeight:700}},
+      data:nodes,links}]});
+  g.on('click',p=>{ if(p.dataType==='node') openDomain(p.data._domain); });
+  window.addEventListener('resize',()=>g.resize());
+
+  // 图例
+  document.getElementById('graphLegend').innerHTML=D.map(d=>
+    `<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${domColor(d)};margin-right:5px;vertical-align:middle"></span>${d.name}</span>`).join('');
+
+  // ---------- 抽屉:域上下游 + 消费方 ----------
+  const AI_ROLES=['AI分析师','AI技术经理人','AI投资人'];
+  const SCENES=['成果项目化','企业画像','园区载体','活动社群','OPC孵化'];
+  function consumers(domainName){
+    // 用 aiTasks.sources 找出哪些AI角色消费该域
+    const roles=[...new Set(DB.aiTasks.filter(t=>(t.sources||[]).includes(domainName)).map(t=>t.role))];
+    // 业务场景:按域名启发式映射
+    const map={'成果与专利':['成果项目化','企业画像'],'学院与团队':['成果项目化'],'研究院与平台':['成果项目化','OPC孵化'],
+      '科技园与创意园':['园区载体'],'参股/校属企业':['企业画像','园区载体'],'活动与赛事':['活动社群','OPC孵化'],
+      '校友企业':['企业画像','活动社群'],'产业企业与园区':['企业画像','园区载体','活动社群']};
+    return {roles:roles.length?roles:AI_ROLES.slice(0,1),scenes:map[domainName]||['企业画像']};
+  }
+  function openDomain(d){
+    const ups=L.filter(l=>l.to===d.name);   // 上游(谁流入我)
+    const downs=L.filter(l=>l.from===d.name); // 下游(我流向谁)
+    const assets=A.filter(a=>a.domainId===d.id);
+    const cons=consumers(d.name);
+    const c=domColor(d);
+    const lineHtml=(arr,dir)=>arr.length?arr.map(l=>{
+      const other=dir==='up'?l.from:l.to;
+      return `<div class="flex items-center gap-2" style="padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="color:${domColor(byName[other])||c};font-size:15px">${dir==='up'?'↘':'↗'}</span>
+        <div style="flex:1"><div class="fw6 f13">${other}</div><div class="f12 text-mute">${l.rel}</div></div>
+        ${UI.tag(dir==='up'?'上游':'下游',dir==='up'?'blue':'green')}</div>`;
+    }).join(''):UI.empty(dir==='up'?'无上游来源':'无下游去向');
+    const body=`
+      <div class="flex items-center gap-3 mb-4">
+        <div style="width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:color-mix(in srgb,${c} 22%,transparent);box-shadow:0 0 18px ${c}55"><i data-lucide="database"></i></div>
+        <div><div class="fw7" style="font-size:17px">${d.name}域</div>
+          <div class="f12 text-dim">${d.owner} · ${d.tables} 张表 · ${d.records} 万条记录</div></div>
+        <div style="margin-left:auto">${UI.light(d.health>=92?'g':d.health>=88?'y':'r','健康 '+d.health)}</div>
+      </div>
+      ${UI.descList([['更新频率',d.freq],['敏感级别',UI.tag(d.sensitive,d.sensitive==='受限'?'red':d.sensitive==='公开'?'green':'gray')],['最近更新',d.updated],['同步状态',d.status==='正常'?UI.tag('正常','green'):UI.tag(d.status,'amber')]])}
+      <div class="divider"></div>
+      <div class="fw6 f13 mb-3"><i data-lucide="upload"></i> 上游来源（${ups.length}）</div>${lineHtml(ups,'up')}
+      <div class="fw6 f13 mb-3 mt-4"><i data-lucide="download"></i> 下游去向（${downs.length}）</div>${lineHtml(downs,'down')}
+      <div class="divider"></div>
+      <div class="fw6 f13 mb-3"><i data-lucide="bot"></i> 消费该域的 AI 角色</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${cons.roles.map(r=>UI.tag(r,'purple')).join('')}</div>
+      <div class="fw6 f13 mb-3"><i data-lucide="rocket"></i> 关联业务场景</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${cons.scenes.map(s=>UI.tag(s,'amber')).join('')}</div>
+      <div class="divider"></div>
+      <div class="fw6 f13 mb-3"><i data-lucide="clipboard-list"></i> 域内数据资产（${assets.length}）</div>
+      ${assets.map(a=>`<div class="flex items-center justify-between" style="padding:7px 0;border-bottom:1px solid var(--border)">
+        <div><div class="f13 fw6">${a.name}</div><div class="f12 text-mute">${a.fields} 字段 · ${a.records}</div></div>
+        <div class="text-primary num f13">健康 ${a.health}</div></div>`).join('')}`;
+    UI.drawer(d.name+' · 数据血缘详情',body,{width:'640px'});
+  }
+
+  // ---------- 域汇聚明细列表 ----------
+  document.getElementById('domainList').innerHTML=D.map(d=>{
+    const c=domColor(d);
+    return `<div class="ecard" style="margin-bottom:9px" onclick="window.__openDom(${d.id})">
+      <div class="flex items-center gap-3">
+        <span style="width:8px;height:34px;border-radius:4px;background:${c};box-shadow:0 0 10px ${c}"></span>
+        <div style="flex:1;min-width:0"><div class="et" style="margin-bottom:2px">${d.name}</div>
+          <div class="em">${d.tables} 表 · ${d.records} 万条 · ${d.freq}</div></div>
+        <div style="text-align:right"><div class="num fw7" style="color:${c}">${d.health}</div><div class="f12 text-mute">健康度</div></div>
+      </div>
+      <div class="mt-2">${UI.bar(d.health,c)}</div></div>`;
+  }).join('');
+  window.__openDom=id=>openDomain(D.find(x=>x.id===id));
+
+  // ---------- 跨域 sankey ----------
+  const brain='产业创新大脑';
+  const sNodes=[...D.map(d=>({name:d.name})),{name:brain},...AI_ROLES.map(r=>({name:r})),...SCENES.map(s=>({name:s}))];
+  const sLinks=[];
+  // 8域 -> 大脑 (value 按域记录量缩放)
+  D.forEach(d=>sLinks.push({source:d.name,target:brain,value:Math.max(8,Math.round(domRecords[d.name]/6))}));
+  // 大脑 -> 3 AI角色
+  const roleVal={'AI分析师':140,'AI技术经理人':120,'AI投资人':96};
+  AI_ROLES.forEach(r=>sLinks.push({source:brain,target:r,value:roleVal[r]}));
+  // AI角色 -> 业务场景
+  const flow={'AI分析师':[['成果项目化',46],['企业画像',54],['活动社群',40]],
+    'AI技术经理人':[['成果项目化',58],['园区载体',32],['OPC孵化',30]],
+    'AI投资人':[['企业画像',46],['OPC孵化',24],['活动社群',26]]};
+  AI_ROLES.forEach(r=>flow[r].forEach(([s,v])=>sLinks.push({source:r,target:s,value:v})));
+  Charts.sankey('flowSankey',{nodes:sNodes,links:sLinks});
+
+  // ---------- 顶部按钮 ----------
+  let relOn=false;
+  document.getElementById('btnRel').onclick=function(){
+    relOn=!relOn;
+    g.setOption({series:[{edgeLabel:{show:relOn,formatter:p=>p.data.rel,color:'#9fc0ff',fontSize:10}}]});
+    this.classList.toggle('btn-primary',relOn);
+    UI.toast(relOn?'已显示血缘关系标注':'已隐藏关系标注');
+  };
+  document.getElementById('btnSync').onclick=()=>UI.toast('血缘扫描完成：8 域 / '+L.length+' 条关联已校验','ok');
+
+  document.querySelector('main').insertAdjacentHTML('beforeend',UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','活动与赛事']));
+})();</script>
+</body></html>

@@ -1,0 +1,245 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>投后跟踪预警 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="post-investment">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>投后跟踪与风险预警</div>
+      <div class="page-sub">参股 / 校属企业投后管理 · 组合健康度监测 · 经营风险闭环处置</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnSync">↻ 拉取最新季报</button>
+      <button class="btn btn-sm btn-primary" id="btnReport">＋ 生成组合月报</button>
+    </div>
+  </div>
+
+  <!-- 核心 KPI -->
+  <div class="grid cols-5" id="kpis"></div>
+
+  <!-- 投后状态泳道 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>投后状态看板 · 拖拽卡片可调整跟踪策略</div>
+      <div class="tools"><span class="panel-tag">数据来源：投后跟踪表</span></div></div>
+    <div id="kanban"></div>
+  </div>
+
+  <!-- 两栏：风险等级分布 + 各企业健康度 -->
+  <div class="grid cols-2 mt-4">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>风险等级分布</div>
+        <div class="tools"><span class="panel-tag" id="riskTotalTag"></span></div></div>
+      <div class="chart h300" id="riskPie"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>各企业投后健康度（前 14）</div>
+        <div class="tools"><span class="panel-tag">健康度 = 经营/财务/团队/合规综合评分</span></div></div>
+      <div class="chart h300" id="healthBar"></div>
+    </div>
+  </div>
+
+  <!-- 投后台账 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>投后跟踪台账</div>
+      <div class="tools"><span class="panel-tag">点击任意行查看投后详情</span></div></div>
+    <div id="piFilter" class="mb-3"></div>
+    <div id="piTable"></div>
+  </div>
+
+  <!-- 风险预警台账 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>风险预警台账</div>
+      <div class="tools"><span class="panel-tag" id="raCountTag"></span></div></div>
+    <div id="raFilter" class="mb-3"></div>
+    <div id="raTable"></div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const pi=DB.postInvest, ra=DB.riskAlerts, ents=DB.enterprises;
+  const entById=id=>ents.find(e=>e.id===id);
+  const cnt=k=>pi.filter(p=>p.risk===k).length;
+  const totalBook=pi.reduce((s,p)=>s+p.bookValue,0);
+  const avgHealth=Math.round(pi.reduce((s,p)=>s+p.kpi,0)/pi.length);
+
+  // ---- KPI ----
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'参股 / 校属企业',value:pi.length,unit:'家',delta:'投后在管',deltaUp:true,icon:'<i data-lucide="building-2"></i>'}),
+    UI.kpi({label:'正常运行',value:cnt('g'),unit:'家',delta:Math.round(cnt('g')/pi.length*100)+'%',deltaUp:true,icon:'<span class="edot edot-g"></span>'}),
+    UI.kpi({label:'重点关注',value:cnt('y'),unit:'家',delta:'需跟进',deltaUp:false,icon:'<span class="edot edot-y"></span>'}),
+    UI.kpi({label:'风险预警',value:cnt('r'),unit:'家',delta:ra.length+' 条预警',deltaUp:false,icon:'<span class="edot edot-r"></span>'}),
+    UI.kpi({label:'组合健康度',value:avgHealth,unit:'分',delta:'账面值 '+(totalBook/10000).toFixed(2)+' 亿',deltaUp:true,icon:'<i data-lucide="heart"></i>',spark:[74,76,78,77,80,79,82,81,83,82,84,avgHealth]}),
+  ].join('');
+
+  // ---- 投后状态泳道 ----
+  const lanes=['投后稳定','重点跟踪','拟退出','增资扩股'];
+  const laneCols=lanes.map(s=>({key:s,title:s,cards:pi.filter(p=>p.stage===s)}));
+  const riskLight=p=>UI.light(p.risk, p.riskText);
+  UI.kanban('#kanban',{
+    columns:laneCols,
+    cardRender:p=>{
+      const e=entById(p.entId)||{};
+      return `<div class="flex justify-between items-center"><div class="fw6 f13" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${UI.esc(p.ent)}</div>${riskLight(p)}</div>
+        <div class="f12 text-mute mt-2">${UI.esc(e.disciplineName||'')} · 持股 ${p.equity}% · ${UI.esc(e.stage||'')}</div>
+        <div class="mt-2 flex items-center gap-2"><span class="f12 text-mute" style="width:50px">健康度</span>${UI.bar(p.kpi, p.kpi>=80?'var(--success)':p.kpi>=65?'var(--warning)':'var(--danger)')}<span class="num f12 fw7" style="width:28px;text-align:right">${p.kpi}</span></div>
+        <div class="mt-2 flex justify-between items-center"><span class="f12 text-mute">账面值 ${(p.bookValue/10000).toFixed(2)}亿</span><span class="f12 text-mute">报告 ${UI.esc(p.lastReport)}</span></div>`;
+    },
+    onMove:(i,from,to)=>{ if(from!==to) UI.toast('已将企业跟踪策略调整为「'+to+'」','ok'); }
+  });
+
+  // ---- 风险等级分布 饼 ----
+  document.getElementById('riskTotalTag').textContent='共 '+pi.length+' 家';
+  Charts.pie('riskPie',{ring:true,legend:true,data:[
+    {name:'正常（绿）',value:cnt('g'),itemStyle:{color:Charts.color('--success')}},
+    {name:'关注（黄）',value:cnt('y'),itemStyle:{color:Charts.color('--warning')}},
+    {name:'预警（红）',value:cnt('r'),itemStyle:{color:Charts.color('--danger')}},
+  ]});
+
+  // ---- 各企业健康度 柱 ----
+  const hb=pi.slice().sort((a,b)=>b.kpi-a.kpi).slice(0,14);
+  Charts.bar('healthBar',{horizontal:true,
+    x:hb.map(p=>p.ent.replace(/（武汉）|有限公司/g,'').slice(0,8)),
+    series:[{name:'健康度',data:hb.map(p=>p.kpi)}]});
+
+  // ---- 投后详情抽屉 ----
+  function openPi(p){
+    const e=entById(p.entId)||{};
+    const fins=DB.financings.filter(f=>f.entId===p.entId);
+    const myAlerts=ra.filter(a=>a.entId===p.entId);
+    const body=`
+      <div class="flex items-center gap-3 mb-3">${riskLight(p)}${UI.tag(p.stage,'blue')}${UI.tag(e.financingRound||'—','purple')}</div>
+      ${UI.descList([
+        ['企业名称', UI.esc(p.ent)],
+        ['所属学科', UI.esc(e.disciplineName||'—')],
+        ['企业类型', UI.esc(e.type||'—')+' · '+UI.esc(e.stage||'')],
+        ['学校持股', '<span class="num text-primary fw7">'+p.equity+'%</span>'],
+        ['投后账面值', '<span class="num fw7">'+p.bookValue.toLocaleString()+'</span> 万元'],
+        ['企业估值', '<span class="num">'+(e.valuation||0).toLocaleString()+'</span> 万元'],
+        ['投后健康度', '<span class="num fw7 '+(p.kpi>=80?'text-success':p.kpi>=65?'text-warning':'text-danger')+'">'+p.kpi+'</span> 分'],
+        ['最近报告', UI.esc(p.lastReport)],
+        ['所在园区', UI.esc(e.park||'—')],
+        ['创始人', UI.esc(e.founder||'—')],
+      ])}
+      <div class="divider"></div>
+      <div class="fw6 mb-2">投后健康度趋势</div>
+      <div class="chart h220" id="drHealth"></div>
+      <div class="divider"></div>
+      <div class="fw6 mb-2">预警事项 ${myAlerts.length?'<span class="tag tag-red">'+myAlerts.length+'</span>':'<span class="tag tag-green">无</span>'}</div>
+      ${myAlerts.length?UI.timeline(myAlerts.map(a=>({time:a.date,type:'预警',txt:'['+a.type+'] '+a.desc+' · '+a.status}))):UI.empty('该企业暂无风险预警，投后运行平稳')}
+      <div class="divider"></div>
+      <div class="fw6 mb-2">融资历史</div>
+      ${fins.length?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>轮次</th><th>金额(万)</th><th>日期</th><th>领投方</th></tr></thead><tbody>'+fins.map(f=>`<tr><td>${UI.esc(f.round)}</td><td class="num">${f.amount.toLocaleString()}</td><td>${UI.esc(f.date)}</td><td>${UI.esc(f.investor)}</td></tr>`).join('')+'</tbody></table></div>':UI.empty('暂无融资记录')}
+      <div class="mt-4 flex gap-2">
+        <button class="btn btn-sm btn-primary" onclick="UI.toast('已向技术经理人派发投后辅导工单','ok')">派发投后辅导</button>
+        <button class="btn btn-sm" onclick="UI.toast('已生成该企业投后简报','ok')">生成投后简报</button>
+      </div>`;
+    UI.drawer(p.ent, body, {width:'640px'});
+    const trend=[p.kpi-9,p.kpi-6,p.kpi-7,p.kpi-3,p.kpi-4,p.kpi-1,p.kpi].map(v=>Math.max(40,Math.min(99,v)));
+    setTimeout(()=>Charts.line('drHealth',{x:['T-6','T-5','T-4','T-3','T-2','T-1','当前'],series:[{name:'健康度',data:trend}],area:true},30));
+  }
+
+  // ---- 投后台账 表格 ----
+  const piCols=[
+    {key:'ent',title:'企业',render:p=>'<div class="fw6">'+UI.esc(p.ent)+'</div><div class="f12 text-mute">'+UI.esc((entById(p.entId)||{}).disciplineName||'')+'</div>'},
+    {key:'equity',title:'持股%',sortable:true,render:p=>'<span class="num text-primary fw7">'+p.equity+'%</span>'},
+    {key:'bookValue',title:'账面值(万)',sortable:true,render:p=>'<span class="num">'+p.bookValue.toLocaleString()+'</span>'},
+    {key:'stage',title:'投后阶段',render:p=>UI.tag(p.stage, p.stage==='拟退出'?'red':p.stage==='重点跟踪'?'amber':p.stage==='增资扩股'?'purple':'green')},
+    {key:'kpi',title:'健康度',sortable:true,sortVal:p=>p.kpi,render:p=>'<div class="flex items-center gap-2" style="min-width:120px">'+UI.bar(p.kpi,p.kpi>=80?'var(--success)':p.kpi>=65?'var(--warning)':'var(--danger)')+'<span class="num f12 fw7">'+p.kpi+'</span></div>'},
+    {key:'risk',title:'风险',sortable:true,sortVal:p=>({r:0,y:1,g:2}[p.risk]),render:p=>riskLight(p)},
+    {key:'lastReport',title:'最近报告',render:p=>'<span class="f12 text-mute">'+UI.esc(p.lastReport)+'</span>'},
+    {key:'op',title:'操作',sortable:false,render:p=>'<button class="btn btn-sm btn-ghost">详情</button>'},
+  ];
+  let piData=pi.slice();
+  const piTbl=UI.table('#piTable',{columns:piCols,rows:piData,pageSize:8,onRow:openPi});
+  const piFb=UI.filterBar('#piFilter',{
+    fields:[
+      {key:'stage',label:'全部阶段',options:lanes},
+      {key:'risk',label:'全部风险',options:['正常','关注','预警']},
+      {key:'disc',label:'全部学科',options:DB.disciplines.map(d=>d.name)},
+    ],
+    search:true, searchPh:'搜索企业名称...',
+    onChange:v=>{
+      const m={正常:'g',关注:'y',预警:'r'};
+      piTbl.update(pi.filter(p=>{
+        const e=entById(p.entId)||{};
+        return (!v.stage||p.stage===v.stage)
+          &&(!v.risk||p.risk===m[v.risk])
+          &&(!v.disc||e.disciplineName===v.disc)
+          &&(!v._q||p.ent.includes(v._q));
+      }));
+    }
+  });
+
+  // ---- 风险预警台账 表格 ----
+  document.getElementById('raCountTag').textContent='共 '+ra.length+' 条 · 待处理 '+ra.filter(a=>a.status==='待处理').length+' 条';
+  const raCols=[
+    {key:'ent',title:'企业',render:a=>'<span class="fw6">'+UI.esc(a.ent)+'</span>'},
+    {key:'level',title:'级别',sortable:true,sortVal:a=>({r:0,y:1,g:2}[a.level]),render:a=>UI.light(a.level)},
+    {key:'type',title:'风险类型',render:a=>UI.tag(a.type,'gray')},
+    {key:'desc',title:'风险描述',render:a=>'<span class="f13">'+UI.esc(a.desc)+'</span>'},
+    {key:'date',title:'触发日期',sortable:true,render:a=>'<span class="num f12">'+UI.esc(a.date)+'</span>'},
+    {key:'status',title:'处置状态',render:a=>UI.tag(a.status, a.status==='已处理'?'green':a.status==='跟进中'?'amber':'red')},
+    {key:'op',title:'操作',sortable:false,render:a=>'<button class="btn btn-sm btn-ghost">处置</button>'},
+  ];
+  const raTbl=UI.table('#raTable',{columns:raCols,rows:ra.slice(),pageSize:8,empty:'暂无风险预警',onRow:openRa});
+  function openRa(a){
+    const e=entById(a.entId)||{};
+    const body=`
+      <div class="flex items-center gap-3 mb-3">${UI.light(a.level)}${UI.tag(a.type,'gray')}${UI.tag(a.status, a.status==='已处理'?'green':a.status==='跟进中'?'amber':'red')}</div>
+      ${UI.descList([
+        ['企业名称', UI.esc(a.ent)],
+        ['所属学科', UI.esc(e.disciplineName||'—')],
+        ['风险类型', UI.esc(a.type)],
+        ['风险描述', UI.esc(a.desc)],
+        ['触发日期', UI.esc(a.date)],
+        ['当前状态', UI.esc(a.status)],
+        ['学校持股', (e.equity||0)+'%'],
+      ])}
+      <div class="divider"></div>
+      <div class="fw6 mb-2">处置建议</div>
+      <div class="f13 text-dim" style="line-height:1.7">建议技术经理人在 5 个工作日内对接企业核心团队，核实${UI.esc(a.type)}成因；如属经营性风险，启动投后辅导与资源对接；如属重大风险，提请投委会评估是否调整投后策略或启动退出预案。</div>
+      <div class="mt-4 flex gap-2">
+        <button class="btn btn-sm btn-primary" onclick="UI.toast('已派单技术经理人跟进处置','ok');UI.closeDrawer()">派单跟进</button>
+        <button class="btn btn-sm" onclick="UI.toast('已标记为已处理','ok');UI.closeDrawer()">标记已处理</button>
+      </div>`;
+    UI.drawer('风险预警 · '+a.type, body, {width:'560px'});
+  }
+  const raFb=UI.filterBar('#raFilter',{
+    fields:[
+      {key:'level',label:'全部级别',options:['关注','预警']},
+      {key:'type',label:'全部类型',options:['经营风险','财务风险','团队风险','市场风险','合规风险']},
+      {key:'status',label:'全部状态',options:['待处理','跟进中','已处理']},
+    ],
+    search:true, searchPh:'搜索企业名称...',
+    onChange:v=>{
+      const m={关注:'y',预警:'r'};
+      raTbl.update(ra.filter(a=>
+        (!v.level||a.level===m[v.level])
+        &&(!v.type||a.type===v.type)
+        &&(!v.status||a.status===v.status)
+        &&(!v._q||a.ent.includes(v._q))
+      ));
+    }
+  });
+
+  // ---- 顶部按钮 ----
+  document.getElementById('btnSync').onclick=()=>UI.toast('正在从国资监管系统拉取最新季报...','ok');
+  document.getElementById('btnReport').onclick=()=>UI.modal('生成投后组合月报',
+    '<div class="f13 text-dim mb-3">将汇总 '+pi.length+' 家参股/校属企业的投后健康度、账面值变动与 '+ra.length+' 条风险预警，自动生成可下载的组合月报。</div>'+
+    UI.descList([['报告期','2026 年 5 月'],['在管企业',pi.length+' 家'],['组合健康度',avgHealth+' 分'],['组合账面值',(totalBook/10000).toFixed(2)+' 亿元'],['新增/未结预警',ra.filter(a=>a.status!=='已处理').length+' 条']]),
+    {footer:'<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-sm btn-primary" onclick="UI.closeModal();UI.toast(\'投后组合月报已生成\',\'ok\')">生成报告</button>'});
+
+  // ---- 数据来源脚注 ----
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['参股/校属企业','成果与专利']));
+})();</script>
+</body></html>

@@ -1,0 +1,244 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>团队画像 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="team-list">
+<main class="wuda-view">
+  <div class="crumb"><a href="team-list.html">← 返回团队列表</a> <span>/</span> <span id="crumbId"></span></div>
+
+  <!-- 团队概况头部 -->
+  <div class="panel" id="header"></div>
+
+  <!-- 主体两栏 -->
+  <div class="grid mt-4" style="grid-template-columns:1.05fr .95fr">
+    <!-- 左 -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>团队基本信息</div></div>
+        <div id="baseInfo"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>研究方向</div><div class="tools"><span class="panel-tag">核心攻关领域</span></div></div>
+        <div id="fields" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        <div class="divider"></div>
+        <div class="panel-h" style="margin-bottom:8px"><div class="t" style="font-size:13px"><span class="bar"></span>成员构成</div></div>
+        <div class="chart h220" id="memberPie"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>团队核心成员</div><div class="tools"><span class="panel-tag" id="memberCnt"></span></div></div>
+        <div id="members"></div>
+      </div>
+    </div>
+
+    <!-- 右 -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="panel glow">
+        <div class="panel-h"><div class="t"><span class="bar"></span>团队能力雷达</div><div class="tools"><span class="panel-tag">5维评估</span></div></div>
+        <div class="chart h300" id="radar"></div>
+        <div class="grid cols-3 mt-3" id="capKpi"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>团队代表性成果</div><div class="tools"><span class="panel-tag" id="achCnt"></span></div></div>
+        <div id="achList"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>可对接产业需求</div><div class="tools"><span class="panel-tag" id="demandCnt"></span></div></div>
+        <div id="demandList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const D=DB.util;
+  const id=window.qparam('id');
+  const t=(id && DB.teams.find(x=>x.id===id)) || DB.teams[0];
+  const disc=DB.disciplines.find(d=>d.id===t.discipline)||{};
+  const c=disc.color||'var(--primary)';
+  document.getElementById('crumbId').textContent=t.name;
+  document.title=t.name+' · 武汉大学产业创新AI智脑平台';
+
+  function rankTag(r){ const map={'国家级':'red','省部级':'amber','校级重点':'blue'}; return UI.tag(r,map[r]||'gray'); }
+
+  // ---------- 头部概况 ----------
+  document.getElementById('header').innerHTML=`
+    <div class="flex justify-between" style="align-items:flex-start;gap:20px;flex-wrap:wrap">
+      <div style="flex:1;min-width:320px">
+        <div class="flex items-center gap-3" style="flex-wrap:wrap">
+          <span style="font-size:11px;border:1px solid ${c};color:${c};border-radius:6px;padding:2px 9px;font-weight:600">${disc.icon||''} ${t.disciplineName}</span>
+          ${rankTag(t.rank)}
+          ${t.transferred>=5?UI.tag('转化标杆','green'):''}
+          ${t.demand>=4?UI.tag('强对接需求','amber'):''}
+        </div>
+        <div style="font-size:23px;font-weight:800;margin:11px 0 8px">${t.name}</div>
+        <div class="text-dim" style="font-size:13.5px;line-height:1.7;max-width:680px">${t.desc}</div>
+        <div class="flex gap-4 mt-3" style="flex-wrap:wrap;font-size:13px">
+          <span><span class="text-mute">团队编号</span> <span class="num fw6">${t.id}</span></span>
+          <span><span class="text-mute">PI / 带头人</span> <span class="fw6">${t.pi}</span></span>
+          <span><span class="text-mute">所属学院</span> <span class="fw6">${t.college}</span></span>
+          <span><span class="text-mute">核心方向</span> <span class="fw6">${t.field}</span></span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-end">
+        <div style="text-align:right">
+          <div class="f12 text-mute">团队成员规模</div>
+          <div class="num fw7" style="font-size:30px;color:${c};font-family:Oswald">${t.members}<span style="font-size:15px"> 人</span></div>
+        </div>
+        <div style="display:flex;gap:9px">
+          <button class="btn" id="btnDemand">＋ 发布对接需求</button>
+          <button class="btn btn-primary" id="btnReport"><i data-lucide="bot"></i> 生成团队画像报告</button>
+        </div>
+      </div>
+    </div>`;
+
+  // ---------- 基本信息 ----------
+  document.getElementById('baseInfo').innerHTML=UI.descList([
+    ['学科方向',`<span style="color:${c};font-weight:700">${t.disciplineName}</span>`],
+    ['所属学院',t.college],
+    ['团队层级',rankTag(t.rank)],
+    ['团队规模',`<span class="num fw7">${t.members}</span> 人`],
+    ['科技成果',`<span class="num text-primary fw7">${t.achievements}</span> 项`],
+    ['发明专利',`<span class="num fw7">${t.patents}</span> 项`],
+    ['已转化成果',`<span class="num fw7" style="color:var(--success)">${t.transferred}</span> 项`],
+    ['可对接需求',`<span class="num fw7" style="color:var(--warning)">${t.demand}</span> 项`],
+  ]);
+
+  // ---------- 研究方向 chips ----------
+  const dirSet=[t.field, ...disc.desc.split('、')];
+  const dirs=[...new Set(dirSet)].slice(0,6);
+  document.getElementById('fields').innerHTML=dirs.map((d,i)=>UI.chip(d,i===0)).join('');
+
+  // ---------- 成员构成饼(确定性派生) ----------
+  const piN=1, profN=Math.max(2,Math.round(t.members*0.12)), phdN=Math.round(t.members*0.34), mscN=Math.round(t.members*0.30);
+  const engN=Math.max(1, t.members-piN-profN-phdN-mscN);
+  Charts.pie('memberPie',{
+    data:[
+      {name:'PI / 带头人',value:piN},
+      {name:'教授 / 副教授',value:profN},
+      {name:'博士研究生',value:phdN},
+      {name:'硕士研究生',value:mscN},
+      {name:'研发工程师',value:engN},
+    ],
+    ring:true,legend:true,center:['36%','52%']
+  });
+
+  // ---------- 核心成员(确定性造数) ----------
+  const roles=['项目负责人 / PI','学术骨干 / 教授','青年研究员','博士后','产业化负责人'];
+  const ttls=['教授','副教授','研究员','博士后','高级工程师'];
+  const mn=D.ri(4,5);
+  const members=[];
+  members.push({name:t.pi.replace(/\s.+$/,''),role:roles[0],title:'教授',yrs:D.ri(14,30),papers:D.ri(40,120),patents:D.ri(20,60)});
+  for(let i=1;i<mn;i++) members.push({name:D.person(),role:roles[i],title:ttls[i],yrs:D.ri(3,18),papers:D.ri(4,40),patents:D.ri(2,24)});
+  document.getElementById('memberCnt').textContent=members.length+' 位核心骨干 / 共'+t.members+'人';
+  document.getElementById('members').innerHTML=members.map(m=>`
+    <div class="flex items-center gap-3" style="padding:11px 0;border-bottom:1px solid var(--border)">
+      <span class="av" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-weight:700;font-size:15px;color:#fff;background:linear-gradient(135deg,${c},color-mix(in srgb,${c} 50%,#fff))">${m.name.slice(0,1)}</span>
+      <div style="flex:1;min-width:0">
+        <div class="fw6">${m.name} <span class="f12 text-mute">${m.title}</span></div>
+        <div class="f12 text-dim">${m.role} · 从业 ${m.yrs} 年</div>
+      </div>
+      <div style="text-align:right" class="f12 text-mute">
+        <span class="num text-primary fw7">${m.patents}</span> 专利 · <span class="num fw7">${m.papers}</span> 论文
+      </div>
+    </div>`).join('');
+
+  // ---------- 能力雷达(5维:论文/专利/项目/转化/人才) ----------
+  const radarVal=[
+    Math.min(98, 40+t.achievements*2.2+D.ri(0,8)),           // 论文产出
+    Math.min(98, 40+t.patents*0.6+D.ri(0,8)),                // 专利布局
+    Math.min(98, 50+t.achievements*1.3+D.ri(0,8)),           // 项目承担
+    Math.min(98, 38+t.transferred*6+t.demand*3+D.ri(0,6)),   // 成果转化
+    Math.min(98, 40+t.members*0.9+D.ri(0,10)),               // 人才梯队
+  ].map(v=>Math.max(40,Math.round(v)));
+  Charts.radar('radar',{
+    indicators:['论文产出','专利布局','项目承担','成果转化','人才梯队'],
+    series:[{name:t.name.slice(0,8),value:radarVal}],
+    max:100
+  });
+  document.getElementById('capKpi').innerHTML=[
+    UI.kpi({label:'成果转化率',value:Math.round(t.transferred/Math.max(1,t.achievements)*100),unit:'%',icon:'<i data-lucide="banknote"></i>'}),
+    UI.kpi({label:'人均专利',value:(t.patents/t.members).toFixed(1),unit:'项',icon:'<i data-lucide="files"></i>'}),
+    UI.kpi({label:'综合能力',value:Math.round(radarVal.reduce((a,b)=>a+b,0)/5),unit:'分',icon:'<i data-lucide="star"></i>'}),
+  ].join('');
+
+  // ---------- 代表性成果(同学科取几条) ----------
+  function statusBadge(s){ const map={'已转化':'green','已签约':'green','中试放大':'blue','概念验证':'purple','已立项':'amber','待评估':'gray'}; return UI.tag(s,map[s]||'gray'); }
+  const teamAch=DB.achievements.filter(a=>a.discipline===t.discipline).slice(0, Math.min(5,Math.max(3,t.achievements>6?4:3)));
+  document.getElementById('achCnt').textContent='Top '+teamAch.length+' / 共 '+t.achievements+' 项';
+  document.getElementById('achList').innerHTML=teamAch.map(a=>`
+    <a href="achievement-detail.html?id=${a.id}" style="text-decoration:none;color:inherit;display:block;padding:11px 0;border-bottom:1px solid var(--border)">
+      <div class="flex justify-between items-center" style="gap:10px">
+        <div class="fw6" style="flex:1;min-width:0">${a.title}</div>
+        ${statusBadge(a.status)}
+      </div>
+      <div class="f12 text-mute mt-2 flex gap-3" style="flex-wrap:wrap">
+        <span class="num text-primary fw7">TRL ${a.trl}</span>
+        <span>专利 <span class="num">${a.patents}</span></span>
+        <span>匹配度 <span class="num" style="color:${c}">${a.match}%</span></span>
+        <span class="num fw7" style="color:var(--success)">¥${(a.value/10000).toFixed(2)}亿</span>
+      </div>
+    </a>`).join('');
+
+  // ---------- 可对接产业需求清单(确定性造数) ----------
+  const needTypes=['技术合作','联合中试','成果作价入股','委托研发','人才共建','产业化对接'];
+  const needScenes=['智能制造','智慧城市','医疗健康','能源电力','低空经济','商业航天','智能网联汽车'];
+  const demands=[];
+  for(let i=0;i<t.demand;i++){
+    demands.push({
+      type:needTypes[i%needTypes.length],
+      scene:D.pick(needScenes),
+      partner:D.pick(['华为','长飞光纤','烽火通信','人福医药','高德红外','东风汽车','光迅科技','东湖高新区管委会'])+'·相关业务部',
+      value:D.ri(80,1800),
+      level:D.pick(['高','高','中','中','紧急']),
+      status:D.pick(['对接中','待响应','已初洽','拟立项']),
+    });
+  }
+  document.getElementById('demandCnt').textContent=demands.length+' 项待对接';
+  document.getElementById('demandList').innerHTML = demands.length ? demands.map(n=>{
+    const lc=n.level==='紧急'?'red':n.level==='高'?'amber':'blue';
+    return `<div style="padding:11px 0;border-bottom:1px solid var(--border)">
+      <div class="flex justify-between items-center" style="gap:10px">
+        <div class="fw6" style="flex:1;min-width:0">${n.type} · ${n.scene}场景</div>
+        ${UI.tag(n.level+'优先级',lc)}
+      </div>
+      <div class="f12 text-mute mt-2 flex gap-3" style="flex-wrap:wrap">
+        <span>意向方 ${n.partner}</span>
+        <span class="num fw7" style="color:var(--success)">${n.value.toLocaleString()}万</span>
+        <span>${UI.tag(n.status,'gray')}</span>
+      </div>
+    </div>`;
+  }).join('') : UI.empty('暂无待对接需求');
+
+  // ---------- 操作 ----------
+  document.getElementById('btnDemand').onclick=()=>UI.toast('已为「'+t.name+'」发布产业对接需求，进入需求池','ok');
+  document.getElementById('btnReport').onclick=()=>{
+    UI.drawer('<i data-lucide="bot"></i> AI 团队画像报告',
+      `<div class="text-dim mb-3" style="font-size:13px">「AI技术经理人」正基于团队成果、专利、转化记录与人才结构生成画像报告，整合学院与团队、成果与专利、产业企业与园区数据域。</div>
+       <div class="ecard mb-3" style="cursor:default">
+         <div class="et">${t.name}</div>
+         <div class="em mt-2">${t.disciplineName} · ${t.rank} · PI ${t.pi} · ${t.members}人</div>
+       </div>
+       <div id="genOut" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:13px;line-height:1.85;min-height:220px;white-space:pre-wrap"></div>
+       <div class="mt-3" style="display:flex;gap:9px;justify-content:flex-end">
+         <button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button>
+         <button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('团队画像报告已生成并归档','ok')">采纳并归档</button>
+       </div>`,
+      {width:'560px'});
+    const txt=`【团队画像分析】\n\n一、团队定位\n${t.name}隶属${t.college}，聚焦${t.disciplineName}方向（${t.field}），为${t.rank}科研团队，现有成员 ${t.members} 人。\n\n二、科研实力\n累计承担科技成果 ${t.achievements} 项，发明专利 ${t.patents} 项，论文与专利产出位居学科前列，已形成体系化技术积累。\n\n三、转化潜力\n已成功转化成果 ${t.transferred} 项，当前可对接产业需求 ${t.demand} 项，转化率约 ${Math.round(t.transferred/Math.max(1,t.achievements)*100)}%，具备良好产业化基础。\n\n四、对接建议\n1) 优先撮合龙头企业联合中试与委托研发；\n2) 对高TRL成果推进作价入股；\n3) 引入产业基金与园区载体形成闭环。`;
+    setTimeout(()=>UI.typewriter('genOut',txt,{speed:11}),300);
+  };
+
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['学院与团队','成果与专利','参股/校属企业']);
+})();</script>
+</body></html>

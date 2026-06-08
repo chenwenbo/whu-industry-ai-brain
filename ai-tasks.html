@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI任务中心 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="ai-tasks">
+<main class="wuda-view">
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>AI任务中心</div>
+    <div class="page-sub">三类AI角色任务包单一真源 · 待生成 / 生成中 / 已交付 / 已复用 全生命周期管理</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-ghost btn-sm" id="btnExport"><i data-lucide="download"></i> 导出台账</button>
+      <a class="btn btn-primary btn-sm" href="ai-workbench.html">＋ 去工作台生成 ▸</a>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 图表区 -->
+  <div class="grid cols-2 mt-4">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>各角色任务量</div><div class="tools"><span class="panel-tag">按AI角色</span></div></div>
+      <div class="chart h260" id="roleBar"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>任务状态分布</div><div class="tools"><span class="panel-tag">全部任务</span></div></div>
+      <div class="chart h260" id="statePie"></div>
+    </div>
+  </div>
+
+  <!-- 任务表 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>AI 任务包台账</div><div class="tools"><span class="panel-tag" id="tblCount"></span></div></div>
+    <div id="filter" class="mb-3"></div>
+    <div id="taskTable"></div>
+  </div>
+
+  <div id="srcFoot"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  const D=DB, pick=D.util.pick, picks=D.util.picks;
+  const TASKS = D.aiTasks.slice();
+
+  // 角色 -> 数据源映射(用于详情"数据来源引用")
+  const ROLE_SRC={
+    'AI分析师':['产业企业与园区','成果与专利','活动与赛事'],
+    'AI技术经理人':['成果与专利','学院与团队','参股/校属企业'],
+    'AI投资人':['参股/校属企业','产业企业与园区','成果与专利'],
+  };
+  const STATE_TYPE={'已交付':'green','生成中':'amber','待生成':'gray','已复用':'blue'};
+  const STATE_LIGHT={'已交付':'g','生成中':'y','待生成':'y','已复用':'g'};
+
+  // 产出摘要(基于角色+标题确定性生成)
+  function summary(t){
+    if(t.role==='AI分析师') return `输出《${t.title}》研究：含产业趋势总判、热点赛道清单(TOP)与区域目标企业清单，附行动建议与对接优先级。`;
+    if(t.role==='AI技术经理人') return `输出《${t.title}》成果项目化方案：含成果画像、BP要点、四阶段转化路径与路演要点，可直接用于项目包装与路演。`;
+    return `输出《${t.title}》投资文档：含投资研判、估值区间测算、风险清单与五维尽调要点清单，辅助参股/孵化决策。`;
+  }
+  function deliverables(t){
+    if(t.role==='AI分析师') return ['产业研判报告(PDF)','热点赛道清单(表)','目标企业清单(表)'];
+    if(t.role==='AI技术经理人') return ['BP要点文档','成果转化路径图','路演Deck大纲'];
+    return ['投资研判报告','估值区间测算','风险清单','尽调要点清单'];
+  }
+
+  // ====== KPI ======
+  function renderKPI(rows){
+    const total=rows.length;
+    const delivered=rows.filter(t=>t.status==='已交付').length;
+    const ing=rows.filter(t=>t.status==='生成中').length;
+    const val=rows.reduce((s,t)=>s+parseFloat(t.value),0).toFixed(1);
+    document.getElementById('kpis').innerHTML=[
+      UI.kpi({label:'AI任务总数',value:total,unit:'个',delta:'本月 '+Math.max(3,Math.round(total*0.4)),deltaUp:true,icon:'<i data-lucide="bot"></i>',spark:[6,8,7,10,9,12,11,13,12,14,total>14?16:14,total]}),
+      UI.kpi({label:'已交付',value:delivered,unit:'个',delta:Math.round(delivered/total*100)+'%',deltaUp:true,icon:'<i data-lucide="check-circle"></i>',spark:[2,3,3,4,5,5,6,7,7,8,delivered,delivered]}),
+      UI.kpi({label:'生成中',value:ing,unit:'个',delta:'实时',deltaUp:true,icon:'<i data-lucide="hourglass"></i>',spark:[1,2,1,2,1,2,1,2,ing||1,2,1,ing||1]}),
+      UI.kpi({label:'累计任务价值',value:val,unit:'万元',delta:'12.4%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[8,11,10,14,13,17,16,20,19,23,25,+val]}),
+    ].join('');
+  }
+
+  // ====== 图表 ======
+  function renderCharts(rows){
+    const roles=['AI分析师','AI技术经理人','AI投资人'];
+    const counts=roles.map(r=>rows.filter(t=>t.role===r).length);
+    Charts.bar('roleBar',{x:roles, series:[{name:'任务量',data:counts}]});
+    const states=['已交付','生成中','待生成','已复用'];
+    const pieData=states.map(s=>({name:s,value:rows.filter(t=>t.status===s).length})).filter(d=>d.value>0);
+    Charts.pie('statePie',{data:pieData, ring:true, legend:true, center:['38%','52%']});
+  }
+
+  // ====== 表格 ======
+  let tableApi=null;
+  const columns=[
+    {key:'id', title:'编号', render:r=>`<span class="num f12">${r.id}</span>`, sortable:true},
+    {key:'title', title:'任务', render:r=>`<div class="fw6">${UI.esc(r.title)}</div>`, sortable:true},
+    {key:'role', title:'角色', render:r=>{const ic={'AI分析师':'<i data-lucide="bar-chart-3"></i>','AI技术经理人':'<i data-lucide="microscope"></i>','AI投资人':'<i data-lucide="briefcase"></i>'}[r.role]||'<i data-lucide="bot"></i>';return `<span>${ic} ${r.role.replace('AI','')}</span>`;}, sortable:true},
+    {key:'status', title:'状态', render:r=>UI.tag(r.status, STATE_TYPE[r.status]), sortable:true},
+    {key:'billing', title:'计费方式', render:r=>UI.tag(r.billing,'gray'), sortable:true},
+    {key:'value', title:'价值(万)', render:r=>`<span class="num text-primary fw6">${r.value}</span>`, sortable:true, sortVal:r=>parseFloat(r.value)},
+    {key:'created', title:'创建', render:r=>`<span class="text-mute f12">${r.created}</span>`, sortable:true, sortVal:r=>parseInt(r.created)},
+    {key:'duration', title:'耗时', render:r=>`<span class="text-mute f12">${r.duration}</span>`, sortable:false},
+    {key:'op', title:'操作', render:r=>`<span class="text-primary f12 pointer">详情 →</span>`, sortable:false},
+  ];
+
+  function openTask(t){
+    const ds = ROLE_SRC[t.role]||t.sources||[];
+    const body=
+      `<div class="flex gap-2 mb-3" style="flex-wrap:wrap">
+        ${UI.tag(t.role,'blue')}${UI.tag(t.status, STATE_TYPE[t.status])}${UI.tag(t.billing,'purple')}${UI.light(STATE_LIGHT[t.status]||'g', t.status)}
+      </div>
+      <div class="panel" style="margin:0 0 14px 0">
+        ${UI.descList([
+          ['任务编号','<span class="num">'+t.id+'</span>'],
+          ['任务名称', UI.esc(t.title)],
+          ['执行角色', t.role],
+          ['计费方式', t.billing],
+          ['任务价值', '<span class="num text-primary fw7">'+t.value+' 万元</span>'],
+          ['创建时间', t.created],
+          ['生成耗时', t.duration],
+        ])}
+      </div>
+
+      <div class="panel-h"><div class="t"><span class="bar"></span>数据来源引用</div></div>
+      <div class="flex gap-2 mb-3" style="flex-wrap:wrap">
+        ${ds.map(s=>`<span class="tag tag-blue"><i data-lucide="database"></i> ${UI.esc(s)}</span>`).join('')}
+      </div>
+
+      <div class="panel-h"><div class="t"><span class="bar"></span>产出摘要</div></div>
+      <div class="text-dim f13" style="line-height:1.8;margin-bottom:12px">${summary(t)}</div>
+
+      <div class="panel-h"><div class="t"><span class="bar"></span>交付清单</div></div>
+      <div style="display:grid;gap:7px;margin-bottom:12px">
+        ${deliverables(t).map(d=>`<div class="flex items-center gap-2" style="font-size:13px"><span class="text-success">●</span>${d}</div>`).join('')}
+      </div>
+
+      <div style="margin-bottom:14px">${UI.srcNote(ds)}</div>
+
+      <div class="flex gap-2">
+        <button class="btn btn-primary btn-sm" id="opRegen">↻ 重新生成</button>
+        <button class="btn btn-sm" id="opReuse"><i data-lucide="recycle"></i> 复用任务包</button>
+        <button class="btn btn-ghost btn-sm" id="opExport"><i data-lucide="download"></i> 导出</button>
+        <a class="btn btn-ghost btn-sm" href="ai-workbench.html">在工作台打开 ▸</a>
+      </div>`;
+    UI.drawer(t.title, body, {width:'620px'});
+    document.getElementById('opRegen').onclick=()=>UI.toast('已提交重新生成，状态→生成中','warn');
+    document.getElementById('opReuse').onclick=()=>UI.toast('任务包已复用，已记入复用次数','ok');
+    document.getElementById('opExport').onclick=()=>UI.toast('任务包已导出(PDF)','ok');
+  }
+
+  // ====== 筛选 ======
+  const filter=UI.filterBar('#filter',{
+    fields:[
+      {key:'role', label:'全部角色', options:['AI分析师','AI技术经理人','AI投资人']},
+      {key:'status', label:'全部状态', options:['待生成','生成中','已交付','已复用']},
+      {key:'billing', label:'全部计费', options:['任务包','订阅内','专项服务']},
+    ],
+    search:true, searchPh:'搜索任务名称 / 编号...',
+    onChange:apply,
+  });
+  function apply(){
+    const v=filter.read();
+    const rows=TASKS.filter(t=>
+      (!v.role||t.role===v.role) &&
+      (!v.status||t.status===v.status) &&
+      (!v.billing||t.billing===v.billing) &&
+      (!v._q||(t.title+t.id).toLowerCase().includes(v._q.toLowerCase()))
+    );
+    tableApi.update(rows);
+    document.getElementById('tblCount').textContent='共 '+rows.length+' 个任务';
+    renderKPI(rows.length?rows:TASKS);
+    renderCharts(rows.length?rows:TASKS);
+  }
+
+  // ====== 初始化 ======
+  renderKPI(TASKS);
+  renderCharts(TASKS);
+  tableApi=UI.table('#taskTable',{columns, rows:TASKS, pageSize:8, onRow:openTask, empty:'无匹配任务'});
+  document.getElementById('tblCount').textContent='共 '+TASKS.length+' 个任务';
+  document.getElementById('btnExport').onclick=()=>UI.toast('AI任务台账已导出(Excel)','ok');
+  document.getElementById('srcFoot').innerHTML=UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','学院与团队','活动与赛事']);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>运营中心 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="operations-center">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>运营中心</div>
+      <div class="page-sub">五类收入结构看板 · 目标完成度 · 运营健康度（资产管理公司市场化运营）</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <div class="seg" id="yrSeg"><button class="on" data-y="2026">2026年</button><button data-y="2025">2025年</button></div>
+      <button class="btn btn-primary btn-sm" id="btnReport"><i data-lucide="upload"></i> 导出经营月报</button>
+    </div>
+  </div>
+
+  <!-- 核心 KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 五类收入占比 + 目标完成度 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1.4fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>五类收入结构占比</div><div class="tools"><span class="tag tag-gray" id="revTotalTag"></span></div></div>
+      <div class="chart h340" id="revPie"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>各收入类型目标完成度</div><div class="tools"><span class="tag tag-blue">实际 / 目标（万元）</span></div></div>
+      <div class="grid cols-5" id="ringGrid" style="gap:10px"></div>
+      <div class="divider"></div>
+      <div class="chart h220" id="targetBar"></div>
+    </div>
+  </div>
+
+  <!-- 近12月收入趋势 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>近 12 个月收入趋势（五类收入堆叠）</div>
+      <div class="tools"><span class="tag tag-green">单位：万元</span><span class="tag tag-gray" id="trendSumTag"></span></div></div>
+    <div class="chart h340" id="revTrend"></div>
+  </div>
+
+  <!-- 运营健康度雷达 + 指标卡 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1.3fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>运营健康度六维指数</div><div class="tools"><span class="tag tag-amber" id="healthAvgTag"></span></div></div>
+      <div class="chart h340" id="healthRadar"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>健康度分项指标</div><div class="tools"><span class="panel-tag text-mute f12">较上月变化</span></div></div>
+      <div class="grid cols-3" id="healthGrid" style="gap:12px"></div>
+    </div>
+  </div>
+
+  <!-- 收入结构说明 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>收入结构说明 · 五类市场化收入模式</div></div>
+    <div class="grid cols-5" id="revDesc"></div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  const RT=DB.revenueTypes;
+  const total=RT.reduce((s,r)=>s+r.amount,0);
+  const targetTotal=RT.reduce((s,r)=>s+r.target,0);
+  const doneRate=Math.round(total/targetTotal*100);
+
+  // ---- KPI ----
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'年度收入合计',value:total.toLocaleString(),unit:'万元',delta:'14.2%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[180,210,240,260,300,340,360,410,440,480,520,560]}),
+    UI.kpi({label:'年度目标完成度',value:doneRate,unit:'%',delta:'目标 '+targetTotal.toLocaleString()+'万',deltaUp:true,icon:'<i data-lucide="target"></i>',spark:[40,46,52,58,63,68,72,76,80,83,85,doneRate]}),
+    UI.kpi({label:'托管客户数',value:DB.managedClients.length,unit:'家',delta:'2 家',deltaUp:true,icon:'<i data-lucide="landmark"></i>',spark:[6,7,8,9,10,11,12,12,13,13,14,14]}),
+    UI.kpi({label:'任务包订单数',value:DB.taskOrders.length,unit:'单',delta:'本月 +5',deltaUp:true,icon:'<i data-lucide="package"></i>',spark:[2,3,4,4,5,6,7,8,9,10,11,12]}),
+  ].join('');
+  document.getElementById('revTotalTag').textContent='合计 '+total.toLocaleString()+' 万元';
+
+  // ---- 收入占比饼 ----
+  Charts.pie('revPie',{data:RT.map(r=>({name:r.key,value:r.amount})),ring:true,legend:true,center:['38%','52%']});
+
+  // ---- 目标完成度环 ----
+  document.getElementById('ringGrid').innerHTML=RT.map((r,i)=>{
+    const rate=Math.round(r.amount/r.target*100);
+    return `<div style="text-align:center">
+      <div class="chart" id="ring${i}" style="height:108px"></div>
+      <div class="f12 fw6" style="margin-top:2px">${r.key}</div>
+      <div class="f12 text-mute">${r.amount}/${r.target}</div></div>`;
+  }).join('');
+  RT.forEach((r,i)=>{ const rate=Math.round(r.amount/r.target*100);
+    Charts.progressRing('ring'+i,{value:rate,color:r.color}); });
+
+  Charts.bar('targetBar',{x:RT.map(r=>r.key),
+    series:[{name:'已完成',data:RT.map(r=>r.amount)},{name:'目标',data:RT.map(r=>r.target-r.amount)}],
+    stack:true,legend:true});
+
+  // ---- 近12月趋势 ----
+  const keys=['托管运营','平台订阅','任务包式AI','专业服务','投资协同'];
+  Charts.line('revTrend',{x:DB.revenueTrend.map(m=>m.month),
+    series:keys.map(k=>({name:k,data:DB.revenueTrend.map(m=>m[k])})),
+    area:true,smooth:true,legend:true,stack:true});
+  const trendSum=DB.revenueTrend.reduce((s,m)=>s+keys.reduce((a,k)=>a+m[k],0),0);
+  document.getElementById('trendSumTag').textContent='累计 '+trendSum.toLocaleString()+' 万元';
+
+  // ---- 健康度雷达 ----
+  const HM=DB.healthMetrics;
+  const avg=Math.round(HM.reduce((s,h)=>s+h.score,0)/HM.length);
+  Charts.radar('healthRadar',{indicators:HM.map(h=>h.name),series:[{name:'运营健康度',value:HM.map(h=>h.score)}],max:100});
+  document.getElementById('healthAvgTag').textContent='综合指数 '+avg;
+
+  // ---- 健康度分项卡 ----
+  document.getElementById('healthGrid').innerHTML=HM.map(h=>{
+    const up=h.trend.indexOf('-')<0;
+    const tone=h.score>=85?'var(--success)':h.score>=75?'var(--warning)':'var(--danger)';
+    return `<div style="border:1px solid var(--border);border-radius:12px;padding:13px 14px;background:var(--panel-2)">
+      <div class="flex justify-between items-center">
+        <div class="f13 fw6">${h.name}</div>
+        <div class="f12 fw7" style="color:${up?'var(--success)':'var(--danger)'}">${up?'▲':'▼'} ${h.trend}</div>
+      </div>
+      <div class="num fw7" style="font-size:24px;margin:7px 0 6px;color:${tone}">${h.score}<span class="f12 text-mute"> /100</span></div>
+      ${UI.bar(h.score,tone)}
+    </div>`;
+  }).join('');
+
+  // ---- 收入结构说明卡 ----
+  document.getElementById('revDesc').innerHTML=RT.map((r,i)=>{
+    const rate=Math.round(r.amount/r.target*100);
+    return `<div class="ecard" style="cursor:default">
+      <div class="flex items-center gap-2" style="margin-bottom:8px">
+        <span style="width:12px;height:12px;border-radius:4px;background:${r.color};display:inline-block"></span>
+        <div class="et" style="margin:0">${i+1}. ${r.key}</div>
+      </div>
+      <div class="em" style="line-height:1.6;min-height:60px">${r.desc}</div>
+      <div class="divider"></div>
+      <div class="flex justify-between items-center">
+        <span class="num fw7" style="color:${r.color}">${r.amount}<span class="f12 text-mute">万</span></span>
+        ${UI.tag('达成 '+rate+'%', rate>=90?'green':rate>=80?'blue':'amber')}
+      </div>
+    </div>`;
+  }).join('');
+
+  // ---- 交互 ----
+  document.getElementById('btnReport').onclick=()=>UI.toast('经营月报已生成并导出（含五类收入、目标完成度、健康度分项）','ok');
+  document.querySelectorAll('#yrSeg button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('#yrSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); UI.toast('已切换至 '+b.dataset.y+' 年度数据视图','ok');
+  });
+
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['参股/校属企业','活动与赛事','产业企业与园区']));
+})();
+</script>
+</body></html>

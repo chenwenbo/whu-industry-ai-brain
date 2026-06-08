@@ -1,0 +1,189 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>竞品对标 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="competitive-analysis">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>竞品对标分析</div>
+      <div class="page-sub">清华 · 浙大 · 上交三大标杆能力对比 · 武大差异化路径研判</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnArch"><i data-lucide="landmark"></i> 架构对比</button>
+      <button class="btn btn-primary btn-sm" id="btnReport"><i data-lucide="upload"></i> 导出对标报告</button>
+    </div>
+  </div>
+
+  <!-- 标杆 KPI 概览 -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 核心能力雷达 + 维度说明 -->
+  <div class="grid mt-4" style="grid-template-columns:1.4fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>核心能力五维对比雷达</div><div class="tools"><span class="tag tag-blue">满分 100</span></div></div>
+      <div class="chart h420" id="capRadar"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>五维能力得分明细</div></div>
+      <div id="capTable"></div>
+    </div>
+  </div>
+
+  <!-- 竞品卡片 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>标杆与我校 · 优势 / 短板 / 契合度</div></div>
+    <div class="grid cols-4" id="compCards"></div>
+  </div>
+
+  <!-- 分层功能架构对比 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>三校分层功能架构对比</div>
+      <div class="tools"><div class="seg" id="archSeg"></div></div></div>
+    <div id="archTable"></div>
+  </div>
+
+  <!-- 差异化启示 -->
+  <div class="panel glow mt-4" style="background:linear-gradient(110deg,rgba(30,58,138,.06),rgba(124,58,237,.05))">
+    <div class="panel-h"><div class="t"><span class="bar"></span>差异化启示 · 武大特色路径</div><div class="tools"><span class="tag tag-purple">整合三者优势 · 后发领跑</span></div></div>
+    <div class="grid cols-3" id="insightCards"></div>
+    <div class="divider"></div>
+    <div class="grid cols-2" id="lessonCards"></div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  const C=DB.competitors, DIMS=DB.capDims, ARCH=DB.competitorArch;
+  const wuda=C.find(c=>c.name.indexOf('我校')>=0);
+  const benchAvg=DIMS.map((_,i)=>Math.round(C.filter(c=>c!==wuda).reduce((s,c)=>s+c.cap[i],0)/(C.length-1)));
+
+  // ---- KPI ----
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'对标标杆高校',value:3,unit:'所',delta:'清华·浙大·上交',deltaUp:true,icon:'<i data-lucide="landmark"></i>'}),
+    UI.kpi({label:'核心能力维度',value:DIMS.length,unit:'维',delta:'五维对标',deltaUp:true,icon:'<i data-lucide="ruler"></i>'}),
+    UI.kpi({label:'我校综合得分',value:Math.round(wuda.cap.reduce((a,b)=>a+b,0)/wuda.cap.length),unit:'分',delta:'后发领跑',deltaUp:true,icon:'<i data-lucide="rocket"></i>'}),
+    UI.kpi({label:'差异化优势项',value:'统一数据底座',unit:'',delta:'+AI+国资融合',deltaUp:true,icon:'<i data-lucide="gem"></i>'}),
+  ].join('');
+
+  // ---- 能力雷达 ----
+  Charts.radar('capRadar',{indicators:DIMS,series:C.map(c=>({name:c.name,value:c.cap})),legend:true,max:100});
+
+  // ---- 五维得分明细表 ----
+  document.getElementById('capTable').innerHTML=`
+    <div class="tbl-wrap"><table class="tbl"><thead><tr>
+      <th>能力维度</th>${C.map(c=>`<th style="text-align:center">${c.name.replace('（拟建）','')}</th>`).join('')}
+    </tr></thead><tbody>
+      ${DIMS.map((d,i)=>{
+        const vals=C.map(c=>c.cap[i]);
+        const maxv=Math.max(...vals);
+        return `<tr><td class="fw6">${d}</td>${C.map((c,ci)=>{
+          const v=c.cap[i]; const isMax=v===maxv; const isW=c===wuda;
+          return `<td style="text-align:center"><span class="num fw7" style="color:${isW?'var(--accent)':isMax?'var(--success)':'var(--text)'}">${v}</span>${isMax?' <span class="f12 text-success">★</span>':''}</td>`;
+        }).join('')}</tr>`;
+      }).join('')}
+      <tr style="border-top:2px solid var(--border-strong)"><td class="fw7">综合均分</td>${C.map(c=>`<td style="text-align:center"><span class="num fw7 ${c===wuda?'text-primary':''}">${Math.round(c.cap.reduce((a,b)=>a+b,0)/c.cap.length)}</span></td>`).join('')}</tr>
+    </tbody></table></div>`;
+
+  // ---- 竞品卡片 ----
+  document.getElementById('compCards').innerHTML=C.map(c=>{
+    const isW=c.name.indexOf('我校')>=0;
+    const avg=Math.round(c.cap.reduce((a,b)=>a+b,0)/c.cap.length);
+    return `<div class="ecard" data-name="${c.name}" style="${isW?'border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 5%,var(--panel))':''}">
+      <div class="flex justify-between items-center" style="margin-bottom:8px">
+        <div class="et" style="margin:0">${c.name}</div>
+        ${UI.tag(c.tag, isW?'purple':'blue')}
+      </div>
+      <div class="flex items-center gap-2" style="margin-bottom:10px">
+        <span class="num fw7" style="font-size:26px;color:${isW?'var(--accent)':'var(--primary)'}">${avg}</span>
+        <span class="f12 text-mute">综合能力分</span>
+      </div>
+      <div class="f12" style="line-height:1.6;margin-bottom:8px"><span class="text-success fw6"><i data-lucide="check"></i> 优势：</span><span class="text-dim">${c.strength}</span></div>
+      <div class="f12" style="line-height:1.6;margin-bottom:10px"><span class="text-danger fw6">△ 短板：</span><span class="text-dim">${c.weak}</span></div>
+      <div class="divider"></div>
+      <div class="f12 flex items-center gap-2"><span class="text-mute">借鉴契合度</span> ${UI.tag(c.fit, isW?'purple':'green')}</div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('#compCards .ecard').forEach(el=>el.onclick=()=>{
+    const c=C.find(x=>x.name===el.dataset.name);
+    UI.drawer(c.name+' · 能力画像',
+      UI.descList([
+        ['定位标签',UI.tag(c.tag,'blue')],
+        ['核心优势',`<span class="text-success">${c.strength}</span>`],
+        ['核心短板',`<span class="text-danger">${c.weak}</span>`],
+        ['借鉴契合度',c.fit],
+      ]) + `<div class="divider"></div><div class="f13 fw6 mb-3">五维能力得分</div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        ${DIMS.map((d,i)=>`<div><div class="flex justify-between f12" style="margin-bottom:4px"><span>${d}</span><span class="num fw6">${c.cap[i]}</span></div>${UI.bar(c.cap[i], c.cap[i]>=90?'var(--success)':c.cap[i]>=80?'var(--primary)':'var(--warning)')}</div>`).join('')}
+      </div>
+      <div class="mt-4"><button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button></div>`,
+      {width:'520px'});
+  });
+
+  // ---- 分层架构对比(分段切换) ----
+  const schools=Object.keys(ARCH);
+  document.getElementById('archSeg').innerHTML=schools.map((s,i)=>`<button class="${i===0?'on':''}" data-s="${s}">${s}</button>`).join('');
+  function renderArch(school){
+    const rows=ARCH[school];
+    document.getElementById('archTable').innerHTML=`
+      <div class="tbl-wrap"><table class="tbl"><thead><tr>
+        <th style="width:120px">层级</th><th style="width:280px">核心模块</th><th>功能细节</th>
+      </tr></thead><tbody>
+        ${rows.map(r=>`<tr>
+          <td>${UI.tag(r[0],'blue')}</td>
+          <td class="fw6">${r[1]}</td>
+          <td class="text-dim">${r[2]}</td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  renderArch(schools[0]);
+  document.querySelectorAll('#archSeg button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('#archSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); renderArch(b.dataset.s);
+  });
+
+  // ---- 差异化启示卡 ----
+  const insights=[
+    {icon:'<i data-lucide="database"></i>',title:'统一数据资产底座',txt:'整合成果、企业、园区、股权、活动、校友、产业 8 域数据，形成清华式全校统一数据库，破解数据分散难题。'},
+    {icon:'<i data-lucide="bot"></i>',title:'AI 深度融合',txt:'借鉴上交 AI 风控/决策与流程规范化优势，构建产业创新大脑 + 三类 AI 角色，实现智能研判与精准画像。'},
+    {icon:'<i data-lucide="landmark"></i>',title:'国资深度融合',txt:'依托资产管理公司国资属性，打通成果作价投资—收益分配—投后监管闭环，强化武大特色国资协同。'},
+  ];
+  document.getElementById('insightCards').innerHTML=insights.map(it=>`
+    <div class="ecard" style="cursor:default">
+      <div class="flex items-center gap-3" style="margin-bottom:8px">
+        <div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;font-size:21px;background:color-mix(in srgb,var(--accent) 12%,transparent)">${it.icon}</div>
+        <div class="et" style="margin:0">${it.title}</div>
+      </div>
+      <div class="em" style="line-height:1.7">${it.txt}</div>
+    </div>`).join('');
+
+  // ---- 三校借鉴启示 ----
+  const lessons=[
+    {school:'清华大学',take:'借鉴 AI + 转化深度融合经验与收益激励机制，强化成果披露至作价投资的全流程国资监管。'},
+    {school:'浙江大学',take:'补齐中试孵化与概念验证短板，引入虚拟孵化、联合创新中心与专利开放许可模式。'},
+    {school:'上海交通大学',take:'强化 AI 风控/决策与合同智能审查能力，推动转化一门式线上服务与年度报告制度规范化。'},
+    {school:'我校（拟建）',take:'整合三者优势，以「统一数据底座 + AI + 国资深度融合」打造武大特色、后发领跑的产业创新操作系统。'},
+  ];
+  document.getElementById('lessonCards').innerHTML=lessons.map(l=>`
+    <div style="border-left:3px solid ${l.school.indexOf('我校')>=0?'var(--accent)':'var(--primary)'};padding:10px 14px;background:var(--panel-2);border-radius:0 9px 9px 0">
+      <div class="f13 fw7" style="margin-bottom:5px">${l.school}</div>
+      <div class="f12 text-dim" style="line-height:1.7">${l.take}</div>
+    </div>`).join('');
+
+  // ---- 交互 ----
+  document.getElementById('btnReport').onclick=()=>UI.toast('竞品对标报告已导出（含雷达、架构对比、差异化路径）','ok');
+  document.getElementById('btnArch').onclick=()=>document.getElementById('archTable').scrollIntoView({behavior:'smooth'});
+
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['竞品调研','平台建设方案']));
+})();
+</script>
+</body></html>

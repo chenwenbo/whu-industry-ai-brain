@@ -1,0 +1,196 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>大脑总览·智能问答 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="brain-overview">
+<main class="wuda-view">
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>产业创新大脑 · 总览</div>
+      <div class="page-sub">AI 版产业研究院 —— 接入 8 类数据域，让产业研判、技术判断、赛道选择、企业识别、项目评估在一处完成</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-ghost btn-sm" id="btnTasks">分析任务台</button>
+      <button class="btn btn-primary btn-sm" id="btnAsk"><i data-lucide="brain"></i> 召唤大脑</button>
+    </div>
+  </div>
+
+  <!-- AI 版产业研究院 横幅 + 智能问答 -->
+  <div class="panel glow fade-in" style="overflow:hidden;position:relative;background:linear-gradient(115deg,rgba(0,229,255,.12),rgba(123,97,255,.07))">
+    <div style="position:relative;z-index:1">
+      <div class="f12 text-primary fw6" style="letter-spacing:2px">WUHAN UNIVERSITY · AI INDUSTRY RESEARCH INSTITUTE</div>
+      <div style="font-size:24px;font-weight:800;margin:6px 0">把每一位科学家，配一个全天候的「AI 版产业研究院」</div>
+      <div class="text-dim" style="max-width:760px">向大脑提问，它会基于学校成果、参股企业、产业图谱与政策数据实时研判，并可一键生成结构化任务包（产业报告 / 赛道清单 / 企业画像 / 投资研判）。</div>
+      <!-- 问答输入框 -->
+      <div style="display:flex;gap:9px;margin-top:16px;max-width:780px">
+        <input id="qInput" type="text" placeholder="例如：分析人形机器人未来三年趋势并给出武大布局建议..." style="flex:1;background:var(--panel-2);border:1px solid var(--border-strong);border-radius:11px;padding:13px 16px;color:var(--text);font-size:14px;outline:none">
+        <button class="btn btn-primary" id="qSend" style="padding:0 22px">研判 ▸</button>
+        <button class="btn" id="qDrawer" title="在 AI 助手抽屉中深入对话">深入对话</button>
+      </div>
+      <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:7px" id="promptChips"></div>
+    </div>
+    <!-- 就地流式输出区域 -->
+    <div id="qAnswer" style="display:none;position:relative;z-index:1;margin-top:16px;background:rgba(4,18,46,.5);border:1px solid var(--border-strong);border-radius:12px;padding:16px 18px;font-size:13.5px;line-height:1.9;color:var(--text);max-width:900px"></div>
+  </div>
+
+  <!-- 五大能力入口 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>五大核心能力</div><div class="tools"><span class="panel-tag">点击进入对应分析引擎</span></div></div>
+    <div class="grid cols-5 stagger" id="capGrid"></div>
+  </div>
+
+  <!-- 主体：左 洞察流 + 中 任务流 ；右 赛道热度 + 今日数据 -->
+  <div class="grid mt-4" style="grid-template-columns:1.15fr 1fr .85fr">
+    <!-- 大脑实时洞察 -->
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>大脑实时洞察</div><div class="tools"><span class="panel-tag">AUTO · 每 30 分钟刷新</span></div></div>
+      <div id="insightFlow" style="max-height:440px;overflow-y:auto;display:flex;flex-direction:column;gap:11px"></div>
+    </div>
+
+    <!-- 最近分析任务流 -->
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>最近分析任务</div><div class="tools"><a class="panel-tag pointer" id="moreTask">全部 →</a></div></div>
+      <div id="taskFlow" style="max-height:440px;overflow-y:auto"></div>
+    </div>
+
+    <!-- 赛道热度 + 今日大脑数据 -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="panel glow">
+        <div class="panel-h"><div class="t"><span class="bar"></span>赛道热度 TOP5</div></div>
+        <div id="trackRank"></div>
+        <a class="btn btn-sm w-full" style="justify-content:center;margin-top:10px" href="brain-track.html">进入赛道选择 →</a>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>今日大脑算力</div></div>
+        <div class="grid cols-2" id="brainStat" style="gap:10px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 五大能力数据透视 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>近 30 天大脑产出结构</div><div class="tools"><span class="panel-tag">按 AI 角色</span></div></div>
+      <div class="chart h300" id="outputPie"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>产业研判活跃度</div><div class="tools"><span class="panel-tag">近 12 周</span></div></div>
+      <div class="chart h300" id="activeLine"></div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  // ---------- 智能问答 ----------
+  function localAnswer(q){
+    if(/趋势|研判|未来|布局/.test(q))return '【产业趋势研判】基于数据底座近 30 天产业事件分析：\n① 「具身智能 / 人形机器人」相关事件环比 +42%，建议优先布局减速器、灵巧手、运动控制等零部件赛道；\n② 「AI 大模型与智能体」赛道武大契合度 92，目标企业池新增 8 家，可启动招商对接；\n③ 「低空经济」政策窗口开启，匹配学校 6 项成果，存在申报机会。\n\n建议：启动「人形机器人产业趋势研判」任务包，并联动 AI 技术经理人推进相关成果项目化。';
+    if(/技术|路线|路径|TRL|成熟/i.test(q))return '【技术路线判断】以「硅基光电子集成」为例的路线评估：\n· 材料与工艺：SOI 衬底(成熟度88)、薄膜铌酸锂(82)为优先方向；\n· 器件设计：调制器(90)、探测器(85)已具产业化基础；\n· 封装测试：光电 co-package(68) 为关键瓶颈，建议联合攻关。\n\n整体路线可行，建议进入概念验证→中试放大阶段。';
+    if(/赛道|选择|清单/.test(q))return '【赛道选择】综合市场规模、增速、武大契合度与热度，推荐 TOP3 赛道：\n① AI 大模型与智能体（契合度 92 · 热度 99 · 市场 8600 亿）\n② 空间智能与时空大数据（契合度 93 · 增速 44%）\n③ 商业航天与卫星遥感（契合度 91 · 增速 41%）\n\n建议生成赛道清单任务包并匹配目标企业。';
+    if(/企业|识别|招商|目标/.test(q))return '【企业识别】筛选出 5 家高契合目标企业：\n· 长飞光纤（硅光，契合度 92）\n· 光迅科技（光电集成，90）\n· 高德红外（传感，86）\n· 库柏特（机器人，84）\n· 逸飞激光（激光装备，82）\n\n建议纳入招商目标清单，由 AI 投资人进行投资价值研判。';
+    if(/项目|评估|评审|投资|风险|价值/.test(q))return '【项目 / 投资评估】组合健康度 81 分（环比 +12）：\n· 64 家参股/校属企业：正常 58、关注 4、预警 2；\n· 2 家预警企业触发「营收连续两季度下滑」「核心团队变动」，建议技术经理人介入辅导；\n· 推荐对硅光、合成生物方向优质标的启动估值区间测算。';
+    return '已基于高校产业数据资产底座完成分析。建议进入对应能力引擎查看结构化产出（产业报告 / 赛道清单 / 企业画像 / 投资研判），并可一键生成任务包交付。';
+  }
+  function runAsk(q){
+    q=(q||'').trim(); if(!q){ UI.toast('请输入要研判的问题','warn'); return; }
+    const box=document.getElementById('qAnswer'); box.style.display='block';
+    box.innerHTML='<span class="text-mute"><i data-lucide="brain"></i> 大脑正在检索 8 类数据域并研判...</span>';
+    setTimeout(()=>{ box.innerHTML=''; UI.typewriter(box, localAnswer(q), {speed:14, onDone(){
+      box.insertAdjacentHTML('beforeend','<div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-sm btn-primary" onclick="window.openAIAssistant&&window.openAIAssistant(\''+q.replace(/'/g,'')+'\')">深入对话 →</button><button class="btn btn-sm" onclick="UI.toast(\'已生成分析任务包，可在 AI 工作台查看\',\'ok\')">一键生成任务包</button></div>');
+    }}); },550);
+  }
+  document.getElementById('qSend').onclick=()=>runAsk(document.getElementById('qInput').value);
+  document.getElementById('qInput').addEventListener('keydown',e=>{ if(e.key==='Enter') runAsk(e.target.value); });
+  document.getElementById('qDrawer').onclick=()=>{ const v=document.getElementById('qInput').value.trim(); window.openAIAssistant&&window.openAIAssistant(v||undefined); };
+  document.getElementById('btnAsk').onclick=()=>window.openAIAssistant&&window.openAIAssistant();
+  document.getElementById('btnTasks').onclick=()=>document.getElementById('taskFlow').scrollIntoView({behavior:'smooth'});
+
+  // 推荐 Prompt chips
+  document.getElementById('promptChips').innerHTML='<span class="text-mute f12" style="align-self:center;margin-right:4px">试试：</span>'+
+    DB.prompts.map(p=>'<span class="chip pointer">'+p+'</span>').join('');
+  document.querySelectorAll('#promptChips .chip').forEach(c=>c.onclick=()=>{ document.getElementById('qInput').value=c.textContent; runAsk(c.textContent); });
+
+  // ---------- 五大能力入口 ----------
+  const caps=[
+    {t:'产业趋势研判',d:'热点追踪·政策事件·成熟度曲线',i:'<i data-lucide="trending-up"></i>',u:'brain-trend.html',n:DB.hotwords.length+' 热词',c:'var(--dom-1)'},
+    {t:'技术路线判断',d:'技术树·路线对比·TRL 评估',i:'<i data-lucide="test-tube"></i>',u:'brain-route.html',n:'多分支',c:'var(--dom-3)'},
+    {t:'赛道选择',d:'市场·增速·契合度·热度',i:'<i data-lucide="target"></i>',u:'brain-track.html',n:DB.tracks.length+' 赛道',c:'var(--dom-5)'},
+    {t:'企业识别',d:'目标企业·契合匹配·招商池',i:'<i data-lucide="building-2"></i>',u:'brain-enterprise.html',n:DB.targetEnterprises.length+' 目标',c:'var(--dom-8)'},
+    {t:'项目评估',d:'立项研判·价值测算·风险',i:'<i data-lucide="scale"></i>',u:'brain-project.html',n:DB.projectLeads.length+' 项目',c:'var(--dom-6)'},
+  ];
+  document.getElementById('capGrid').innerHTML=caps.map(m=>'<a class="ecard" href="'+m.u+'" style="text-decoration:none">'+
+    '<div class="flex items-center gap-3"><div style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:color-mix(in srgb,'+m.c+' 16%,transparent);box-shadow:0 0 18px color-mix(in srgb,'+m.c+' 30%,transparent)">'+m.i+'</div>'+
+    '<div style="flex:1;min-width:0"><div class="et">'+m.t+'</div><div class="em">'+m.d+'</div></div></div>'+
+    '<div class="mt-3 flex justify-between items-center"><span class="tag tag-blue">'+m.n+'</span><span class="text-primary f12">进入 →</span></div></a>').join('');
+
+  // ---------- 大脑实时洞察 ----------
+  const lvMap={high:{c:'r',t:'高优'},warn:{c:'y',t:'关注'},normal:{c:'g',t:'常规'}};
+  const tagColor={'趋势':'blue','赛道':'purple','风险':'red','政策':'amber','成果':'green'};
+  document.getElementById('insightFlow').innerHTML=DB.brainInsights.map(it=>{
+    const lv=lvMap[it.level]||lvMap.normal;
+    return '<div class="panel" style="margin:0;padding:14px 15px;border-left:3px solid var(--'+(it.level==='high'?'danger':it.level==='warn'?'warning':'primary')+')">'+
+      '<div class="flex justify-between items-center mb-3">'+UI.tag(it.tag,tagColor[it.tag]||'gray')+UI.light(lv.c,lv.t)+'</div>'+
+      '<div style="font-size:13.5px;line-height:1.75;color:var(--text)">'+it.txt+'</div>'+
+      '<div class="mt-3 flex gap-2"><span class="chip pointer" data-q="'+it.txt+'">让大脑展开 →</span></div></div>';
+  }).join('');
+  document.querySelectorAll('#insightFlow [data-q]').forEach(c=>c.onclick=()=>{ document.getElementById('qInput').value=c.dataset.q; runAsk(c.dataset.q); window.scrollTo({top:0,behavior:'smooth'}); });
+
+  // ---------- 最近分析任务流 ----------
+  function renderTasks(){
+    const statusTag={'已交付':'green','生成中':'blue','已复用':'purple'};
+    document.getElementById('taskFlow').innerHTML=DB.analysisTasks.map(t=>
+      '<div class="ecard task-row" data-id="'+t.id+'" style="margin-bottom:10px">'+
+        '<div class="flex justify-between items-center"><div class="et" style="font-size:13.5px">'+t.title+'</div>'+UI.tag(t.status,statusTag[t.status]||'gray')+'</div>'+
+        '<div class="em mt-2 flex justify-between"><span>'+UI.tag(t.role,'blue')+' · '+t.owner+'</span><span class="text-mute">'+t.time+'</span></div></div>').join('');
+    document.querySelectorAll('#taskFlow .task-row').forEach(r=>r.onclick=()=>openTask(r.dataset.id));
+  }
+  function openTask(id){
+    const t=DB.analysisTasks.find(x=>x.id===id); if(!t)return;
+    UI.drawer(t.title, UI.descList([
+      ['任务编号',t.id],['执行角色',UI.tag(t.role,'blue')],['当前状态',UI.tag(t.status, t.status==='已交付'?'green':t.status==='生成中'?'blue':'purple')],
+      ['负责人',t.owner],['更新时间',t.time],['数据来源','成果与专利 · 参股企业 · 产业企业与园区'],
+    ])+'<div class="divider"></div><div class="text-mute f12 mb-3">分析摘要</div><div style="font-size:13px;line-height:1.8;color:var(--text)">'+localAnswer(t.title)+'</div>'+
+      '<div class="mt-4 flex gap-2"><button class="btn btn-primary btn-sm" onclick="UI.toast(\'已复用该任务结果\',\'ok\');UI.closeDrawer()">复用结果</button><button class="btn btn-sm" onclick="window.openAIAssistant&&window.openAIAssistant(\''+t.title+'\')">继续追问</button></div>',
+      {width:'560px'});
+  }
+  renderTasks();
+  document.getElementById('moreTask').onclick=()=>location.href='ai-workbench.html';
+
+  // ---------- 赛道热度 TOP5 ----------
+  const topTracks=[...DB.tracks].sort((a,b)=>b.heat-a.heat).slice(0,5);
+  document.getElementById('trackRank').innerHTML=UI.rankList(topTracks.map(t=>({name:t.name,value:t.heat,sub:'市场 '+t.market+'亿 · 契合 '+t.fit+' · '+t.stage})));
+
+  // ---------- 今日大脑算力 ----------
+  const stats=[
+    {l:'数据域接入',v:DB.dataDomains.length,u:'域',i:'<i data-lucide="database"></i>'},
+    {l:'今日研判',v:DB.util.ri(38,86),u:'次',i:'<i data-lucide="brain"></i>'},
+    {l:'生成任务包',v:DB.aiTasks.length,u:'个',i:'<i data-lucide="package"></i>'},
+    {l:'高优洞察',v:DB.brainInsights.filter(i=>i.level==='high').length,u:'条',i:'<i data-lucide="zap"></i>'},
+  ];
+  document.getElementById('brainStat').innerHTML=stats.map(s=>
+    '<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:11px;padding:13px 14px">'+
+    '<div class="text-mute f12">'+s.i+' '+s.l+'</div><div style="margin-top:6px"><span class="num" style="font-size:24px;font-weight:700;font-family:Oswald">'+s.v+'</span><span class="text-dim f13"> '+s.u+'</span></div></div>').join('');
+
+  // ---------- 近30天大脑产出结构(按角色) ----------
+  const byRole={};
+  DB.aiTasks.forEach(t=>{ byRole[t.role]=(byRole[t.role]||0)+1; });
+  Charts.pie('outputPie',{data:Object.keys(byRole).map(k=>({name:k,value:byRole[k]})), ring:true, legend:true, center:['38%','52%']});
+
+  // ---------- 产业研判活跃度(近12周, 造数) ----------
+  Charts.line('activeLine',{
+    x:Array.from({length:12},(_,i)=>'W'+(i+1)),
+    series:[
+      {name:'研判次数',data:[18,22,20,28,26,34,31,40,38,46,44,52]},
+      {name:'任务交付',data:[6,8,7,11,10,14,12,17,16,21,20,26]},
+    ], area:true, smooth:true, legend:true });
+
+  // 脚注
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','活动与赛事']));
+})();</script>
+</body></html>

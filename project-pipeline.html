@@ -1,0 +1,232 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>项目化流水线 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="project-pipeline">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>成果项目化流水线看板</div>
+      <div class="page-sub">从成果遴选到路演材料的六阶段流水线，拖拽卡片推进项目化进程，AI技术经理人全流程辅助</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnReport">⤓ 导出流水线报表</button>
+      <button class="btn btn-primary btn-sm" id="btnNew">＋ 新建项目包</button>
+    </div>
+  </div>
+
+  <!-- 阶段计数 KPI -->
+  <div class="grid cols-6" id="stageKpis"></div>
+
+  <!-- 流水线整体 + 学科分布 -->
+  <div class="grid mt-4" style="grid-template-columns:1.55fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>项目化阶段漏斗</div><div class="tools"><span class="panel-tag">各阶段在制项目数</span></div></div>
+      <div class="chart h300" id="funnel"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>在制项目学科分布</div><div class="tools"><span class="panel-tag">按5大学科</span></div></div>
+      <div class="chart h300" id="discPie"></div>
+    </div>
+  </div>
+
+  <!-- 看板 -->
+  <div class="panel mt-4">
+    <div class="panel-h" style="flex-wrap:wrap;gap:12px">
+      <div class="t"><span class="bar"></span>项目化流水线看板 <span class="tag tag-gray" id="totalTag"></span></div>
+      <div class="tools">
+        <span class="panel-tag">拖拽卡片可推进/回退阶段</span>
+        <div class="fb-field" style="margin-left:10px"><select id="discFilter"></select></div>
+      </div>
+    </div>
+    <div id="kanban"></div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const D=DB.util;
+  const disciplines=DB.disciplines;
+  function discColor(id){ return (disciplines.find(d=>d.id===id)||{}).color||'var(--primary)'; }
+
+  // 六个泳道定义
+  const lanes=[
+    {key:'select', title:'① 成果遴选', desc:'识别有转化潜力成果'},
+    {key:'profile', title:'② 成果画像', desc:'生成多维成果画像'},
+    {key:'maturity',title:'③ 成熟度评估', desc:'TRL与转化条件评估'},
+    {key:'scene',   title:'④ 场景匹配', desc:'对接产业落地场景'},
+    {key:'package', title:'⑤ 项目包装', desc:'BP与作价方案设计'},
+    {key:'pitch',   title:'⑥ 路演材料', desc:'路演与资本对接'},
+  ];
+
+  // 把成果确定性分配到不同泳道(依据 status / maturity / trl)
+  function laneOf(a){
+    if(a.status==='待评估') return 'select';
+    if(a.status==='已立项') return a.maturity>=70?'profile':'select';
+    if(a.status==='概念验证') return a.maturity>=80?'scene':'maturity';
+    if(a.status==='中试放大') return 'scene';
+    if(a.status==='已签约') return 'package';
+    if(a.status==='已转化') return 'pitch';
+    return 'maturity';
+  }
+  // 仅取一部分高潜成果进入流水线(匹配度排序取前 36)
+  const pipeline = DB.achievements.slice().sort((a,b)=>b.match-a.match).slice(0,36)
+    .map(a=>({...a, lane:laneOf(a)}));
+
+  // 阶段配色(用于卡片左边色条与KPI图标)
+  const stageIcon={select:'<i data-lucide="search"></i>',profile:'<i data-lucide="image"></i>',maturity:'<i data-lucide="flask-conical"></i>',scene:'<i data-lucide="target"></i>',package:'<i data-lucide="package"></i>',pitch:'<i data-lucide="mic"></i>'};
+
+  // ---------- 阶段计数 KPI ----------
+  function laneCounts(list){ const m={}; lanes.forEach(l=>m[l.key]=0); list.forEach(a=>m[a.lane]++); return m; }
+  function renderKpis(){
+    const cnt=laneCounts(pipeline);
+    document.getElementById('stageKpis').innerHTML=lanes.map(l=>
+      UI.kpi({label:l.title.replace(/^[①-⑥]\s*/,''),value:cnt[l.key],unit:'项',icon:stageIcon[l.key]})
+    ).join('');
+    document.getElementById('totalTag').textContent='共 '+pipeline.length+' 个在制项目';
+  }
+  renderKpis();
+
+  // ---------- 漏斗 ----------
+  const cnt0=laneCounts(pipeline);
+  Charts.funnel('funnel',{ data:lanes.map(l=>({name:l.title.replace(/^[①-⑥]\s*/,''),value:Math.max(1,cnt0[l.key])})) });
+
+  // ---------- 学科分布 ----------
+  Charts.pie('discPie',{
+    data:disciplines.map(d=>({name:d.name,value:pipeline.filter(a=>a.discipline===d.id).length})).filter(x=>x.value>0),
+    ring:true,legend:true,center:['38%','52%']
+  });
+
+  // ---------- 卡片渲染 ----------
+  function cardRender(a){
+    const c=discColor(a.discipline);
+    return `<div data-id="${a.id}" style="border-left:3px solid ${c};padding-left:9px;margin-left:-2px">
+      <div class="fw6" style="font-size:13px;line-height:1.4;margin-bottom:6px">${UI.esc(a.title)}</div>
+      <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
+        <span style="font-size:10.5px;border:1px solid ${c};color:${c};border-radius:5px;padding:0 6px;font-weight:600">${a.disciplineName}</span>
+        <span class="num text-primary fw7" style="font-size:11.5px">TRL ${a.trl}</span>
+      </div>
+      <div class="f12 text-mute" style="margin-bottom:5px"><i data-lucide="user"></i> ${a.leader}</div>
+      <div class="flex justify-between items-center">
+        <span class="num fw7 f12" style="color:var(--success)">¥${(a.value/10000).toFixed(2)}亿</span>
+        <span class="f12" style="color:${c}">匹配 ${a.match}%</span>
+      </div>
+    </div>`;
+  }
+
+  // ---------- 看板初始化 ----------
+  let kbDiscFilter='';
+  function buildKanban(){
+    const list = kbDiscFilter ? pipeline.filter(a=>a.disciplineName===kbDiscFilter) : pipeline;
+    UI.kanban('#kanban',{
+      columns:lanes.map(l=>({key:l.key,title:l.title,cards:list.filter(a=>a.lane===l.key)})),
+      cardRender,
+      onMove:(i,from,to)=>{
+        if(from===to) return;
+        const fromName=(lanes.find(l=>l.key===from)||{}).title||from;
+        const toName=(lanes.find(l=>l.key===to)||{}).title||to;
+        UI.toast('阶段变更：'+fromName.replace(/^[①-⑥]\s*/,'')+' → '+toName.replace(/^[①-⑥]\s*/,''),'ok');
+      }
+    });
+    // 卡片点击看详情
+    const kbEl=document.getElementById('kanban');
+    UI.$$('.kb-card',kbEl).forEach(card=>{
+      card.addEventListener('click',()=>{
+        const idEl=card.querySelector('[data-id]'); if(!idEl) return;
+        const a=pipeline.find(x=>x.id===idEl.dataset.id); if(a) openDetail(a);
+      });
+    });
+  }
+
+  // ---------- 详情抽屉 ----------
+  function openDetail(a){
+    const c=discColor(a.discipline);
+    const laneTitle=(lanes.find(l=>l.key===a.lane)||{}).title||'';
+    const trackMkt=(DB.tracks.find(t=>t.disc===a.discipline)||{market:2000,growth:35});
+    const body=`
+      <div class="flex items-center gap-2 mb-3" style="flex-wrap:wrap">
+        <span style="font-size:11px;border:1px solid ${c};color:${c};border-radius:6px;padding:2px 9px;font-weight:600">${a.disciplineName}</span>
+        ${UI.tag(laneTitle.replace(/^[①-⑥]\s*/,''),'blue')}
+        ${a.trl>=7?UI.tag('近产业化','green'):''}
+        ${a.match>=85?UI.tag('高契合','purple'):''}
+      </div>
+      <div class="text-dim mb-3" style="font-size:13px;line-height:1.7">${a.desc}</div>
+      ${UI.descList([
+        ['成果编号',`<span class="num fw6">${a.id}</span>`],
+        ['所属学院',a.college],
+        ['负责人',a.leader],
+        ['技术成熟度',`<span class="num text-primary fw7">TRL ${a.trl}</span> / 9`],
+        ['综合成熟度',`<span class="num fw7">${a.maturity}</span> 分`],
+        ['场景匹配度',`<span class="num fw7" style="color:${c}">${a.match}%</span>`],
+        ['发明专利',`<span class="num fw7">${a.patents}</span> 项`],
+        ['资产估值',`<span class="num fw7" style="color:var(--success)">${a.value.toLocaleString()} 万元</span>`],
+        ['当前阶段',laneTitle],
+      ])}
+      <div class="divider"></div>
+      <div class="panel-h" style="margin-bottom:8px"><div class="t" style="font-size:13px"><span class="bar"></span>项目化阶段进度</div></div>
+      <div id="drStepBar" class="chart h220"></div>
+      <div class="divider"></div>
+      <div class="panel-h" style="margin-bottom:8px"><div class="t" style="font-size:13px"><span class="bar"></span>应用场景</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${a.scenes.map(s=>UI.chip(s,true)).join('')}</div>
+      <div class="text-dim mt-3" style="font-size:12.5px;line-height:1.8">所处赛道市场规模约 <b class="num text-primary">${trackMkt.market.toLocaleString()}亿元</b>，年增速约 <b class="num" style="color:var(--success)">${trackMkt.growth}%</b>，建议优先推进概念验证与龙头企业联合中试。</div>
+      <div class="mt-3" style="display:flex;gap:9px;justify-content:flex-end">
+        <button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button>
+        <button class="btn btn-primary btn-sm" id="drNext"><i data-lucide="bot"></i> AI推进至下一阶段</button>
+      </div>`;
+    UI.drawer(a.title, body, {width:'560px'});
+    // 阶段进度条形图(六阶段完成度)
+    const curIdx=lanes.findIndex(l=>l.key===a.lane);
+    setTimeout(()=>{
+      Charts.bar('drStepBar',{
+        x:lanes.map(l=>l.title.replace(/^[①-⑥]\s*/,'')),
+        series:[{name:'完成度',data:lanes.map((l,i)=> i<curIdx?100 : i===curIdx?Math.round(a.maturity) : 0)}]
+      });
+    },120);
+    setTimeout(()=>{const b=document.getElementById('drNext'); if(b) b.onclick=()=>{ UI.closeDrawer(); UI.toast('已派单「AI技术经理人」推进《'+a.title.slice(0,10)+'…》至下一阶段','ok'); };},100);
+  }
+
+  buildKanban();
+
+  // ---------- 学科筛选 ----------
+  const sel=document.getElementById('discFilter');
+  sel.innerHTML='<option value="">全部学科</option>'+disciplines.map(d=>`<option value="${d.name}">${d.name}</option>`).join('');
+  sel.onchange=()=>{ kbDiscFilter=sel.value; buildKanban(); };
+
+  // ---------- 新建项目包弹窗 ----------
+  document.getElementById('btnNew').onclick=()=>{
+    UI.modal('＋ 新建项目包', `
+      <div class="text-dim mb-3" style="font-size:13px">从成果库选取一项成果，发起项目化流水线，由「AI技术经理人」生成成果画像并进行成熟度初评。</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:14px 16px;font-size:13px;align-items:center">
+        <div class="text-mute">选择成果</div>
+        <div class="fb-field" style="width:100%"><select id="npAch" style="width:100%">${DB.achievements.slice(0,20).map(a=>`<option value="${a.id}">${a.title}（${a.disciplineName}·TRL${a.trl}）</option>`).join('')}</select></div>
+        <div class="text-mute">起始阶段</div>
+        <div class="fb-field" style="width:100%"><select id="npStage" style="width:100%">${lanes.map(l=>`<option value="${l.key}">${l.title}</option>`).join('')}</select></div>
+        <div class="text-mute">负责经理人</div>
+        <div class="fb-field" style="width:100%"><select id="npOwner" style="width:100%"><option>AI技术经理人(自动)</option><option>${D.person()} 技术经理</option><option>${D.person()} 技术经理</option></select></div>
+        <div class="text-mute">优先级</div>
+        <div><div class="seg" id="npPrio"><button class="on">普通</button><button>高</button><button>紧急</button></div></div>
+      </div>`,
+      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-primary btn-sm" id="npSubmit">创建并启动流水线</button>`});
+    document.getElementById('npPrio').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;[...e.currentTarget.children].forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+    document.getElementById('npSubmit').onclick=()=>{
+      const a=DB.achievements.find(x=>x.id===document.getElementById('npAch').value);
+      UI.closeModal();
+      UI.toast('项目包已创建：《'+(a?a.title.slice(0,12):'')+'…》已进入流水线','ok');
+    };
+  };
+
+  document.getElementById('btnReport').onclick=()=>UI.toast('已生成流水线报表，含 '+pipeline.length+' 个在制项目阶段分布','ok');
+
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','学院与团队','研究院与平台']);
+})();</script>
+</body></html>

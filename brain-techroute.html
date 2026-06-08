@@ -1,0 +1,350 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>技术路线判断 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="brain-techroute">
+<main class="wuda-view">
+  <div class="crumb"><a href="brain-overview.html">← 返回产业创新大脑</a></div>
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>技术路线判断</div>
+      <div class="page-sub">围绕优势学科技术方向，构建技术路线树、关键技术评分与专利布局，辅助技术选型与攻关决策</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnAI"><i data-lucide="brain"></i> AI 路线研判</button>
+      <button class="btn btn-sm btn-primary" id="btnExport">导出技术路线报告</button>
+    </div>
+  </div>
+
+  <!-- 学科 / 方向选择器 -->
+  <div id="filter" class="mb-3"></div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 主图: 技术路线树 + 节点说明 -->
+  <div class="grid mt-4" style="grid-template-columns:1.55fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span><span id="treeTitle">技术路线树</span></div>
+        <div class="tools"><span class="panel-tag">点击节点查看技术说明</span></div></div>
+      <div class="chart h480" id="routeTree"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>技术节点研判</div><div class="tools"><span class="panel-tag" id="nodeTag">总览</span></div></div>
+      <div id="nodePanel"></div>
+    </div>
+  </div>
+
+  <!-- 关键技术评分雷达 + 专利分布柱状 -->
+  <div class="grid cols-2 mt-4">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>关键技术成熟度评分</div>
+        <div class="tools" id="radarSeg"></div></div>
+      <div class="chart h340" id="techRadar"></div>
+      <div class="f12 text-mute mt-2">维度：材料 · 器件 · 封装 · 工艺 · 可靠性（满分100，越靠外越成熟）</div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>各技术分支专利分布</div>
+        <div class="tools"><span class="panel-tag">单位：件</span></div></div>
+      <div class="chart h340" id="patentBar"></div>
+      <div class="f12 text-mute mt-2">数据汇聚自成果与专利域，反映各分支技术储备厚度</div>
+    </div>
+  </div>
+
+  <!-- 技术分支清单 + 风险/趋势提示 -->
+  <div class="grid mt-4" style="grid-template-columns:1.3fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>技术分支与子技术清单</div>
+        <div class="tools"><span class="panel-tag">点击行查看子技术详情</span></div></div>
+      <div id="branchTable"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>路线研判提示</div><div class="tools"><span class="panel-tag">AI 智脑</span></div></div>
+      <div id="insightBox"></div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const DISC = DB.disciplines;
+  const RI = DB.util.ri, PICK = DB.util.pick;
+
+  // 为每个学科构造一套技术路线树(以 data.js 的 techRoutes 为半导体范本, 其余学科生成同结构)
+  const ROUTE_DEFS = {
+    chip: DB.techRoutes,
+    ai: {name:'AI大模型与端侧推理', children:[
+      {name:'模型架构', children:[{name:'稀疏MoE',val:86},{name:'多模态对齐',val:80},{name:'长上下文',val:74}]},
+      {name:'训练与对齐', children:[{name:'指令微调',val:88},{name:'RLHF',val:82},{name:'数据飞轮',val:76}]},
+      {name:'推理与部署', children:[{name:'量化压缩',val:90},{name:'端侧加速',val:78},{name:'推理引擎',val:84}]},
+    ]},
+    robot: {name:'具身智能与运动控制', children:[
+      {name:'本体与材料', children:[{name:'轻量化结构',val:82},{name:'柔性关节',val:75},{name:'高密度电机',val:70}]},
+      {name:'感知与决策', children:[{name:'多传感融合',val:88},{name:'力位混合控制',val:84},{name:'端到端策略',val:72}]},
+      {name:'集成与可靠性', children:[{name:'整机标定',val:78},{name:'长时运行可靠性',val:68}]},
+    ]},
+    bio: {name:'创新药与合成生物', children:[
+      {name:'靶点与材料', children:[{name:'靶点发现',val:84},{name:'递送载体',val:78},{name:'可降解材料',val:80}]},
+      {name:'设计与工艺', children:[{name:'分子设计',val:88},{name:'菌株工程',val:76},{name:'放大工艺',val:70}]},
+      {name:'验证与可靠性', children:[{name:'临床前评价',val:82},{name:'质量稳定性',val:74}]},
+    ]},
+    geo: {name:'空间智能与时空计算', children:[
+      {name:'数据与材料', children:[{name:'高分影像源',val:90},{name:'多源时空数据',val:84},{name:'低空采集',val:78}]},
+      {name:'算法与器件', children:[{name:'智能解译',val:88},{name:'高精度定位',val:91},{name:'专用探测器',val:73}]},
+      {name:'平台与可靠性', children:[{name:'实景三维建模',val:82},{name:'服务稳定性',val:76}]},
+    ]},
+  };
+
+  // 子技术-学科 节点说明库(用于点击说明)
+  const NODE_DESC = {
+    'SOI衬底':'绝缘体上硅衬底是硅基光电子集成的基础材料，武大在低损耗波导与晶圆均匀性上具备积累，TRL 较高，是当前优先成熟方向。',
+    '异质集成':'III-V/Si 异质集成解决硅基缺乏高效光源的难题，工艺壁垒高、国际竞争激烈，建议联合龙头企业协同攻关。',
+    '薄膜铌酸锂':'TFLN 平台兼具高带宽与低功耗，是下一代调制器的关键路线，处于快速上升期，专利布局窗口尚在。',
+    '调制器':'电光调制器是光互连核心器件，武大成熟度评分最高(90)，具备从原型走向中试的条件，可优先项目化。',
+    '探测器':'高速光电探测器配套接收链路，成熟度良好，建议与封装测试分支协同推进。',
+    '光源集成':'片上激光光源集成度仍偏低(72)，是制约整机方案的短板，需重点投入。',
+    '光电co-package':'光电合封降低互连损耗，是面向 AI 算力的高价值方向，目前成熟度偏低(68)，存在差异化机会。',
+    '晶圆级测试':'晶圆级光电测试决定良率与量产能力，是产业化前必须补齐的工程能力。',
+  };
+  function descOf(name, discName){
+    if(NODE_DESC[name]) return NODE_DESC[name];
+    return `「${name}」是${discName}方向技术路线中的关键子技术节点。结合学校在该方向的成果与专利储备，该节点已形成阶段性技术积累，建议结合成熟度评分与专利布局确定攻关优先级与转化节奏。`;
+  }
+
+  let curId = 'chip';
+  function curDisc(){ return DISC.find(d=>d.id===curId); }
+  function curRoute(){ return ROUTE_DEFS[curId]; }
+
+  // 学科与方向数据(确定性, 由 disc id 派生)
+  function branchData(){
+    const r = curRoute();
+    return r.children.map(b=>{
+      const subs = b.children.map(s=>({name:s.name, val:s.val||RI(60,92), patents:Math.round((s.val||70)*0.6)+RI(2,18)}));
+      return { branch:b.name, subs, patents:subs.reduce((a,s)=>a+s.patents,0), avg:Math.round(subs.reduce((a,s)=>a+s.val,0)/subs.length) };
+    });
+  }
+
+  // 雷达5维(材料/器件/封装/工艺/可靠性) — 由学科派生 + 可对比相邻学科
+  const RADAR_DIMS = ['材料','器件','封装','工艺','可靠性'];
+  function radarOf(id){
+    const seedMap = {chip:[88,90,68,80,74], ai:[80,85,84,88,78], robot:[78,84,76,82,68], bio:[82,80,72,76,74], geo:[88,84,80,86,76]};
+    return seedMap[id] || [78,82,72,80,74];
+  }
+
+  // ---------- 渲染各区块 ----------
+  function renderKPI(){
+    const bd = branchData();
+    const totalPatents = bd.reduce((a,b)=>a+b.patents,0);
+    const subCount = bd.reduce((a,b)=>a+b.subs.length,0);
+    const avg = Math.round(bd.reduce((a,b)=>a+b.avg,0)/bd.length);
+    const ach = DB.achievements.filter(a=>a.discipline===curId).length;
+    document.getElementById('kpis').innerHTML=[
+      UI.kpi({label:'技术分支',value:bd.length,unit:'个',icon:'<i data-lucide="puzzle"></i>'}),
+      UI.kpi({label:'子技术节点',value:subCount,unit:'项',icon:'<i data-lucide="wrench"></i>'}),
+      UI.kpi({label:'相关专利合计',value:totalPatents,unit:'件',delta:'+'+RI(4,16)+'%',deltaUp:true,icon:'<i data-lucide="files"></i>',spark:[12,18,16,24,22,30,28,36,34,42,40,48]}),
+      UI.kpi({label:'综合成熟度',value:avg,unit:'分',delta:'+'+RI(2,6),deltaUp:true,icon:'<i data-lucide="trending-up"></i>'}),
+    ].join('');
+  }
+
+  function renderTree(){
+    document.getElementById('treeTitle').textContent = curDisc().name + ' · 技术路线树';
+    const inst = Charts.tree('routeTree', {data: curRoute(), horizontal:true});
+    inst && inst.on('click', p=>{
+      if(p.data && (!p.data.children || !p.data.children.length)){
+        showNode(p.data.name);
+      } else if(p.data){
+        showBranch(p.data.name);
+      }
+    });
+  }
+
+  function renderRadar(compareId){
+    const series = [{name:curDisc().name, value:radarOf(curId)}];
+    if(compareId && compareId!==curId){
+      const cd = DISC.find(d=>d.id===compareId);
+      series.push({name:cd.name, value:radarOf(compareId)});
+    }
+    Charts.radar('techRadar', {indicators:RADAR_DIMS, series, legend:true, max:100});
+  }
+
+  function renderPatentBar(){
+    const bd = branchData();
+    // 展开到子技术层级展示专利分布
+    const labels=[], vals=[];
+    bd.forEach(b=>b.subs.forEach(s=>{ labels.push(s.name); vals.push(s.patents); }));
+    Charts.bar('patentBar', {x:labels, series:[{name:'专利数', data:vals}], horizontal:true});
+  }
+
+  function renderBranchTable(){
+    const bd = branchData();
+    const rows=[];
+    bd.forEach(b=>b.subs.forEach(s=>rows.push({branch:b.branch, sub:s.name, val:s.val, patents:s.patents})));
+    UI.table('#branchTable', {
+      pageSize:8,
+      columns:[
+        {key:'branch', title:'技术分支', render:r=>`<span class="fw6">${r.branch}</span>`},
+        {key:'sub', title:'子技术', render:r=>`<span class="text-primary fw6">${r.sub}</span>`},
+        {key:'val', title:'成熟度', sortable:true, sortVal:r=>r.val, render:r=>`<div style="display:flex;align-items:center;gap:8px">${UI.bar(r.val, r.val>=85?'var(--success)':r.val>=72?'var(--primary)':'var(--warning)')}<span class="num f12" style="width:30px">${r.val}</span></div>`},
+        {key:'patents', title:'专利', sortable:true, sortVal:r=>r.patents, render:r=>`<span class="num fw7">${r.patents}</span> 件`},
+        {key:'stage', title:'研判', sortable:false, render:r=> r.val>=85?UI.light('g','成熟可转化'):r.val>=72?UI.light('y','上升期'):UI.light('r','需攻关')},
+      ],
+      rows,
+      onRow:r=>showNode(r.sub),
+    });
+  }
+
+  function renderInsight(){
+    const items = DB.brainInsights.map(b=>({
+      tag:b.tag, txt:b.txt, level:b.level
+    }));
+    const tagColor={'趋势':'blue','赛道':'purple','风险':'red','政策':'amber','成果':'green'};
+    document.getElementById('insightBox').innerHTML = items.map(it=>`
+      <div class="ecard" style="margin-bottom:10px">
+        <div class="flex items-center gap-2 mb-2">${UI.tag(it.tag, tagColor[it.tag]||'gray')}
+          ${it.level==='high'?UI.tag('高优先','red'):it.level==='warn'?UI.tag('关注','amber'):UI.tag('提示','gray')}</div>
+        <div class="f13 text-dim" style="line-height:1.6">${it.txt}</div>
+      </div>`).join('');
+  }
+
+  // 节点说明面板(右栏)
+  function showNode(name){
+    const d = curDisc();
+    const bd = branchData();
+    let sub=null, branch=null;
+    bd.forEach(b=>b.subs.forEach(s=>{ if(s.name===name){sub=s; branch=b.branch;} }));
+    document.getElementById('nodeTag').textContent = '子技术';
+    if(!sub){ showBranch(name); return; }
+    const stageTxt = sub.val>=85?'成熟可转化':sub.val>=72?'上升期':'需重点攻关';
+    document.getElementById('nodePanel').innerHTML = `
+      <div class="ecard glow" style="border-color:color-mix(in srgb,${d.color} 40%,transparent)">
+        <div class="flex justify-between items-center">
+          <div class="et" style="font-size:16px">${sub.name}</div>
+          ${UI.tag(d.name,'blue')}
+        </div>
+        <div class="em mt-2">所属分支：${branch}</div>
+        <div class="grid cols-2 mt-3" style="gap:10px">
+          <div class="kpi" style="padding:12px"><div class="lab">成熟度评分</div><div class="val"><span class="num">${sub.val}</span><span class="unit">分</span></div></div>
+          <div class="kpi" style="padding:12px"><div class="lab">相关专利</div><div class="val"><span class="num">${sub.patents}</span><span class="unit">件</span></div></div>
+        </div>
+        <div class="mt-3">${UI.bar(sub.val, sub.val>=85?'var(--success)':sub.val>=72?'var(--primary)':'var(--warning)')}</div>
+        <div class="mt-3">${sub.val>=85?UI.light('g',stageTxt):sub.val>=72?UI.light('y',stageTxt):UI.light('r',stageTxt)}</div>
+      </div>
+      <div class="mt-3 f13 text-dim" style="line-height:1.7">${descOf(sub.name, d.name)}</div>
+      <div class="divider"></div>
+      <div class="f12 text-mute mb-2">建议动作</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${sub.val>=85?'<button class="btn btn-sm btn-primary">推送成果项目化</button>':''}
+        <button class="btn btn-sm">关联团队</button>
+        <button class="btn btn-sm">专利导航</button>
+      </div>`;
+    document.querySelectorAll('#nodePanel .btn-primary').forEach(b=>b.onclick=()=>UI.toast('已将「'+sub.name+'」推送至成果项目化队列','ok'));
+    document.querySelectorAll('#nodePanel .btn:not(.btn-primary)').forEach(b=>b.onclick=()=>UI.toast('已发起：'+b.textContent.trim(),'ok'));
+  }
+
+  function showBranch(name){
+    const d = curDisc();
+    const bd = branchData();
+    const b = bd.find(x=>x.branch===name);
+    document.getElementById('nodeTag').textContent = '技术分支';
+    if(!b){ showOverview(); return; }
+    document.getElementById('nodePanel').innerHTML = `
+      <div class="ecard" style="border-color:color-mix(in srgb,${d.color} 30%,transparent)">
+        <div class="flex justify-between items-center"><div class="et" style="font-size:16px">${b.branch}</div>${UI.tag(d.name,'blue')}</div>
+        <div class="grid cols-2 mt-3" style="gap:10px">
+          <div class="kpi" style="padding:12px"><div class="lab">分支均值</div><div class="val"><span class="num">${b.avg}</span><span class="unit">分</span></div></div>
+          <div class="kpi" style="padding:12px"><div class="lab">分支专利</div><div class="val"><span class="num">${b.patents}</span><span class="unit">件</span></div></div>
+        </div>
+      </div>
+      <div class="mt-3 f12 text-mute mb-2">子技术节点</div>
+      ${b.subs.map(s=>`<div class="flex items-center justify-between" style="padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" data-sub="${s.name}">
+        <span class="f13 fw6">${s.name}</span>
+        <span class="flex items-center gap-2" style="width:160px">${UI.bar(s.val, s.val>=85?'var(--success)':s.val>=72?'var(--primary)':'var(--warning)')}<span class="num f12" style="width:28px">${s.val}</span></span></div>`).join('')}`;
+    document.querySelectorAll('#nodePanel [data-sub]').forEach(el=>el.onclick=()=>showNode(el.dataset.sub));
+  }
+
+  function showOverview(){
+    const d = curDisc();
+    const bd = branchData();
+    document.getElementById('nodeTag').textContent = '总览';
+    document.getElementById('nodePanel').innerHTML = `
+      <div class="ecard glow">
+        <div class="flex items-center gap-3">
+          <div style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:24px;background:color-mix(in srgb,${d.color} 16%,transparent)">${d.icon}</div>
+          <div><div class="et" style="font-size:16px">${curRoute().name}</div><div class="em">${d.desc}</div></div>
+        </div>
+      </div>
+      <div class="mt-3">${UI.descList([
+        ['优势学科', d.name],
+        ['技术分支', bd.length+' 个'],
+        ['子技术节点', bd.reduce((a,b)=>a+b.subs.length,0)+' 项'],
+        ['专利合计', '<span class="text-primary fw7">'+bd.reduce((a,b)=>a+b.patents,0)+'</span> 件'],
+        ['综合成熟度', '<span class="text-success fw7">'+Math.round(bd.reduce((a,b)=>a+b.avg,0)/bd.length)+'</span> 分'],
+      ])}</div>
+      <div class="divider"></div>
+      <div class="f12 text-mute mb-2">分支成熟度排序</div>
+      ${UI.rankList(bd.slice().sort((a,b)=>b.avg-a.avg).map(b=>({name:b.branch, value:b.avg, sub:b.patents+' 件专利'})))}
+      <div class="mt-3 f12 text-dim" style="line-height:1.6">点击左侧路线树叶子节点或下方清单，可查看单项子技术的成熟度研判与建议动作。</div>`;
+  }
+
+  // 雷达对比分段器
+  function renderRadarSeg(){
+    const seg = document.getElementById('radarSeg');
+    const others = DISC.filter(d=>d.id!==curId);
+    seg.innerHTML = `<div class="seg"><button class="on" data-cmp="">不对比</button>${others.slice(0,3).map(d=>`<button data-cmp="${d.id}">对比${d.name.slice(0,2)}</button>`).join('')}</div>`;
+    seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+      renderRadar(b.dataset.cmp);
+    });
+  }
+
+  function renderAll(){
+    renderKPI();
+    renderTree();
+    renderRadar('');
+    renderRadarSeg();
+    renderPatentBar();
+    renderBranchTable();
+    renderInsight();
+    showOverview();
+  }
+
+  // 学科选择器
+  UI.filterBar('#filter', {
+    fields:[
+      {key:'disc', label:'选择优势学科', all:false, options: DISC.map(d=>d.name)},
+    ],
+    extra:'<span class="f12 text-mute" style="align-self:center;margin-left:6px">切换学科可联动技术路线树 / 评分 / 专利分布</span>',
+    onChange:vals=>{
+      const d = DISC.find(x=>x.name===vals.disc);
+      if(d){ curId = d.id; renderAll(); UI.toast('已切换至「'+d.name+'」技术路线','ok'); }
+    }
+  });
+
+  document.getElementById('btnAI').onclick=()=>{
+    UI.modal('AI 技术路线研判 · '+curDisc().name,
+      `<div id="aiOut" style="min-height:160px;line-height:1.8;font-size:13.5px;color:var(--text-dim)"></div>`,
+      {footer:'<button class="btn btn-sm" onclick="UI.closeModal()">关闭</button>'});
+    const bd = branchData();
+    const top = bd.slice().sort((a,b)=>b.avg-a.avg)[0];
+    const weak = bd.slice().sort((a,b)=>a.avg-b.avg)[0];
+    const txt = `【${curDisc().name} 技术路线研判】\n\n` +
+      `当前路线含 ${bd.length} 个技术分支、${bd.reduce((a,b)=>a+b.subs.length,0)} 项子技术，专利合计 ${bd.reduce((a,b)=>a+b.patents,0)} 件。\n\n` +
+      `成熟度最高分支为「${top.branch}」(${top.avg}分)，具备从原型走向中试的条件，建议优先纳入成果项目化队列。\n\n` +
+      `「${weak.branch}」(${weak.avg}分)为当前技术短板，建议联合龙头企业与省部级平台开展协同攻关，并加强专利前瞻布局。\n\n` +
+      `综合判断：该方向技术路线清晰、专利储备较厚，建议沿"成熟分支先转化、短板分支强攻关"的双轨策略推进。`;
+    setTimeout(()=>UI.typewriter('aiOut', txt, {speed:14}), 60);
+  };
+  document.getElementById('btnExport').onclick=()=>UI.toast('技术路线报告已生成，正在下载…','ok');
+
+  renderAll();
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['成果与专利','研究院与平台','学院与团队']));
+})();</script>
+</body></html>

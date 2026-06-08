@@ -1,0 +1,193 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>企业识别 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="brain-enterprise">
+<main class="wuda-view">
+  <div class="crumb"><a href="brain-overview.html">← 返回产业创新大脑</a></div>
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>企业识别 · 目标企业智能发现</div>
+    <div class="page-sub">基于学科技术契合度，从产业企业库中识别招商目标 / 合作伙伴 / 并购标的 / 供应链企业</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnGraph">关系图谱</button>
+      <button class="btn btn-sm btn-primary" id="btnAI"><i data-lucide="bot"></i> AI识别新目标</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 关系图谱 + 右侧匹配/城市分布 -->
+  <div class="grid mt-4" style="grid-template-columns:1.55fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>企业关系图谱 · 学科—目标企业连接</div>
+        <div class="tools"><span class="panel-tag">点击企业节点查看画像</span></div></div>
+      <div class="chart h420" id="entGraph"></div>
+      <div style="display:flex;justify-content:center;gap:18px;font-size:12px;color:var(--text-dim);margin-top:2px;flex-wrap:wrap">
+        <span><span class="edot edot-b"></span> 武汉大学优势学科</span><span><span class="edot edot-p"></span> 识别目标企业</span><span>连线粗细 = 技术契合度</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>匹配度分布</div></div>
+        <div class="chart h220" id="matchDist"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>目标企业城市分布 TOP</div></div>
+        <div class="chart h220" id="cityDist"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 目标企业清单 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>目标企业清单</div>
+      <div class="tools"><span class="panel-tag" id="cntTag"></span></div></div>
+    <div id="entFilter" class="mb-3"></div>
+    <div id="entTable"></div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const TE=DB.targetEnterprises, D=DB.disciplines;
+  const discById=id=>D.find(d=>d.id===id)||{name:id,color:'#888',icon:'•'};
+  const typeColor={'招商目标':'green','潜在合作':'blue','并购标的':'purple','供应链':'amber'};
+
+  // ---- KPI ----
+  const avgMatch=Math.round(TE.reduce((s,e)=>s+e.match,0)/TE.length);
+  const highMatch=TE.filter(e=>e.match>=85).length;
+  const cityCount=new Set(TE.map(e=>e.city)).size;
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'识别目标企业',value:TE.length,unit:'家',delta:'本月+8',deltaUp:true,icon:'<i data-lucide="target"></i>',spark:[6,8,9,11,12,14,16,18,20]}),
+    UI.kpi({label:'高匹配目标(≥85)',value:highMatch,unit:'家',delta:'优先对接',deltaUp:true,icon:'<i data-lucide="star"></i>',spark:[2,3,3,4,5,6,7,8,highMatch]}),
+    UI.kpi({label:'平均技术契合度',value:avgMatch,unit:'%',delta:'+3.4%',deltaUp:true,icon:'<i data-lucide="dna"></i>',spark:[78,80,81,82,83,84,avgMatch]}),
+    UI.kpi({label:'覆盖城市',value:cityCount,unit:'城',delta:'湖北全域',deltaUp:true,icon:'<i data-lucide="map-pin"></i>',spark:[3,4,5,6,7,cityCount]}),
+  ].join('');
+
+  // ---- 匹配度分布(分段柱) ----
+  const buckets=[['70-79',0],['80-84',0],['85-89',0],['90-94',0],['95-98',0]];
+  TE.forEach(e=>{ const m=e.match;
+    if(m<80)buckets[0][1]++; else if(m<85)buckets[1][1]++; else if(m<90)buckets[2][1]++; else if(m<95)buckets[3][1]++; else buckets[4][1]++; });
+  Charts.bar('matchDist',{x:buckets.map(b=>b[0]),series:[{name:'企业数',data:buckets.map(b=>b[1])}]});
+
+  // ---- 城市分布 ----
+  const cityMap={}; TE.forEach(e=>cityMap[e.city]=(cityMap[e.city]||0)+1);
+  const cityArr=Object.entries(cityMap).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  Charts.bar('cityDist',{x:cityArr.map(c=>c[0]),series:[{name:'目标数',data:cityArr.map(c=>c[1])}],horizontal:true});
+
+  // ---- 关系图谱(学科为中心) ----
+  function buildGraph(){
+    const cats=['优势学科','目标企业'];
+    const nodes=D.map(d=>({id:'D-'+d.id,name:d.name,cat:0,sym:44}));
+    const links=[];
+    TE.forEach((e,i)=>{
+      const nid='E-'+i;
+      nodes.push({id:nid,name:e.name.replace('·相关业务',''),cat:1,sym:14+Math.round((e.match-65)/3)});
+      links.push({source:'D-'+e.disc,target:nid,rel:e.match+'%'});
+    });
+    Charts.graph('entGraph',{nodes,links,cats,layout:'force',roam:true});
+  }
+  buildGraph();
+
+  // ---- 抽屉:企业识别画像 ----
+  function openDrawer(e){
+    const d=discById(e.disc);
+    const dims=['技术契合','产业规模','区域协同','成长潜力','合作意愿'];
+    // 由匹配度派生五维(确定性)
+    const seed=e.name.length+e.match;
+    const vals=[ e.match,
+      Math.min(98,40+Math.round(e.revenue/9000)),
+      e.city==='武汉市'?94:60+(seed%25),
+      Math.min(96,55+(seed%38)),
+      Math.min(95,Math.round(e.match*0.9)+(seed%8)) ];
+    const body=`
+      <div class="flex justify-between items-center mb-3">
+        <div><div class="fw7 f18">${e.name}</div>
+          <div class="text-mute f12 mt-1">${d.icon} ${e.discName} · ${e.city}</div></div>
+        ${UI.tag(e.type,typeColor[e.type]||'gray')}
+      </div>
+      <div class="grid cols-3 mb-3">
+        <div class="panel" style="margin:0;padding:12px;text-align:center"><div class="text-mute f12">技术契合度</div><div class="num text-primary" style="font-size:24px;font-weight:700">${e.match}<span class="f13">%</span></div></div>
+        <div class="panel" style="margin:0;padding:12px;text-align:center"><div class="text-mute f12">企业营收(估)</div><div class="num" style="font-size:22px;font-weight:700">${(e.revenue/10000).toFixed(2)}<span class="f13">亿</span></div></div>
+        <div class="panel" style="margin:0;padding:12px;text-align:center"><div class="text-mute f12">识别类型</div><div class="fw7" style="font-size:16px;margin-top:6px">${e.type}</div></div>
+      </div>
+      <div class="panel" style="margin:0 0 12px">
+        <div class="panel-h"><div class="t"><span class="bar"></span>识别匹配雷达</div></div>
+        <div class="chart h260" id="drRadar"></div>
+      </div>
+      <div class="panel" style="margin:0 0 12px">
+        <div class="panel-h"><div class="t"><span class="bar"></span>AI识别理由</div></div>
+        <div style="padding:4px 2px">
+          <div class="flex gap-2" style="align-items:flex-start;margin-bottom:8px"><span class="text-primary">●</span><div class="f13">${e.reason}，可作为<b>${e.type}</b>纳入对接池。</div></div>
+          <div class="flex gap-2" style="align-items:flex-start;margin-bottom:8px"><span class="text-success">●</span><div class="f13">所在地 <b>${e.city}</b> 与学校区域产业协同布局契合，落地协同成本较低。</div></div>
+          <div class="flex gap-2" style="align-items:flex-start"><span class="text-warning">●</span><div class="f13">建议优先匹配学校 <b>${e.discName}</b> 方向高成熟度成果，开展供需对接。</div></div>
+        </div>
+      </div>
+      <div class="panel" style="margin:0">
+        <div class="panel-h"><div class="t"><span class="bar"></span>可匹配学校成果</div></div>
+        <div id="drAch"></div>
+      </div>`;
+    UI.drawer('企业识别画像',body,{width:'660px'});
+    setTimeout(()=>{
+      Charts.radar('drRadar',{indicators:dims,series:[{name:e.name,value:vals}],max:100});
+      const achs=DB.achievements.filter(a=>a.discipline===e.disc).sort((a,b)=>b.match-a.match).slice(0,4);
+      document.getElementById('drAch').innerHTML=UI.rankList(achs.map(a=>({name:a.title,value:a.match+'%',sub:a.college+' · TRL'+a.trl})));
+    },60);
+  }
+
+  // ---- 表格 ----
+  const cols=[
+    {key:'name',title:'企业',render:r=>`<div class="fw6">${r.name.replace('·相关业务','')}</div>`+(r.name.includes('相关业务')?'<div class="f12 text-mute">相关业务板块</div>':'')},
+    {key:'discName',title:'学科',render:r=>{const d=discById(r.disc);return `<span class="tag tag-blue">${d.icon} ${r.discName}</span>`;}},
+    {key:'match',title:'匹配度',sortable:true,sortVal:r=>r.match,render:r=>`<div style="min-width:88px"><div class="flex justify-between f12"><span class="num fw7 ${r.match>=90?'text-success':r.match>=80?'text-primary':'text-dim'}">${r.match}%</span></div>${UI.bar(r.match,r.match>=90?'var(--success)':r.match>=80?'var(--primary)':'var(--warning)')}</div>`},
+    {key:'city',title:'城市',render:r=>r.city},
+    {key:'type',title:'类型',render:r=>UI.tag(r.type,typeColor[r.type]||'gray')},
+    {key:'revenue',title:'营收(万)',sortable:true,sortVal:r=>r.revenue,render:r=>`<span class="num">${r.revenue.toLocaleString()}</span>`},
+    {key:'reason',title:'识别理由',sortable:false,render:r=>`<span class="text-dim f12">${r.reason}</span>`},
+    {key:'op',title:'操作',sortable:false,render:r=>`<button class="btn btn-sm btn-ghost">查看画像</button>`},
+  ];
+  const tbl=UI.table('#entTable',{columns:cols,rows:TE,pageSize:8,onRow:openDrawer,empty:'无符合条件的目标企业'});
+  document.getElementById('cntTag').textContent='共 '+TE.length+' 家目标';
+
+  // ---- 筛选 ----
+  const fb=UI.filterBar('#entFilter',{
+    fields:[
+      {key:'disc',label:'全部学科',options:D.map(d=>d.name)},
+      {key:'type',label:'全部类型',options:['招商目标','潜在合作','并购标的','供应链']},
+      {key:'city',label:'全部城市',options:[...new Set(TE.map(e=>e.city))]},
+    ],
+    search:true,searchPh:'搜索企业名称 / 识别理由...',
+    onChange:v=>{
+      let r=TE.filter(e=>(!v.disc||e.discName===v.disc)&&(!v.type||e.type===v.type)&&(!v.city||e.city===v.city)
+        &&(!v._q||(e.name+e.reason).toLowerCase().includes(v._q.toLowerCase())));
+      tbl.update(r);
+      document.getElementById('cntTag').textContent='共 '+r.length+' 家目标';
+    }
+  });
+
+  // ---- 操作按钮 ----
+  document.getElementById('btnGraph').onclick=()=>{ document.getElementById('entGraph').scrollIntoView({behavior:'smooth'}); UI.toast('已定位企业关系图谱'); };
+  document.getElementById('btnAI').onclick=()=>{
+    UI.modal('AI识别新目标企业',`<div class="f13 text-dim mb-3">基于学科技术指纹与产业企业库实时匹配，识别新的潜在目标企业。</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:10px 14px;font-size:13px;align-items:center">
+        <div class="text-mute">目标学科</div><div><select style="width:100%">${D.map(d=>`<option>${d.name}</option>`).join('')}</select></div>
+        <div class="text-mute">识别类型</div><div><select style="width:100%"><option>招商目标</option><option>潜在合作</option><option>并购标的</option><option>供应链</option></select></div>
+        <div class="text-mute">区域范围</div><div><select style="width:100%"><option>湖北全域</option><option>武汉市</option><option>全国</option></select></div>
+        <div class="text-mute">最低匹配度</div><div><input type="range" min="60" max="98" value="80" style="width:100%"></div>
+      </div>`,
+      {footer:`<button class="btn" onclick="UI.closeModal()">取消</button><button class="btn btn-primary" id="runAI">▸ 开始识别</button>`});
+    setTimeout(()=>{ const b=document.getElementById('runAI'); if(b)b.onclick=()=>{UI.closeModal();UI.toast('AI识别任务已提交，预计3分钟生成新目标清单','ok');}; },50);
+  };
+
+  document.querySelector('main').insertAdjacentHTML('beforeend',UI.srcNote(['产业企业与园区','成果与专利','参股/校属企业']));
+})();</script>
+</body></html>

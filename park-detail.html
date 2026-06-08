@@ -1,0 +1,236 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>园区详情驾驶舱 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="park-list">
+<main class="wuda-view">
+  <div class="crumb"><a href="park-list.html">← 返回园区载体</a> <span>/</span> <span id="crumbName"></span></div>
+
+  <!-- 头部 -->
+  <div class="panel" id="header"></div>
+
+  <!-- KPI -->
+  <div class="grid cols-6 mt-4" id="kpis"></div>
+
+  <!-- 主体 -->
+  <div class="grid mt-4" style="grid-template-columns:1.55fr .95fr">
+    <!-- 左:Tab 区 -->
+    <div class="panel">
+      <div id="tabs"></div>
+      <div id="tabBody" class="mt-3"></div>
+    </div>
+    <!-- 右:出租率趋势 + 服务概览 -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>出租率趋势</div>
+          <div class="tools"><span class="panel-tag">近12个月</span></div></div>
+        <div class="chart h260" id="occTrend"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>空间状态构成</div></div>
+        <div class="chart h220" id="spacePie"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>服务事项概览</div>
+          <div class="tools"><span class="panel-tag" id="svcCnt"></span></div></div>
+        <div id="svcList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const id = window.qparam('id');
+  const p = (id && DB.parks.find(x=>x.id===id)) || DB.parks[0];
+  const D = DB.util;
+  document.getElementById('crumbName').textContent = p.name;
+  document.title = p.name + ' · 武汉大学产业创新AI智脑平台';
+
+  const levelTag = lv => UI.tag(lv, {'国家级':'green','省级':'blue','市级':'amber'}[lv]||'gray');
+  const occColor = o => o>=85?'var(--success)':o>=72?'var(--primary)':'var(--warning)';
+
+  // 关联数据
+  const units = DB.spaceUnits.filter(u=>u.park===p.id);
+  const ents = DB.enterprises.filter(e=>e.parkId===p.id);
+  const onbs = DB.onboarding.filter(o=>o.park===p.name);
+  const ticks = DB.tickets.filter(t=>t.park===p.name);
+
+  // ---------- 头部 ----------
+  document.getElementById('header').innerHTML = `
+    <div class="flex justify-between" style="align-items:flex-start;gap:20px;flex-wrap:wrap">
+      <div style="flex:1;min-width:320px">
+        <div class="flex items-center gap-3" style="flex-wrap:wrap">
+          ${UI.tag(p.type,'blue')} ${levelTag(p.level)}
+          ${p.occupancy>=85?UI.tag('满载运营','green'):p.occupancy<72?UI.tag('招商攻坚','amber'):UI.tag('稳定运营','blue')}
+        </div>
+        <div style="font-size:23px;font-weight:800;margin:11px 0 8px">${p.name}</div>
+        <div class="flex gap-4 mt-2" style="flex-wrap:wrap;font-size:13px">
+          <span><span class="text-mute">载体编号</span> <span class="num fw6">${p.id}</span></span>
+          <span><span class="text-mute">地址</span> <span class="fw6"><i data-lucide="map-pin"></i> ${p.addr}</span></span>
+          <span><span class="text-mute">楼宇</span> <span class="num fw6">${p.buildings}</span> 栋</span>
+          <span><span class="text-mute">载体级别</span> <span class="fw6">${p.level}</span></span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-end">
+        <div style="text-align:right">
+          <div class="f12 text-mute">载体年运营收入</div>
+          <div class="num fw7" style="font-size:30px;color:var(--success);font-family:Oswald">${(p.revenue/10000).toFixed(2)}<span style="font-size:15px"> 亿元</span></div>
+        </div>
+        <div style="display:flex;gap:9px">
+          <button class="btn" id="btnReport"><i data-lucide="file-text"></i> 运营报告</button>
+          <button class="btn btn-primary" id="btnAssign">＋ 派单服务</button>
+        </div>
+      </div>
+    </div>`;
+
+  // ---------- KPI ----------
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'载体面积',value:p.area,unit:'万㎡',icon:'<i data-lucide="ruler"></i>'}),
+    UI.kpi({label:'出租率',value:p.occupancy,unit:'%',icon:'<i data-lucide="bar-chart-3"></i>'}),
+    UI.kpi({label:'楼宇数',value:p.buildings,unit:'栋',icon:'<i data-lucide="building-2"></i>'}),
+    UI.kpi({label:'入驻企业',value:ents.length,unit:'家',icon:'<i data-lucide="factory"></i>'}),
+    UI.kpi({label:'服务事项',value:p.services,unit:'项',icon:'<i data-lucide="wrench"></i>'}),
+    UI.kpi({label:'年收入',value:(p.revenue/10000).toFixed(2),unit:'亿',icon:'<i data-lucide="banknote"></i>'}),
+  ].join('');
+
+  // ---------- 出租率趋势 ----------
+  const months = Array.from({length:12},(_,i)=>(i+1)+'月');
+  let occ = Math.max(50, p.occupancy-14);
+  const occSeries = months.map((m,i)=>{ occ = Math.min(p.occupancy, occ + D.ri(0,3)); return i===11?p.occupancy:occ; });
+  Charts.line('occTrend',{x:months, series:[{name:'出租率',data:occSeries}], area:true, smooth:true});
+
+  // ---------- 空间状态饼 ----------
+  const stCount = {};
+  units.forEach(u=>stCount[u.status]=(stCount[u.status]||0)+1);
+  Charts.pie('spacePie',{data:Object.keys(stCount).map(k=>({name:k,value:stCount[k]})), ring:true, legend:true, center:['38%','52%']});
+
+  // ---------- 服务事项概览(右侧迷你榜) ----------
+  const svcTypes = {};
+  ticks.forEach(t=>svcTypes[t.type]=(svcTypes[t.type]||0)+1);
+  const svcRank = Object.keys(svcTypes).map(k=>({name:k,value:svcTypes[k]})).sort((a,b)=>b.value-a.value).slice(0,6);
+  document.getElementById('svcCnt').textContent = p.services+' 项服务能力';
+  document.getElementById('svcList').innerHTML = svcRank.length
+    ? UI.rankList(svcRank.map(s=>({name:s.name, value:s.value+' 单', sub:'累计受理'})))
+    : UI.empty('暂无服务工单');
+
+  // ================= Tabs =================
+  const statusBadge = s => UI.tag(s, {'已入驻':'green','可租赁':'blue','装修中':'amber'}[s]||'gray');
+  const riskLight = e => UI.light(e.risk);
+
+  UI.tabs('#tabs', [
+    {key:'space', label:`<i data-lucide="building-2"></i> 空间资源 (${units.length})`},
+    {key:'ents',  label:`<i data-lucide="factory"></i> 入驻企业 (${ents.length})`},
+    {key:'flow',  label:`<i data-lucide="clipboard-list"></i> 项目入驻流程 (${onbs.length})`},
+    {key:'wo',    label:`<i data-lucide="wrench"></i> 服务工单 (${ticks.length})`},
+  ], key=>{
+    const body = document.getElementById('tabBody');
+
+    if(key==='space'){
+      const occUnits = units.filter(u=>u.status==='已入驻').length;
+      body.innerHTML = `
+        <div class="flex justify-between items-center mb-3">
+          <div class="f13 text-dim">共 ${units.length} 个空间单元 · 已出租 <b class="text-primary">${occUnits}</b> 个 · 实际出租率 <b style="color:${occColor(p.occupancy)}">${Math.round(occUnits/Math.max(1,units.length)*100)}%</b></div>
+          <div style="width:64px;height:64px"><div class="chart" id="occRing" style="height:64px;width:64px"></div></div>
+        </div>
+        <div id="spaceTbl"></div>`;
+      setTimeout(()=>Charts.progressRing('occRing',{value:Math.round(occUnits/Math.max(1,units.length)*100), color:occColor(p.occupancy)}),20);
+      UI.table('#spaceTbl', {
+        columns:[
+          {key:'unit',title:'楼宇单元',render:r=>`<span class="fw6">${r.unit}</span>`},
+          {key:'area',title:'面积(㎡)',sortable:true,render:r=>`<span class="num">${r.area}</span>`},
+          {key:'status',title:'状态',render:r=>statusBadge(r.status)},
+          {key:'ent',title:'入驻企业',render:r=>r.ent==='—'?'<span class="text-mute">—</span>':`<span class="f13">${r.ent}</span>`},
+          {key:'rent',title:'租金(元/㎡·月)',sortable:true,render:r=>`<span class="num">${r.rent}</span>`},
+        ], rows:units, pageSize:8, empty:'暂无空间单元'
+      });
+    }
+
+    else if(key==='ents'){
+      if(!ents.length){ body.innerHTML=UI.empty('该载体暂无入驻企业'); return; }
+      body.innerHTML=`<div class="f13 text-dim mb-3">点击企业行查看一企一档画像</div><div id="entTbl"></div>`;
+      UI.table('#entTbl', {
+        columns:[
+          {key:'name',title:'企业名称',render:r=>`<span class="fw6">${r.name}</span>`},
+          {key:'type',title:'类型',render:r=>UI.tag(r.type,{'孵化企业':'blue','参股企业':'purple','校属企业':'green','校友企业':'amber'}[r.type]||'gray')},
+          {key:'disciplineName',title:'学科',render:r=>r.disciplineName},
+          {key:'stage',title:'阶段',render:r=>r.stage},
+          {key:'revenue',title:'营收(万)',sortable:true,render:r=>`<span class="num">${r.revenue.toLocaleString()}</span>`},
+          {key:'risk',title:'风险',sortVal:r=>({g:0,y:1,r:2}[r.risk]),render:r=>riskLight(r)},
+        ], rows:ents, pageSize:8,
+        onRow:r=>location.href='enterprise-library.html'
+      });
+    }
+
+    else if(key==='flow'){
+      if(!onbs.length){ body.innerHTML=UI.empty('暂无在办入驻流程'); return; }
+      const steps=['资料初审','尽职调查','入驻评审','协议签署','已入驻'];
+      const cols = steps.map(s=>({key:s,title:s,cards:onbs.filter(o=>o.step===s)}));
+      body.innerHTML=`<div class="f13 text-dim mb-3">入驻流程看板 · 可拖拽卡片更新流程状态（共 ${onbs.length} 个在办项目）</div><div id="flowKb"></div>`;
+      UI.kanban('#flowKb', {
+        columns:cols,
+        cardRender:o=>`<div class="fw6 f13">${o.ent}</div>
+          <div class="f12 text-mute mt-2">${o.discipline} · ${o.area}㎡</div>
+          ${UI.bar(o.progress,'var(--primary)')}
+          <div class="flex justify-between f12 mt-2"><span class="text-mute">${o.applied}</span><span class="num text-primary">${o.progress}%</span></div>`,
+        onMove:(i,from,to)=>UI.toast('入驻流程已更新：'+from+' → '+to,'ok')
+      });
+    }
+
+    else if(key==='wo'){
+      if(!ticks.length){ body.innerHTML=UI.empty('暂无服务工单'); return; }
+      const urgent = ticks.filter(t=>t.sla<6 && t.status!=='已完成').length;
+      body.innerHTML=`<div class="f13 text-dim mb-3">服务工单 · <b class="text-danger">${urgent}</b> 单临近/超出 SLA（剩余&lt;6h 标红）</div><div id="woTbl"></div>`;
+      const slaCell = t=>{
+        if(t.status==='已完成') return UI.tag('已完成','green');
+        const c = t.sla<0?'var(--danger)':t.sla<6?'var(--danger)':t.sla<24?'var(--warning)':'var(--success)';
+        const txt = t.sla<0?('超时 '+(-t.sla)+'h'):(t.sla+'h');
+        return `<span class="num fw7" style="color:${c}">${txt}</span>`;
+      };
+      UI.table('#woTbl', {
+        columns:[
+          {key:'id',title:'工单号',render:r=>`<span class="num f12">${r.id}</span>`},
+          {key:'type',title:'类型',render:r=>UI.tag(r.type,'gray')},
+          {key:'ent',title:'服务对象',render:r=>`<span class="f13">${r.ent}</span>`},
+          {key:'level',title:'优先级',render:r=>UI.tag(r.level,{'加急':'red','紧急':'amber','普通':'gray'}[r.level]||'gray')},
+          {key:'sla',title:'SLA剩余',sortable:true,sortVal:r=>r.sla,render:r=>slaCell(r)},
+          {key:'status',title:'状态',render:r=>UI.tag(r.status,{'已完成':'green','处理中':'blue','待受理':'amber'}[r.status]||'gray')},
+          {key:'owner',title:'负责人',render:r=>r.owner},
+        ], rows:ticks.slice().sort((a,b)=>a.sla-b.sla), pageSize:8,
+        onRow:r=>UI.drawer('工单详情 '+r.id, `
+          ${UI.descList([
+            ['工单类型',UI.tag(r.type,'gray')],
+            ['服务对象',`<span class="fw6">${r.ent}</span>`],
+            ['优先级',UI.tag(r.level,{'加急':'red','紧急':'amber','普通':'gray'}[r.level]||'gray')],
+            ['SLA剩余',slaCell(r)],
+            ['当前状态',UI.tag(r.status,'blue')],
+            ['负责人',r.owner],
+            ['创建时间',r.created],
+          ])}
+          <div class="divider"></div>
+          <div class="f13 text-dim">该工单由园区服务专员 ${r.owner} 跟进，可在线协调政策、IP、投融资、财税等专业资源完成闭环。</div>
+          <div class="mt-3" style="display:flex;gap:9px;justify-content:flex-end">
+            <button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button>
+            <button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('已催办，已通知负责人 ${r.owner}','ok')">催办</button>
+          </div>`, {width:'480px'})
+      });
+    }
+  });
+
+  // ---------- 操作 ----------
+  document.getElementById('btnReport').onclick=()=>UI.toast('正在生成《'+p.name.slice(0,8)+'…》月度运营报告','ok');
+  document.getElementById('btnAssign').onclick=()=>UI.toast('已打开服务派单，请选择服务类型','ok');
+
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['科技园与创意园','参股/校属企业','活动与赛事']);
+})();</script>
+</body></html>

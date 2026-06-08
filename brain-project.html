@@ -1,0 +1,200 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>项目评估 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="brain-project">
+<main class="wuda-view">
+  <div class="crumb"><a href="brain-overview.html">← 返回产业创新大脑</a></div>
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>项目评估 · 成果转化价值研判</div>
+    <div class="page-sub">对科技成果进行五维评估（技术成熟度 / 市场前景 / 团队能力 / 转化可行性 / 政策契合），生成综合评分与评估结论</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnExport">导出评估报告</button>
+      <button class="btn btn-sm btn-primary" id="btnReassess"><i data-lucide="bot"></i> AI重新评估</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 左:成果选择 / 右:评估卡 -->
+  <div class="grid mt-4" style="grid-template-columns:330px 1fr;align-items:start">
+    <div class="panel" style="position:sticky;top:14px">
+      <div class="panel-h"><div class="t"><span class="bar"></span>选择待评估成果</div></div>
+      <div id="achSearch" class="mb-3"></div>
+      <div id="achList" style="max-height:560px;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <!-- 成果摘要 + 综合评分 -->
+      <div class="panel glow">
+        <div class="grid" style="grid-template-columns:1fr 190px;gap:16px;align-items:center">
+          <div>
+            <div class="flex items-center gap-2 mb-2"><span class="tag tag-blue" id="curDisc"></span><span class="tag tag-gray" id="curTrl"></span><span id="curStatus"></span></div>
+            <div class="fw7" style="font-size:20px" id="curTitle"></div>
+            <div class="text-mute f13 mt-2" id="curMeta"></div>
+            <div class="text-dim f13 mt-2" id="curDesc"></div>
+          </div>
+          <div style="text-align:center">
+            <div class="chart" id="scoreRing" style="height:140px"></div>
+            <div class="text-mute f12">综合评分</div>
+            <div class="fw7 f13 mt-1" id="scoreGrade"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 雷达 + 维度明细 -->
+      <div class="grid cols-2">
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>五维评估雷达</div></div>
+          <div class="chart h300" id="evalRadar"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>维度明细评分</div></div>
+          <div id="dimBars" style="padding:6px 2px"></div>
+        </div>
+      </div>
+
+      <!-- 评估结论 -->
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>AI 评估结论</div><div class="tools"><span class="panel-tag">技术经理人智能体生成</span></div></div>
+        <div id="conclusion" style="padding:6px 2px;min-height:96px;font-size:13.5px;line-height:1.9"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 评估流水 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>评估流水记录</div><div class="tools"><span class="panel-tag" id="recCnt"></span></div></div>
+    <div id="recFilter" class="mb-3"></div>
+    <div id="recTable"></div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const ACH=DB.achievements, D=DB.disciplines, U=DB.util;
+  const discById=id=>D.find(d=>d.id===id)||{name:id,color:'#888',icon:'•'};
+  const DIMS=['技术成熟度','市场前景','团队能力','转化可行性','政策契合'];
+  const statusColor={'待评估':'gray','已立项':'blue','概念验证':'purple','中试放大':'amber','已签约':'green','已转化':'green'};
+
+  // 由成果字段确定性派生五维评分
+  function scoreOf(a){
+    const seed=a.title.length+a.patents+a.papers;
+    const tech=Math.min(98, 30+a.trl*8 + (seed%6));            // 技术成熟度~TRL
+    const market=a.match;                                       // 市场前景~场景匹配
+    const team=Math.min(97, 55+Math.round(a.patents*0.9)+(seed%10)); // 团队~专利/论文
+    const feas=Math.min(96, Math.round((a.trl*7+a.maturity)/2)+(seed%5)); // 可行性~成熟度
+    const policy=Math.min(95, 60+(a.scenes.length*6)+(seed%9)); // 政策契合~场景宽度
+    return [tech,market,team,feas,policy];
+  }
+  const overall=v=>Math.round(v.reduce((s,x)=>s+x,0)/v.length);
+  const gradeOf=s=> s>=88?['S 级 · 强烈推荐转化','var(--success)'] : s>=78?['A 级 · 建议立项','var(--primary)'] : s>=68?['B 级 · 可培育','var(--warning)'] : ['C 级 · 待打磨','var(--text-dim)'];
+
+  // ---- KPI ----
+  const allScores=ACH.map(a=>overall(scoreOf(a)));
+  const avg=Math.round(allScores.reduce((s,x)=>s+x,0)/allScores.length);
+  const sCnt=allScores.filter(s=>s>=88).length;
+  const aCnt=allScores.filter(s=>s>=78&&s<88).length;
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'待评估 / 已评成果',value:ACH.length,unit:'项',delta:'全量入库',deltaUp:true,icon:'<i data-lucide="microscope"></i>',spark:[40,46,52,58,61,64]}),
+    UI.kpi({label:'S级强推项目',value:sCnt,unit:'项',delta:'优先包装',deltaUp:true,icon:'<i data-lucide="trophy"></i>',spark:[1,2,3,4,5,sCnt]}),
+    UI.kpi({label:'A级建议立项',value:aCnt,unit:'项',delta:'+5',deltaUp:true,icon:'<i data-lucide="star"></i>',spark:[6,8,10,12,aCnt]}),
+    UI.kpi({label:'平均综合评分',value:avg,unit:'分',delta:'+2.1',deltaUp:true,icon:'<i data-lucide="bar-chart-3"></i>',spark:[72,74,75,76,avg]}),
+  ].join('');
+
+  // ---- 渲染评估卡 ----
+  let cur=ACH[0];
+  function renderEval(a){
+    cur=a; const d=discById(a.discipline);
+    const v=scoreOf(a), s=overall(v), g=gradeOf(s);
+    document.getElementById('curDisc').textContent=d.icon+' '+a.disciplineName;
+    document.getElementById('curTrl').textContent='TRL '+a.trl;
+    document.getElementById('curStatus').innerHTML=UI.tag(a.status,statusColor[a.status]||'gray');
+    document.getElementById('curTitle').textContent=a.title;
+    document.getElementById('curMeta').textContent=`${a.college} · ${a.leader} · 估值 ${a.value.toLocaleString()}万 · 专利${a.patents} / 论文${a.papers}`;
+    document.getElementById('curDesc').textContent=a.desc;
+    document.getElementById('scoreGrade').innerHTML=`<span style="color:${g[1]}">${g[0]}</span>`;
+
+    Charts.progressRing('scoreRing',{value:s,color:g[1]});
+    Charts.radar('evalRadar',{indicators:DIMS,series:[{name:a.title.slice(0,10),value:v}],max:100});
+
+    // 维度条
+    document.getElementById('dimBars').innerHTML=DIMS.map((dim,i)=>{
+      const val=v[i], c=val>=85?'var(--success)':val>=70?'var(--primary)':'var(--warning)';
+      return `<div style="margin-bottom:13px"><div class="flex justify-between f13 mb-1"><span>${dim}</span><span class="num fw7" style="color:${c}">${val}</span></div>${UI.bar(val,c)}</div>`;
+    }).join('');
+
+    // 结论(打字机)
+    const minIdx=v.indexOf(Math.min(...v)), maxIdx=v.indexOf(Math.max(...v));
+    const txt=`综合评估：该成果获 ${s} 分，评级「${g[0].split(' · ')[0]}」。\n核心优势在于「${DIMS[maxIdx]}」（${v[maxIdx]}分），${maxIdx===0?'技术已达 TRL'+a.trl+'，工程化基础扎实':maxIdx===1?'目标场景'+a.scenes.slice(0,2).join('、')+'市场空间广阔':maxIdx===2?'团队累计 '+a.patents+' 项专利支撑较强':maxIdx===3?'成熟度'+a.maturity+'%，具备中试放大条件':'与现行产业政策方向高度契合'}。\n短板为「${DIMS[minIdx]}」（${v[minIdx]}分），建议${minIdx===0?'补强工程化验证与中试数据':minIdx===1?'开展目标客户验证与商业模式设计':minIdx===2?'引入产业化与运营人才补齐团队':minIdx===3?'制定清晰的中试放大与量产路径':'对接专项政策与申报窗口'}。\n转化建议：${s>=88?'立即进入项目包装阶段，匹配资本与场景方启动转化对接。':s>=78?'建议正式立项，开展概念验证(POC)并对接产业基金。':s>=68?'纳入培育池，6个月内完成关键短板补强后复评。':'暂缓转化，回到实验室强化技术与团队储备。'}`;
+    UI.typewriter('conclusion',txt,{speed:8});
+  }
+
+  // ---- 成果列表卡 ----
+  function listCard(a){
+    const d=discById(a.discipline), s=overall(scoreOf(a)), g=gradeOf(s);
+    const sel=a.id===cur.id;
+    return `<div class="ecard ${sel?'sel':''}" data-id="${a.id}" style="cursor:pointer;${sel?'border-color:var(--primary);box-shadow:0 0 0 1px var(--primary) inset':''}">
+      <div class="flex justify-between items-center"><div class="et" style="font-size:13.5px;line-height:1.4">${a.title}</div>
+        <span class="num fw7" style="color:${g[1]};font-size:18px">${s}</span></div>
+      <div class="em mt-2 flex items-center gap-2"><span class="tag tag-blue">${d.icon} ${a.disciplineName}</span><span class="text-mute f12">TRL${a.trl}</span></div>
+    </div>`;
+  }
+  function renderList(rows){
+    const el=document.getElementById('achList');
+    el.innerHTML=rows.length?rows.map(listCard).join(''):UI.empty('无匹配成果');
+    el.querySelectorAll('[data-id]').forEach(c=>c.onclick=()=>{ renderEval(ACH.find(a=>a.id===c.dataset.id)); renderList(rows); });
+  }
+
+  // 成果搜索/筛选
+  UI.filterBar('#achSearch',{
+    fields:[{key:'disc',label:'全部学科',options:D.map(d=>d.name)}],
+    search:true,searchPh:'搜索成果名称...',
+    onChange:v=>{ let r=ACH.filter(a=>(!v.disc||a.disciplineName===v.disc)&&(!v._q||a.title.toLowerCase().includes(v._q.toLowerCase()))); renderList(r); }
+  });
+  renderList(ACH);
+  renderEval(cur);
+
+  // ---- 评估流水(用 achievements 造评估记录) ----
+  const recRows=ACH.slice(0,40).map((a,i)=>{
+    const s=overall(scoreOf(a)), g=gradeOf(s);
+    return {project:a.title, disc:a.disciplineName, discId:a.discipline, score:s, grade:g[0].split(' · ')[0], gColor:g[1],
+      stage:a.status, assessor:U.person()+' · AI技术经理人', time:a.updated, ach:a};
+  });
+  const recCols=[
+    {key:'project',title:'项目/成果',render:r=>`<div class="fw6">${r.project}</div>`},
+    {key:'disc',title:'学科',render:r=>{const d=discById(r.discId);return `<span class="tag tag-blue">${d.icon} ${r.disc}</span>`;}},
+    {key:'score',title:'综合评分',sortable:true,sortVal:r=>r.score,render:r=>`<span class="num fw7" style="color:${r.gColor};font-size:16px">${r.score}</span> <span class="f12" style="color:${r.gColor}">${r.grade}</span>`},
+    {key:'stage',title:'阶段',render:r=>UI.tag(r.stage,statusColor[r.stage]||'gray')},
+    {key:'assessor',title:'评估人',render:r=>`<span class="f12 text-dim">${r.assessor}</span>`},
+    {key:'time',title:'评估时间',render:r=>`<span class="text-mute f12">${r.time}</span>`},
+    {key:'op',title:'操作',sortable:false,render:r=>`<button class="btn btn-sm btn-ghost">载入评估</button>`},
+  ];
+  const recTbl=UI.table('#recTable',{columns:recCols,rows:recRows,pageSize:8,onRow:r=>{ renderEval(r.ach); renderList(ACH); document.getElementById('scoreRing').scrollIntoView({behavior:'smooth',block:'center'}); },empty:'暂无评估记录'});
+  document.getElementById('recCnt').textContent='共 '+recRows.length+' 条';
+  UI.filterBar('#recFilter',{
+    fields:[
+      {key:'disc',label:'全部学科',options:D.map(d=>d.name)},
+      {key:'grade',label:'全部评级',options:['S 级','A 级','B 级','C 级']},
+      {key:'stage',label:'全部阶段',options:['待评估','已立项','概念验证','中试放大','已签约','已转化']},
+    ],
+    onChange:v=>{ let r=recRows.filter(x=>(!v.disc||x.disc===v.disc)&&(!v.grade||x.grade.startsWith(v.grade.replace(' 级','')))&&(!v.stage||x.stage===v.stage));
+      recTbl.update(r); document.getElementById('recCnt').textContent='共 '+r.length+' 条'; }
+  });
+
+  // ---- 操作按钮 ----
+  document.getElementById('btnExport').onclick=()=>UI.toast('评估报告《'+cur.title+'》已生成并下载','ok');
+  document.getElementById('btnReassess').onclick=()=>{ renderEval(cur); UI.toast('已触发 AI 重新评估，结论已刷新','ok'); };
+
+  document.querySelector('main').insertAdjacentHTML('beforeend',UI.srcNote(['成果与专利','学院与团队','参股/校属企业']));
+})();</script>
+</body></html>

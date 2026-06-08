@@ -1,0 +1,187 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>企业检索库 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="enterprise-library">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>企业检索库</div>
+      <div class="page-sub">孵化 / 参股 / 校属 / 校友企业一站式检索 · 一企一档全平台真源</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-ghost btn-sm" id="btnExport"><i data-lucide="download"></i> 导出清单</button>
+      <button class="btn btn-primary btn-sm" id="btnNew">＋ 新增企业</button>
+    </div>
+  </div>
+
+  <!-- KPI 分类计数 -->
+  <div class="grid cols-5" id="kpis"></div>
+
+  <!-- 筛选条 -->
+  <div id="filter" class="mt-4"></div>
+
+  <!-- 视图切换 + 结果计数 -->
+  <div class="flex justify-between items-center mt-3 mb-3">
+    <div class="text-mute f13">共 <span class="num text-primary fw7" id="resCount">0</span> 家企业匹配当前筛选条件</div>
+    <div class="seg" id="viewSeg">
+      <button class="on" data-v="card">▦ 卡片视图</button>
+      <button data-v="table">☰ 表格视图</button>
+    </div>
+  </div>
+
+  <!-- 卡片视图 -->
+  <div id="cardView" class="grid cols-3 stagger"></div>
+  <!-- 表格视图 -->
+  <div id="tableView" style="display:none"></div>
+
+  <!-- 分析图 -->
+  <div class="grid cols-2 mt-4">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>企业类型构成</div><div class="tools"><span class="panel-tag">按属性</span></div></div>
+      <div class="chart h300" id="typePie"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>学科领域分布</div><div class="tools"><span class="panel-tag">5大优势学科</span></div></div>
+      <div class="chart h300" id="discBar"></div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const ENTS = DB.enterprises;
+  const fmtW = v => v>=10000 ? (v/10000).toFixed(1)+'亿' : v.toLocaleString()+'万';
+  const riskLight = r => UI.light(r, ({g:'正常',y:'关注',r:'预警'})[r]);
+  const typeColor = {'孵化企业':'blue','参股企业':'purple','校属企业':'green','校友企业':'amber'};
+
+  // ---- KPI ----
+  function cnt(t){ return ENTS.filter(e=>e.type===t).length; }
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'企业总数',value:ENTS.length,unit:'家',delta:DB.topKPI.entGrowth+'%',deltaUp:true,icon:'<i data-lucide="building-2"></i>',spark:[40,44,46,50,52,55,58,60,62,63,64,64]}),
+    UI.kpi({label:'孵化企业',value:cnt('孵化企业'),unit:'家',icon:'<i data-lucide="sprout"></i>',delta:'在孵',deltaUp:true}),
+    UI.kpi({label:'参股企业',value:cnt('参股企业'),unit:'家',icon:'<i data-lucide="briefcase"></i>',delta:'已投',deltaUp:true}),
+    UI.kpi({label:'校属企业',value:cnt('校属企业'),unit:'家',icon:'<i data-lucide="landmark"></i>',delta:'控股',deltaUp:true}),
+    UI.kpi({label:'校友企业',value:cnt('校友企业'),unit:'家',icon:'<i data-lucide="graduation-cap"></i>',delta:'生态',deltaUp:true}),
+  ].join('');
+
+  // ---- 筛选条 ----
+  const fb = UI.filterBar('#filter',{
+    fields:[
+      {key:'type',label:'全部类型',options:DB.enterprises.reduce((a,e)=>a.includes(e.type)?a:a.concat(e.type),[])},
+      {key:'disc',label:'全部学科',options:DB.disciplines.map(d=>d.name)},
+      {key:'stage',label:'全部阶段',options:['初创期','成长期','扩张期','成熟期']},
+      {key:'city',label:'全部城市',options:DB.enterprises.reduce((a,e)=>a.includes(e.city)?a:a.concat(e.city),[])},
+      {key:'risk',label:'全部风险',options:['正常','关注','预警']},
+    ],
+    search:true, searchPh:'搜索企业名称 / 创始人 / 标签...',
+    onChange:apply,
+  });
+  const riskMap={'正常':'g','关注':'y','预警':'r'};
+
+  function filtered(){
+    const v=fb.read(); const q=(v._q||'').trim();
+    return ENTS.filter(e=>{
+      if(v.type && e.type!==v.type) return false;
+      if(v.disc && e.disciplineName!==v.disc) return false;
+      if(v.stage && e.stage!==v.stage) return false;
+      if(v.city && e.city!==v.city) return false;
+      if(v.risk && e.risk!==riskMap[v.risk]) return false;
+      if(q && !(e.name.includes(q)||e.founder.includes(q)||e.tags.some(t=>t.includes(q)))) return false;
+      return true;
+    });
+  }
+
+  // ---- 视图状态 ----
+  let view='card';
+  let tableApi=null;
+
+  function renderCards(rows){
+    const cv=document.getElementById('cardView');
+    if(!rows.length){ cv.innerHTML=UI.empty('未找到匹配企业，请调整筛选条件'); return; }
+    cv.innerHTML = rows.slice(0,30).map(e=>{
+      const meta = `<div class="flex items-center gap-2 mb-3" style="flex-wrap:wrap">
+          ${UI.tag(e.type,typeColor[e.type])}${UI.tag(e.disciplineName,'gray')}<span class="text-mute f12">${e.stage}</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;font-size:12px">
+          <div><span class="text-mute">营收</span> <span class="num fw6">${fmtW(e.revenue)}</span></div>
+          <div><span class="text-mute">估值</span> <span class="num fw6">${fmtW(e.valuation)}</span></div>
+          <div><span class="text-mute">城市</span> <span class="fw6">${e.city}</span></div>
+          <div><span class="text-mute">创始</span> <span class="fw6">${e.founder}</span></div>
+        </div>
+        <div class="flex justify-between items-center mt-3">${riskLight(e.risk)}<span class="f12 text-mute">评分 <span class="num fw7 text-primary">${e.score}</span></span></div>`;
+      return UI.entityCard({
+        title:e.name, meta,
+        badge:`<span class="num fw7" style="font-size:13px;color:${e.equity>0?'var(--accent)':'var(--text-mute)'}">${e.equity>0?'持股 '+e.equity+'%':e.financingRound}</span>`,
+        tags:e.tags,
+        onclick:`location.href='enterprise-detail.html?id=${e.id}'`,
+      });
+    }).join('');
+    if(rows.length>30){
+      cv.innerHTML += `<div class="panel" style="grid-column:1/-1;text-align:center;color:var(--text-mute)">仅展示前 30 家，切换表格视图查看全部 ${rows.length} 家 · 或使用筛选缩小范围</div>`;
+    }
+  }
+
+  function buildTable(rows){
+    tableApi = UI.table('#tableView',{
+      columns:[
+        {key:'name',title:'企业名称',render:r=>`<div class="fw6">${UI.esc(r.name)}</div><div class="f12 text-mute">${r.id} · ${r.founder}</div>`},
+        {key:'type',title:'类型',render:r=>UI.tag(r.type,typeColor[r.type]),sortVal:r=>r.type},
+        {key:'disciplineName',title:'学科',render:r=>r.disciplineName},
+        {key:'stage',title:'阶段',render:r=>`<span class="f12">${r.stage}</span>`},
+        {key:'city',title:'城市',render:r=>r.city},
+        {key:'revenue',title:'营收',render:r=>`<span class="num">${fmtW(r.revenue)}</span>`,sortVal:r=>r.revenue},
+        {key:'valuation',title:'估值',render:r=>`<span class="num">${fmtW(r.valuation)}</span>`,sortVal:r=>r.valuation},
+        {key:'equity',title:'持股',render:r=>r.equity>0?`<span class="num text-primary fw6">${r.equity}%</span>`:'<span class="text-mute">—</span>',sortVal:r=>r.equity},
+        {key:'risk',title:'风险',render:r=>riskLight(r.risk),sortVal:r=>({g:0,y:1,r:2})[r.risk]},
+        {key:'score',title:'评分',render:r=>`<span class="num fw7">${r.score}</span>`,sortVal:r=>r.score},
+        {key:'op',title:'操作',sortable:false,render:r=>`<a class="btn btn-sm btn-ghost" href="enterprise-detail.html?id=${r.id}">画像 →</a>`},
+      ],
+      rows, pageSize:12,
+      onRow:r=>{ location.href='enterprise-detail.html?id='+r.id; },
+      empty:'未找到匹配企业',
+    });
+  }
+
+  function apply(){
+    const rows=filtered();
+    document.getElementById('resCount').textContent=rows.length;
+    if(view==='card') renderCards(rows);
+    else { if(tableApi) tableApi.update(rows); else buildTable(rows); }
+  }
+
+  // 视图切换
+  document.getElementById('viewSeg').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    [...e.currentTarget.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    view=b.dataset.v;
+    document.getElementById('cardView').style.display = view==='card'?'':'none';
+    document.getElementById('tableView').style.display = view==='table'?'':'none';
+    if(view==='table' && !tableApi) buildTable(filtered());
+    apply();
+  });
+
+  document.getElementById('btnNew').onclick=()=>UI.toast('演示环境：新增企业流程将引导工商信息录入','warn');
+  document.getElementById('btnExport').onclick=()=>UI.toast('已导出当前 '+filtered().length+' 家企业清单（演示）','ok');
+
+  // ---- 图表 ----
+  const typeData = ENTS.reduce((a,e)=>{ const f=a.find(x=>x.name===e.type); if(f)f.value++; else a.push({name:e.type,value:1}); return a; },[]);
+  Charts.pie('typePie',{data:typeData, ring:true, legend:true, center:['40%','52%']});
+
+  const discData = DB.disciplines.map(d=>({name:d.name, value:ENTS.filter(e=>e.discipline===d.id).length}));
+  Charts.bar('discBar',{x:discData.map(d=>d.name), series:[{name:'企业数',data:discData.map(d=>d.value)}]});
+
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['参股/校属企业','校友企业','产业企业与园区']);
+
+  apply();
+})();</script>
+</body></html>

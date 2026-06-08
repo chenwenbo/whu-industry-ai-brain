@@ -1,0 +1,193 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>登录 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;position:relative}
+  /* 科技背景层 */
+  .lg-bg{position:fixed;inset:0;z-index:0;overflow:hidden}
+  .lg-bg::before{content:"";position:absolute;inset:0;
+    background:radial-gradient(900px 520px at 18% 12%, rgba(0,229,255,.16), transparent 60%),
+               radial-gradient(820px 560px at 88% 88%, rgba(123,97,255,.18), transparent 60%),
+               radial-gradient(700px 480px at 78% 8%, rgba(0,255,163,.08), transparent 60%);}
+  .lg-grid{position:absolute;inset:-2px;
+    background-image:linear-gradient(rgba(120,170,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(120,170,255,.06) 1px,transparent 1px);
+    background-size:46px 46px;mask-image:radial-gradient(circle at 50% 40%,#000,transparent 78%)}
+  .lg-orb{position:absolute;border-radius:50%;filter:blur(60px);opacity:.5;animation:float 16s ease-in-out infinite}
+  .lg-orb.a{width:420px;height:420px;left:-120px;top:-80px;background:radial-gradient(circle,#00e5ff,transparent 70%)}
+  .lg-orb.b{width:480px;height:480px;right:-140px;bottom:-120px;background:radial-gradient(circle,#7b61ff,transparent 70%);animation-delay:-6s}
+  @keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(34px,30px)}}
+  /* 浮动粒子 */
+  .lg-particles{position:absolute;inset:0}
+  .pt{position:absolute;width:3px;height:3px;border-radius:50%;background:#00e5ff;box-shadow:0 0 8px #00e5ff;opacity:.6;animation:rise linear infinite}
+  @keyframes rise{from{transform:translateY(20px);opacity:0}10%{opacity:.7}90%{opacity:.5}to{transform:translateY(-100vh);opacity:0}}
+
+  /* 登录卡 */
+  .lg-card{position:relative;z-index:2;display:grid;grid-template-columns:1.05fr .95fr;width:min(960px,94vw);min-height:560px;
+    background:rgba(11,28,64,.78);backdrop-filter:blur(18px);border:1px solid var(--border-strong);border-radius:22px;overflow:hidden;
+    box-shadow:0 0 0 1px rgba(0,229,255,.08), 0 30px 80px rgba(2,10,36,.6), var(--glow)}
+  /* 左：品牌区 */
+  .lg-brand{position:relative;padding:46px 44px;display:flex;flex-direction:column;justify-content:space-between;
+    background:linear-gradient(150deg,rgba(0,229,255,.10),rgba(123,97,255,.10) 60%,rgba(8,22,52,.2));overflow:hidden}
+  .lg-brand::after{content:"";position:absolute;right:-60px;bottom:-60px;width:260px;height:260px;border-radius:50%;
+    border:1px dashed rgba(0,229,255,.22);box-shadow:0 0 60px rgba(0,229,255,.12) inset}
+  .lg-shield{display:flex;align-items:center;gap:14px}
+  .lg-shield .crest{width:56px;height:64px;flex-shrink:0;display:grid;place-items:center;font-weight:800;font-size:26px;color:#04122e;
+    background:linear-gradient(135deg,#00e5ff,#7b61ff);box-shadow:0 0 26px rgba(0,229,255,.45);
+    clip-path:polygon(50% 0,100% 16%,100% 64%,50% 100%,0 64%,0 16%)}
+  .lg-shield .t1{font-size:20px;font-weight:800;letter-spacing:.5px;line-height:1.2}
+  .lg-shield .t2{font-size:10.5px;color:var(--text-dim);letter-spacing:2px;margin-top:3px}
+  .lg-tagline{font-size:26px;font-weight:800;line-height:1.35;margin:6px 0 4px}
+  .lg-tagline .hl{background:linear-gradient(90deg,#00e5ff,#7b61ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lg-desc{font-size:13px;color:var(--text-dim);line-height:1.7;max-width:380px}
+  .lg-arch{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .lg-arch .pill{flex:1;min-width:90px;border:1px solid var(--border);border-radius:12px;padding:12px 12px;background:rgba(13,30,72,.5);position:relative;overflow:hidden}
+  .lg-arch .pill .n{font-family:var(--font-num);font-size:24px;font-weight:700;color:var(--primary);line-height:1}
+  .lg-arch .pill .l{font-size:11px;color:var(--text-dim);margin-top:5px}
+  .lg-arch .pill .ic{position:absolute;right:8px;top:8px;font-size:14px;opacity:.55}
+  .lg-disc{display:flex;gap:7px;flex-wrap:wrap;margin-top:18px}
+  .lg-disc .d{font-size:11.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--text-dim);background:rgba(13,30,72,.5)}
+
+  /* 右：表单区 */
+  .lg-form{padding:48px 46px;display:flex;flex-direction:column;justify-content:center;background:rgba(8,22,52,.5)}
+  .lg-form h2{font-size:22px;font-weight:800;margin:0 0 4px}
+  .lg-form .sub{font-size:12.5px;color:var(--text-dim);margin-bottom:26px}
+  .lg-field{margin-bottom:16px}
+  .lg-field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:7px}
+  .lg-input{position:relative}
+  .lg-input .ic{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-mute);font-size:15px}
+  .lg-input input{width:100%;height:46px;border-radius:11px;border:1px solid var(--border);background:rgba(13,30,72,.6);
+    color:var(--text);font-size:14px;padding:0 14px 0 40px;outline:none;transition:.18s}
+  .lg-input input:focus{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 20%,transparent)}
+  .lg-input .eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-mute)}
+  .lg-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;margin:4px 0 22px}
+  .lg-check{display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--text-dim);user-select:none}
+  .lg-check input{accent-color:var(--primary);width:15px;height:15px}
+  .lg-row a{color:var(--primary)}
+  .lg-submit{width:100%;height:48px;border:none;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;color:#04122e;
+    background:linear-gradient(135deg,#00e5ff,#7b61ff);box-shadow:0 8px 26px rgba(0,229,255,.32);transition:.18s;letter-spacing:1px}
+  .lg-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .lg-submit:active{transform:translateY(0)}
+  .lg-or{display:flex;align-items:center;gap:12px;margin:22px 0;color:var(--text-mute);font-size:11.5px}
+  .lg-or::before,.lg-or::after{content:"";flex:1;height:1px;background:var(--border)}
+  .lg-sso{display:flex;gap:10px}
+  .lg-sso button{flex:1;height:42px;border-radius:11px;border:1px solid var(--border);background:rgba(13,30,72,.5);color:var(--text-dim);
+    cursor:pointer;font-size:12.5px;transition:.15s;display:flex;align-items:center;justify-content:center;gap:7px}
+  .lg-sso button:hover{border-color:var(--primary);color:var(--primary)}
+
+  .lg-foot{position:fixed;bottom:18px;left:0;right:0;z-index:2;text-align:center;font-size:11.5px;color:var(--text-mute)}
+  .lg-foot a{color:var(--text-dim)}
+  @media(max-width:820px){.lg-card{grid-template-columns:1fr}.lg-brand{display:none}}
+</style>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark">
+  <div class="lg-bg">
+    <div class="lg-grid"></div>
+    <div class="lg-orb a"></div><div class="lg-orb b"></div>
+    <div class="lg-particles" id="particles"></div>
+  </div>
+
+  <div class="lg-card fade-in">
+    <!-- 品牌区 -->
+    <div class="lg-brand">
+      <div>
+        <div class="lg-shield">
+          <div class="crest">武</div>
+          <div><div class="t1">产业创新AI智脑平台</div><div class="t2">WHU INDUSTRY · AI BRAIN PLATFORM</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="lg-tagline">把分散科研资源转化为<br><span class="hl">可组织·可运营·可放大</span>的产业创新能力</div>
+        <div class="lg-desc">学校的「产业创新操作系统」与「成果转化组织中枢」——以统一数据底座为根、产业创新大脑为芯、三类AI角色为臂，贯通成果、企业、园区、活动与资本全链条。</div>
+        <div class="lg-arch">
+          <div class="pill"><span class="ic"><i data-lucide="database"></i></span><div class="n">1</div><div class="l">数据资产底座</div></div>
+          <div class="pill"><span class="ic"><i data-lucide="brain"></i></span><div class="n">1</div><div class="l">产业创新大脑</div></div>
+          <div class="pill"><span class="ic"><i data-lucide="bot"></i></span><div class="n">3</div><div class="l">类AI角色能力</div></div>
+          <div class="pill"><span class="ic"><i data-lucide="rocket"></i></span><div class="n">N</div><div class="l">个业务场景</div></div>
+        </div>
+        <div class="lg-disc">
+          <span class="d"><i data-lucide="brain"></i> 人工智能</span><span class="d"><i data-lucide="bot"></i> 机器人</span><span class="d"><i data-lucide="dna"></i> 生物医药</span><span class="d"><i data-lucide="lightbulb"></i> 半导体·光芯片</span><span class="d"><i data-lucide="satellite"></i> 空间信息·测绘遥感</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 表单区 -->
+    <form class="lg-form" id="loginForm" autocomplete="off">
+      <h2>欢迎登录</h2>
+      <div class="sub">武汉大学资产经营投资管理有限责任公司 · 平台运营门户</div>
+
+      <div class="lg-field">
+        <label>用户名 / 工号</label>
+        <div class="lg-input"><span class="ic"><i data-lucide="user"></i></span>
+          <input type="text" id="username" placeholder="请输入用户名或工号" value="admin">
+        </div>
+      </div>
+
+      <div class="lg-field">
+        <label>登录密码</label>
+        <div class="lg-input"><span class="ic"><i data-lucide="lock"></i></span>
+          <input type="password" id="password" placeholder="请输入密码" value="123456">
+          <span class="eye" id="eyeToggle" title="显示/隐藏密码"><i data-lucide="eye"></i></span>
+        </div>
+      </div>
+
+      <div class="lg-row">
+        <label class="lg-check"><input type="checkbox" id="remember" checked>记住我</label>
+        <a href="javascript:void(0)" id="forgot">忘记密码？</a>
+      </div>
+
+      <button type="submit" class="lg-submit">登 录 进 入 平 台 ▸</button>
+
+      <div class="lg-or">其他登录方式</div>
+      <div class="lg-sso">
+        <button type="button" id="ssoUnified"><i data-lucide="graduation-cap"></i> 统一身份认证</button>
+        <button type="button" id="ssoSms"><i data-lucide="smartphone"></i> 短信验证码</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="lg-foot">
+    © 2026 武汉大学资产经营投资管理有限责任公司 · 产业创新AI智脑平台 &nbsp;|&nbsp; <a href="javascript:void(0)">技术支持</a> &nbsp;·&nbsp; 鄂ICP备 2026 号 · v1.0 原型
+  </div>
+
+<script>
+(function(){
+  // 粒子
+  const box=document.getElementById('particles');
+  for(let i=0;i<26;i++){
+    const p=document.createElement('span');p.className='pt';
+    p.style.left=(Math.random()*100)+'%';
+    p.style.bottom='-'+(Math.random()*20)+'px';
+    const dur=8+Math.random()*12;
+    p.style.animationDuration=dur+'s';
+    p.style.animationDelay='-'+(Math.random()*dur)+'s';
+    const s=2+Math.random()*2.5;p.style.width=s+'px';p.style.height=s+'px';
+    if(Math.random()>.5){p.style.background='#7b61ff';p.style.boxShadow='0 0 8px #7b61ff';}
+    box.appendChild(p);
+  }
+  // 密码显隐
+  const pwd=document.getElementById('password');
+  document.getElementById('eyeToggle').onclick=function(){
+    pwd.type = pwd.type==='password'?'text':'password';
+    this.style.opacity = pwd.type==='text'?'1':'.6';
+  };
+  // 提交登录
+  function login(){
+    const u=document.getElementById('username').value.trim();
+    if(!u){ document.getElementById('username').focus(); return; }
+    const btn=document.querySelector('.lg-submit');
+    btn.textContent='登 录 中 ...'; btn.disabled=true; btn.style.opacity='.8';
+    setTimeout(()=>{ location.href='index.html'; }, 600);
+  }
+  document.getElementById('loginForm').onsubmit=function(e){ e.preventDefault(); login(); };
+  document.getElementById('ssoUnified').onclick=login;
+  document.getElementById('ssoSms').onclick=function(){ alert('短信验证码已发送至绑定手机（演示）'); };
+  document.getElementById('forgot').onclick=function(){ alert('请联系资产管理公司平台运营岗重置密码（演示）'); };
+  // Lucide 图标渲染
+  if(window.lucide&&lucide.createIcons) lucide.createIcons();
+})();
+</script>
+</body></html>

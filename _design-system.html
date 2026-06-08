@@ -1,0 +1,444 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>设计系统 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
+<style>
+  .ds-sec{scroll-margin-top:80px}
+  .ds-anchor{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:20px;position:sticky;top:calc(var(--topbar-h) + 6px);z-index:20;
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 12px;box-shadow:var(--glow-soft)}
+  .ds-anchor a{font-size:12px;padding:4px 11px;border-radius:999px;border:1px solid var(--border);color:var(--text-dim);background:var(--panel-2);text-decoration:none;transition:.15s}
+  .ds-anchor a:hover{border-color:var(--primary);color:var(--primary)}
+  .swatch{border-radius:11px;overflow:hidden;border:1px solid var(--border)}
+  .swatch .blk{height:62px}
+  .swatch .info{padding:8px 10px;font-size:11.5px}
+  .swatch .info .nm{font-weight:600}
+  .swatch .info .vr{color:var(--text-mute);font-family:var(--font-num);font-size:10.5px}
+  .tok-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:12px}
+  .demo-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .ds-label{font-size:11px;color:var(--text-mute);letter-spacing:1px;margin:0 0 10px;text-transform:uppercase}
+  .type-sample{border-bottom:1px dashed var(--border);padding:10px 0}
+  .type-sample .meta{font-size:11px;color:var(--text-mute);font-family:var(--font-num)}
+  .radius-box{height:56px;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;color:#04122e;font-weight:700;font-size:12px}
+  [data-theme="light"] .radius-box{color:#fff}
+  .shadow-box{height:60px;border-radius:12px;background:var(--panel-solid);border:1px solid var(--border);display:grid;place-items:center;font-size:12px;color:var(--text-dim)}
+</style>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="_design-system">
+<main class="wuda-view">
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>设计系统 · 组件库画廊</div>
+    <div class="page-sub">武汉大学产业创新AI智脑平台 · 双皮肤设计令牌 + 共享组件(UI.*) + 图表(Charts.*) 活样例</div></div>
+    <div style="display:flex;gap:9px">
+      <span class="seg" id="themeSeg"><button data-th="dark">深色大屏</button><button data-th="light" class="on">浅色后台</button></span>
+      <button class="btn btn-primary" id="btnToast">触发 Toast</button>
+    </div>
+  </div>
+
+  <!-- 锚点导航 -->
+  <div class="ds-anchor">
+    <a href="#sec-color">色板</a>
+    <a href="#sec-type">字体</a>
+    <a href="#sec-shape">圆角阴影</a>
+    <a href="#sec-kpi">KPI</a>
+    <a href="#sec-btn">按钮</a>
+    <a href="#sec-tag">标签/灯/Chip</a>
+    <a href="#sec-panel">面板</a>
+    <a href="#sec-entity">实体卡/榜单</a>
+    <a href="#sec-table">数据表</a>
+    <a href="#sec-time">时间线/描述</a>
+    <a href="#sec-chart">图表</a>
+    <a href="#sec-overlay">弹层/抽屉/Tab</a>
+  </div>
+
+  <!-- ====== 色板 ====== -->
+  <section id="sec-color" class="ds-sec">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>设计令牌 · 双皮肤色板</div><div class="tools"><span class="panel-tag">当前皮肤随顶部切换</span></div></div>
+      <p class="ds-label">主色 / 语义色 (随当前 data-theme 实时取值)</p>
+      <div class="tok-grid" id="semColors"></div>
+      <div class="divider"></div>
+      <p class="ds-label">8 类数据域色 (--dom-1 … --dom-8)</p>
+      <div class="tok-grid" id="domColors"></div>
+      <div class="divider"></div>
+      <p class="ds-label">表面 / 文本 / 边框</p>
+      <div class="tok-grid" id="surfColors"></div>
+    </div>
+  </section>
+
+  <!-- ====== 字体 ====== -->
+  <section id="sec-type" class="ds-sec mt-4">
+    <div class="grid cols-2">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>字体 · 层级</div></div>
+        <div class="type-sample"><div style="font-size:22px;font-weight:800">页面标题 22 / 800 <span class="meta">.page-title</span></div></div>
+        <div class="type-sample"><div style="font-size:18px;font-weight:700">区块标题 18 / 700 <span class="meta">.f18 .fw7</span></div></div>
+        <div class="type-sample"><div style="font-size:14.5px;font-weight:700">面板标题 14.5 / 700 <span class="meta">.panel-h .t</span></div></div>
+        <div class="type-sample"><div style="font-size:13px">正文 13 / 400 — 把分散科研资源转化为产业创新能力 <span class="meta">body</span></div></div>
+        <div class="type-sample"><div class="text-dim" style="font-size:12px">辅助文本 12 — 副标题与说明 <span class="meta">.text-dim .f12</span></div></div>
+        <div class="type-sample"><div class="text-mute" style="font-size:11px">弱化文本 11 <span class="meta">.text-mute</span></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>数字字体 · Oswald (.num)</div></div>
+        <div style="display:flex;flex-direction:column;gap:14px;margin-top:6px">
+          <div class="num" style="font-size:40px;font-weight:700;color:var(--primary)">12,860 <span class="text-dim" style="font-size:14px;font-family:var(--font-sans)">项成果</span></div>
+          <div class="num" style="font-size:32px;font-weight:600">8.6 <span class="text-dim" style="font-size:13px;font-family:var(--font-sans)">亿元转化额</span></div>
+          <div class="divider"></div>
+          <div style="font-size:12px;color:var(--text-dim)">字族：<span class="num">PingFang SC · Microsoft YaHei</span>（正文）｜ <span class="num">Oswald</span>（数字/指标）</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="num" style="font-size:18px">0123456789</span>
+            <span style="font-size:18px">中文字重示例 常规/中粗/加粗</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== 圆角阴影 ====== -->
+  <section id="sec-shape" class="ds-sec mt-4">
+    <div class="grid cols-2">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>圆角 Radius</div></div>
+        <div class="grid cols-3">
+          <div><div class="radius-box" style="border-radius:9px">9px</div><div class="f12 text-mute mt-2" style="text-align:center">--radius-btn</div></div>
+          <div><div class="radius-box" style="border-radius:14px">14px</div><div class="f12 text-mute mt-2" style="text-align:center">--radius-card</div></div>
+          <div><div class="radius-box" style="border-radius:999px">999</div><div class="f12 text-mute mt-2" style="text-align:center">--radius-chip</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>阴影 / 发光 Shadow</div></div>
+        <div class="grid cols-3">
+          <div><div class="shadow-box" style="box-shadow:var(--glow-soft)">glow-soft</div></div>
+          <div><div class="shadow-box" style="box-shadow:var(--shadow)">shadow</div></div>
+          <div><div class="shadow-box" style="box-shadow:var(--glow)">glow</div></div>
+        </div>
+        <div class="f12 text-mute mt-3">深色皮肤下 .panel.glow 呈霓虹发光；浅色皮肤为克制投影。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== KPI ====== -->
+  <section id="sec-kpi" class="ds-sec mt-4">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>UI.kpi · 指标卡</div></div>
+      <div class="grid cols-4" id="kpiDemo"></div>
+    </div>
+  </section>
+
+  <!-- ====== 按钮 ====== -->
+  <section id="sec-btn" class="ds-sec mt-4">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>按钮 .btn 系列 / 分段 .seg</div></div>
+      <p class="ds-label">按钮</p>
+      <div class="demo-row">
+        <button class="btn btn-primary">主操作 ▸</button>
+        <button class="btn">默认按钮</button>
+        <button class="btn btn-ghost">幽灵按钮</button>
+        <button class="btn btn-sm btn-primary">小主按钮</button>
+        <button class="btn btn-sm">小按钮</button>
+        <button class="btn btn-sm btn-ghost">↺ 重置</button>
+      </div>
+      <div class="divider"></div>
+      <p class="ds-label">分段控制 .seg</p>
+      <div class="demo-row">
+        <span class="seg" id="segDemo"><button class="on">本周</button><button>本月</button><button>本季</button><button>本年</button></span>
+        <span class="panel-tag">面板标签</span><span class="panel-tag on">激活标签</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== 标签 / 灯 / Chip ====== -->
+  <section id="sec-tag" class="ds-sec mt-4">
+    <div class="grid cols-3">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>UI.tag · 全色标签</div></div>
+        <div class="demo-row" id="tagDemo"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>UI.light · 红黄绿灯</div></div>
+        <div class="demo-row" id="lightDemo" style="gap:16px"></div>
+        <div class="divider"></div>
+        <p class="ds-label">UI.bar · 进度条</p>
+        <div id="barDemo" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>UI.chip · 标签胶囊</div></div>
+        <div class="demo-row" id="chipDemo"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== 面板 ====== -->
+  <section id="sec-panel" class="ds-sec mt-4">
+    <div class="grid cols-2" id="panelDemo"></div>
+  </section>
+
+  <!-- ====== 实体卡 / 榜单 ====== -->
+  <section id="sec-entity" class="ds-sec mt-4">
+    <div class="grid" style="grid-template-columns:2fr 1fr">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>UI.entityCard · 实体卡</div></div>
+        <div class="grid cols-2" id="entityDemo"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>UI.rankList · 榜单</div></div>
+        <div id="rankDemo"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== 数据表 ====== -->
+  <section id="sec-table" class="ds-sec mt-4">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>UI.table · 数据表（可排序 / 分页 / 行点击）</div><div class="tools"><span class="panel-tag">点击表头排序，点击行看抽屉</span></div></div>
+      <div id="tableDemo"></div>
+    </div>
+  </section>
+
+  <!-- ====== 时间线 / 描述 ====== -->
+  <section id="sec-time" class="ds-sec mt-4">
+    <div class="grid cols-2">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>UI.timeline · 时间线</div></div>
+        <div id="timeDemo"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>UI.descList · 描述列表 / UI.empty / UI.skeleton</div></div>
+        <div id="descDemo"></div>
+        <div class="divider"></div>
+        <div class="grid cols-2">
+          <div><p class="ds-label">空状态</p><div style="border:1px dashed var(--border);border-radius:10px"><div id="emptyDemo"></div></div></div>
+          <div><p class="ds-label">骨架屏</p><div id="skelDemo"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== 图表画廊 ====== -->
+  <section id="sec-chart" class="ds-sec mt-4">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>Charts.* · 图表画廊（自动套用当前皮肤主题）</div></div>
+      <div class="grid cols-3">
+        <div><p class="ds-label">line 折线</p><div class="chart h220" id="cLine"></div></div>
+        <div><p class="ds-label">bar 柱状(分组)</p><div class="chart h220" id="cBar"></div></div>
+        <div><p class="ds-label">pie 环形饼</p><div class="chart h220" id="cPie"></div></div>
+        <div><p class="ds-label">radar 雷达</p><div class="chart h220" id="cRadar"></div></div>
+        <div><p class="ds-label">gauge 仪表盘</p><div class="chart h220" id="cGauge"></div></div>
+        <div><p class="ds-label">funnel 漏斗</p><div class="chart h220" id="cFunnel"></div></div>
+        <div><p class="ds-label">scatter 散点</p><div class="chart h220" id="cScatter"></div></div>
+        <div><p class="ds-label">graph 关系图谱</p><div class="chart h220" id="cGraph"></div></div>
+        <div><p class="ds-label">sankey 桑基图</p><div class="chart h220" id="cSankey"></div></div>
+        <div><p class="ds-label">treemap 矩形树图</p><div class="chart h220" id="cTreemap"></div></div>
+        <div><p class="ds-label">gantt 甘特图</p><div class="chart h220" id="cGantt"></div></div>
+        <div><p class="ds-label">waterfall 瀑布图</p><div class="chart h220" id="cWaterfall"></div></div>
+        <div><p class="ds-label">wordcloud 词云</p><div class="chart h220" id="cWord"></div></div>
+        <div><p class="ds-label">tree 树图</p><div class="chart h220" id="cTree"></div></div>
+        <div><p class="ds-label">progressRing 进度环</p><div class="chart h220" id="cRing"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== 弹层 / 抽屉 / Tab ====== -->
+  <section id="sec-overlay" class="ds-sec mt-4">
+    <div class="grid cols-2">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>命令式组件 · 触发演示</div></div>
+        <div class="demo-row">
+          <button class="btn btn-primary" id="dDrawer">打开抽屉 Drawer</button>
+          <button class="btn" id="dModal">打开弹窗 Modal</button>
+          <button class="btn" id="dToastOk">Toast 成功</button>
+          <button class="btn" id="dToastWarn">Toast 警告</button>
+          <button class="btn" id="dType">打字机 Typewriter</button>
+        </div>
+        <div class="divider"></div>
+        <p class="ds-label">UI.typewriter 输出</p>
+        <div id="typeOut" style="min-height:64px;font-size:13px;line-height:1.7;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--panel-2)"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>UI.tabs · 选项卡</div></div>
+        <div id="tabDemo"></div>
+        <div id="tabBody" class="text-dim" style="font-size:13px"></div>
+        <div class="divider"></div>
+        <p class="ds-label">UI.filterBar · 筛选条</p>
+        <div id="filterDemo"></div>
+        <div id="filterEcho" class="f12 text-mute"></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  const D=DB, U=DB.util;
+
+  // ---------- 色板 ----------
+  function readVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim(); }
+  function swatchHtml(name, varName){
+    return `<div class="swatch"><div class="blk" style="background:var(${varName})"></div>
+      <div class="info"><div class="nm">${name}</div><div class="vr">${varName}</div></div></div>`;
+  }
+  function renderColors(){
+    document.getElementById('semColors').innerHTML=[
+      ['主色 Primary','--primary'],['主色2','--primary-2'],['强调 Accent','--accent'],['强调2','--accent-2'],
+      ['成功 Success','--success'],['警告 Warning','--warning'],['危险 Danger','--danger'],['信息 Info','--info'],
+    ].map(([n,v])=>swatchHtml(n,v)).join('');
+    document.getElementById('domColors').innerHTML=[1,2,3,4,5,6,7,8].map(i=>swatchHtml('数据域 '+i,'--dom-'+i)).join('');
+    document.getElementById('surfColors').innerHTML=[
+      ['背景 Bg','--bg'],['面板 Panel','--panel-solid'],['面板2','--panel-2'],['边框 Border','--border'],
+      ['强边框','--border-strong'],['文本','--text'],['暗文本','--text-dim'],['弱文本','--text-mute'],
+    ].map(([n,v])=>swatchHtml(n,v)).join('');
+  }
+
+  // ---------- KPI ----------
+  document.getElementById('kpiDemo').innerHTML=[
+    UI.kpi({label:'科技成果总数',value:D.topKPI.achievements.toLocaleString(),unit:'项',delta:D.topKPI.achGrowth+'%',deltaUp:true,icon:'<i data-lucide="microscope"></i>',spark:[42,48,46,55,52,61,58,66,63,70,72,78]}),
+    UI.kpi({label:'在孵/参股企业',value:D.topKPI.enterprises,unit:'家',delta:D.topKPI.entGrowth+'%',deltaUp:true,icon:'<i data-lucide="building-2"></i>',spark:[20,24,26,28,30,32,35,34,36,38,40,42]}),
+    UI.kpi({label:'本年转化额',value:D.topKPI.convAmount,unit:'亿元',delta:D.topKPI.convGrowth+'%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[32,41,38,52,49,61,58,72,69,78,81,86]}),
+    UI.kpi({label:'风险预警',value:D.riskAlerts.length,unit:'条',delta:'2.1%',deltaUp:false,icon:'<i data-lucide="alert-triangle"></i>'}),
+  ].join('');
+
+  // ---------- tag / light / chip / bar ----------
+  document.getElementById('tagDemo').innerHTML=['blue','green','red','amber','purple','gray']
+    .map(t=>UI.tag(t.toUpperCase(),t)).join('');
+  document.getElementById('lightDemo').innerHTML=UI.light('g','正常运行')+UI.light('y','关注跟进')+UI.light('r','风险预警');
+  document.getElementById('barDemo').innerHTML=[
+    ['成熟度 TRL',82],['场景匹配度',64],['投资组合健康度',91]
+  ].map(([l,v])=>`<div><div class="flex justify-between f12 text-dim mb-3"><span>${l}</span><span class="num fw7">${v}%</span></div>${UI.bar(v)}</div>`).join('');
+  document.getElementById('chipDemo').innerHTML=[UI.chip('人工智能',true),UI.chip('机器人'),UI.chip('生物医药'),UI.chip('半导体·光芯片'),UI.chip('空间信息',true),UI.chip('全部赛道')].join('');
+
+  // ---------- panel ----------
+  document.getElementById('panelDemo').innerHTML=
+    UI.panel('标准面板 UI.panel', `<div class="text-dim" style="font-size:13px">这是通过 <span class="num">UI.panel(title, body, opts)</span> 生成的标准容器。常用于承载图表、列表与表单。</div>`, {tag:'标准', tools:'<span class="panel-tag">工具区</span>'})
+    + UI.panel('发光面板 glow', `<div class="text-dim" style="font-size:13px">传入 <span class="num">{glow:true}</span> 在深色皮肤下呈现霓虹发光描边，用于驾驶舱/大屏强调区。</div>`, {glow:true, tag:'强调', tools:UI.tag('GLOW','purple')});
+
+  // ---------- entityCard / rankList ----------
+  const ents=D.enterprises.slice(0,4);
+  document.getElementById('entityDemo').innerHTML=ents.map(e=>UI.entityCard({
+    title:e.name.length>14?e.name.slice(0,14)+'…':e.name,
+    meta:`${e.disciplineName} · ${e.stage} · ${e.city}<div class="mt-2 f12">估值 <span class="num text-primary">${(e.valuation/10000).toFixed(2)}</span> 亿元 · 评分 <span class="num">${e.score}</span></div>`,
+    tags:e.tags.slice(0,2),
+    badge:UI.light(e.risk,''),
+    onclick:`UI.toast('点击了 ${e.name.slice(0,8)}','ok')`,
+  })).join('');
+  document.getElementById('rankDemo').innerHTML=UI.rankList(
+    D.tracks.slice().sort((a,b)=>b.heat-a.heat).slice(0,6).map(t=>({name:t.name, value:t.heat, sub:'市场 '+t.market+'亿 · 契合 '+t.fit}))
+  );
+
+  // ---------- table ----------
+  UI.table('#tableDemo',{
+    columns:[
+      {key:'name',title:'成果名称',render:r=>`<span class="fw6">${r.title.length>16?r.title.slice(0,16)+'…':r.title}</span>`,sortVal:r=>r.title},
+      {key:'disciplineName',title:'学科',render:r=>UI.tag(r.disciplineName,'blue')},
+      {key:'trl',title:'TRL',sortable:true,render:r=>`<span class="num">${r.trl}</span>`},
+      {key:'patents',title:'专利',sortable:true,render:r=>`<span class="num">${r.patents}</span>`},
+      {key:'value',title:'估值(万)',sortable:true,render:r=>`<span class="num text-primary">${r.value.toLocaleString()}</span>`,sortVal:r=>r.value},
+      {key:'status',title:'状态',render:r=>UI.tag(r.status, r.status==='已转化'?'green':r.status==='已签约'?'blue':'gray')},
+    ],
+    rows:D.achievements.slice(0,28),
+    pageSize:6,
+    onRow:r=>UI.drawer('成果详情 · '+r.title,
+      UI.descList([['编号',r.id],['学科',r.disciplineName],['学院',r.college],['负责人',r.leader],['TRL',r.trl],['专利/论文',r.patents+' / '+r.papers],['估值',r.value.toLocaleString()+' 万元'],['状态',UI.tag(r.status,'blue')]])
+      +`<div class="mt-4 text-dim" style="font-size:13px;line-height:1.7">${r.desc}</div>`,{width:'520px'}),
+  });
+
+  // ---------- timeline / descList / empty / skeleton ----------
+  document.getElementById('timeDemo').innerHTML=UI.timeline(D.platformActivities.slice(0,6));
+  document.getElementById('descDemo').innerHTML=UI.descList([
+    ['所属机构','武汉大学资产经营投资管理有限责任公司'],
+    ['优势学科','人工智能 / 机器人 / 生物医药 / 半导体·光芯片 / 空间信息'],
+    ['数据域',UI.tag('8 域 256 表','purple')],
+    ['平台架构','1 底座 + 1 大脑 + 3 AI角色 + N 场景'],
+    ['当前皮肤',`<span id="curTheme" class="num">浅色</span>`],
+  ]);
+  document.getElementById('emptyDemo').innerHTML=UI.empty('暂无数据示例');
+  document.getElementById('skelDemo').innerHTML=UI.skeleton(4);
+
+  // ---------- charts ----------
+  function renderCharts(){
+    Charts.line('cLine',{x:D.revenueTrend.map(r=>r.month),series:[{name:'托管运营',data:D.revenueTrend.map(r=>r.托管运营)},{name:'任务包式AI',data:D.revenueTrend.map(r=>r.任务包式AI)}],legend:true});
+    Charts.bar('cBar',{x:D.directionScores.map(d=>d.name),series:[{name:'成果储备',data:D.directionScores.map(d=>d.scores[0])},{name:'团队实力',data:D.directionScores.map(d=>d.scores[1])}],legend:true});
+    Charts.pie('cPie',{data:D.revenueTypes.map(t=>({name:t.key,value:t.amount})),ring:true,legend:true,center:['38%','52%']});
+    Charts.radar('cRadar',{indicators:D.directionDims,series:[{name:'人工智能',value:D.directionScores[0].scores},{name:'空间信息',value:D.directionScores[4].scores}],legend:true});
+    Charts.gauge('cGauge',{value:81,name:'组合健康度'});
+    Charts.funnel('cFunnel',{data:D.convFunnel});
+    Charts.scatter('cScatter',{data:D.tracks.map((t,i)=>({name:t.name,value:[t.market,t.growth,t.heat]})),xName:'市场(亿)',yName:'增速(%)'});
+    Charts.graph('cGraph',{nodes:D.coopGraph.nodes,links:D.coopGraph.links,cats:D.coopGraph.cats,layout:'force'});
+    const fnodes=[{name:'武汉大学'},...D.disciplines.map(d=>({name:d.name})),{name:'参股企业'},{name:'孵化企业'}];
+    const idx=n=>fnodes.findIndex(x=>x.name===n);
+    Charts.sankey('cSankey',{nodes:fnodes,links:[
+      ...D.disciplines.map(d=>({source:idx('武汉大学'),target:idx(d.name),value:U.ri(20,60)})),
+      ...D.disciplines.map(d=>({source:idx(d.name),target:idx('参股企业'),value:U.ri(8,30)})),
+      ...D.disciplines.slice(0,3).map(d=>({source:idx(d.name),target:idx('孵化企业'),value:U.ri(6,20)})),
+    ]});
+    Charts.treemap('cTreemap',{data:D.dataDomains.map(d=>({name:d.name,value:d.records}))});
+    Charts.gantt('cGantt',{phases:D.phases.map(p=>({phase:p.phase,start:p.start,len:p.len,progress:p.progress}))});
+    Charts.waterfall('cWaterfall',{data:D.cashflow});
+    Charts.wordcloud('cWord',{words:D.hotwords});
+    Charts.tree('cTree',{data:D.techRoutes});
+    Charts.progressRing('cRing',{value:76});
+  }
+
+  // ---------- overlay 触发 ----------
+  document.getElementById('dDrawer').onclick=()=>UI.drawer('抽屉示例',
+    `<div class="text-dim" style="font-size:13px;line-height:1.7">抽屉常用于详情查看（企业画像、成果详情、消息详情等）。</div>`
+    +'<div class="mt-4">'+UI.descList([['组件','UI.drawer(title, body, {width})'],['用途','右侧滑出详情面板'],['关闭','点击遮罩 / <i data-lucide="x"></i> / Esc']])+'</div>',{width:'480px'});
+  document.getElementById('dModal').onclick=()=>UI.modal('弹窗示例',
+    `<div class="text-dim" style="font-size:13px;line-height:1.7">弹窗用于二次确认、个人中心、表单提交等场景。</div>`,
+    {footer:'<button class="btn" onclick="UI.closeModal()">取消</button><button class="btn btn-primary" onclick="UI.closeModal();UI.toast(\'已确认\',\'ok\')">确定</button>'});
+  document.getElementById('dToastOk').onclick=()=>UI.toast('操作成功','ok');
+  document.getElementById('dToastWarn').onclick=()=>UI.toast('请注意：存在风险预警','warn');
+  document.getElementById('btnToast').onclick=()=>UI.toast('欢迎使用设计系统画廊','ok');
+  document.getElementById('dType').onclick=()=>UI.typewriter('typeOut','产业创新大脑：根据数据底座近30天分析，「具身智能/人形机器人」热度环比 +42%，建议优先布局核心零部件赛道，并启动相关成果项目化任务包。',{speed:20});
+  UI.typewriter('typeOut','点击右侧上方「打字机 Typewriter」按钮，可重新播放 AI 流式输出效果。',{speed:24});
+
+  // ---------- tabs ----------
+  const tabContent={overview:'总览：1 底座 + 1 大脑 + 3 AI角色 + N 场景，贯通成果/企业/园区/活动/资本。',brain:'产业创新大脑：趋势研判、技术路线、赛道选择、企业识别、项目评估五大能力。',role:'AI角色：AI分析师 / AI技术经理人 / AI投资人，以任务包形式交付结构化产出。'};
+  document.getElementById('tabBody').innerHTML=tabContent.overview;
+  UI.tabs('#tabDemo',[{key:'overview',label:'平台总览'},{key:'brain',label:'产业大脑'},{key:'role',label:'AI角色'}],k=>{
+    document.getElementById('tabBody').innerHTML=tabContent[k];
+  });
+
+  // ---------- filterBar ----------
+  const fb=UI.filterBar('#filterDemo',{
+    fields:[
+      {key:'disc',label:'全部学科',options:D.disciplines.map(d=>d.name)},
+      {key:'stage',label:'全部阶段',options:['初创期','成长期','扩张期','成熟期']},
+    ],
+    search:true, searchPh:'搜索关键词...',
+    onChange:vals=>document.getElementById('filterEcho').textContent='当前筛选：'+JSON.stringify(vals),
+  });
+  document.getElementById('filterEcho').textContent='当前筛选：'+JSON.stringify(fb.read());
+
+  // ---------- 皮肤切换 ----------
+  function applyTheme(th){
+    document.body.setAttribute('data-theme',th);
+    document.querySelectorAll('#themeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.th===th));
+    const ct=document.getElementById('curTheme'); if(ct)ct.textContent=th==='light'?'浅色':'深色';
+    renderColors();
+    renderCharts();   // 重新渲染图表以套用新皮肤主题
+  }
+  document.querySelectorAll('#themeSeg button').forEach(b=>b.onclick=()=>applyTheme(b.dataset.th));
+
+  // ---------- 初始渲染 ----------
+  renderColors();
+  renderCharts();
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','参股/校属企业','活动与赛事','产业企业与园区']);
+
+  // 平滑锚点
+  document.querySelectorAll('.ds-anchor a').forEach(a=>a.onclick=e=>{
+    e.preventDefault(); const t=document.querySelector(a.getAttribute('href'));
+    if(t)t.scrollIntoView({behavior:'smooth'});
+  });
+})();
+</script>
+</body></html>

@@ -1,0 +1,239 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>成果详情画像 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="achievement-library">
+<main class="wuda-view">
+  <div class="crumb"><a href="achievement-library.html">← 返回成果库</a> <span>/</span> <span id="crumbId"></span></div>
+
+  <!-- 成果概况头部 -->
+  <div class="panel" id="header"></div>
+
+  <!-- 主体两栏 -->
+  <div class="grid mt-4" style="grid-template-columns:1.05fr .95fr">
+    <!-- 左 -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>基本信息</div></div>
+        <div id="baseInfo"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>应用场景</div><div class="tools"><span class="panel-tag">可落地领域</span></div></div>
+        <div id="scenes" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        <div class="divider"></div>
+        <div class="panel-h" style="margin-bottom:8px"><div class="t" style="font-size:13px"><span class="bar"></span>市场前景研判</div></div>
+        <div id="market" class="text-dim" style="font-size:13px;line-height:1.85"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>团队成员</div><div class="tools"><span class="panel-tag" id="teamCnt"></span></div></div>
+        <div id="members"></div>
+      </div>
+    </div>
+
+    <!-- 右 -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="panel glow">
+        <div class="panel-h"><div class="t"><span class="bar"></span>TRL 多维成熟度评估</div><div class="tools"><span class="panel-tag">AI技术经理人生成</span></div></div>
+        <div class="chart h300" id="radar"></div>
+        <div class="grid cols-2 mt-3" id="ppKpi"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>应用场景匹配推荐</div><div class="tools"><span class="panel-tag">契合度排序</span></div></div>
+        <div class="chart h260" id="sceneBar"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>相关核心专利</div><div class="tools"><span class="panel-tag" id="patCnt"></span></div></div>
+        <div id="patents"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const id = window.qparam('id');
+  const a = (id && DB.achievements.find(x=>x.id===id)) || DB.achievements[0];
+  const disc = DB.disciplines.find(d=>d.id===a.discipline) || {};
+  const c = disc.color || 'var(--primary)';
+  document.getElementById('crumbId').textContent = a.title;
+  document.title = a.title + ' · 武汉大学产业创新AI智脑平台';
+
+  function statusBadge(s){
+    const map={'已转化':'green','已签约':'green','中试放大':'blue','概念验证':'purple','已立项':'amber','待评估':'gray'};
+    return UI.tag(s, map[s]||'gray');
+  }
+
+  // ---------- 头部概况 ----------
+  document.getElementById('header').innerHTML = `
+    <div class="flex justify-between" style="align-items:flex-start;gap:20px;flex-wrap:wrap">
+      <div style="flex:1;min-width:320px">
+        <div class="flex items-center gap-3" style="flex-wrap:wrap">
+          <span style="font-size:11px;border:1px solid ${c};color:${c};border-radius:6px;padding:2px 9px;font-weight:600">${disc.icon||''} ${a.disciplineName}</span>
+          ${statusBadge(a.status)}
+          ${a.match>=85?UI.tag('高契合','blue'):''}
+          ${a.trl>=7?UI.tag('近产业化','green'):''}
+        </div>
+        <div style="font-size:23px;font-weight:800;margin:11px 0 8px">${a.title}</div>
+        <div class="text-dim" style="font-size:13.5px;line-height:1.7;max-width:680px">${a.desc}</div>
+        <div class="flex gap-4 mt-3" style="flex-wrap:wrap;font-size:13px">
+          <span><span class="text-mute">成果编号</span> <span class="num fw6">${a.id}</span></span>
+          <span><span class="text-mute">所属学院</span> <span class="fw6">${a.college}</span></span>
+          <span><span class="text-mute">负责人</span> <span class="fw6">${a.leader}</span></span>
+          <span><span class="text-mute">登记年份</span> <span class="fw6">${a.year}</span></span>
+          <span><span class="text-mute">更新</span> <span class="fw6">${a.updated}</span></span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-end">
+        <div style="text-align:right">
+          <div class="f12 text-mute">技术资产估值</div>
+          <div class="num fw7" style="font-size:30px;color:var(--success);font-family:Oswald">¥${(a.value/10000).toFixed(2)}<span style="font-size:15px"> 亿元</span></div>
+        </div>
+        <div style="display:flex;gap:9px">
+          <button class="btn" id="btnPool">＋ 加入项目池</button>
+          <button class="btn btn-primary" id="btnPack"><i data-lucide="bot"></i> 生成项目包</button>
+        </div>
+      </div>
+    </div>`;
+
+  // ---------- 基本信息 ----------
+  document.getElementById('baseInfo').innerHTML = UI.descList([
+    ['学科方向', `<span style="color:${c};font-weight:700">${a.disciplineName}</span>`],
+    ['技术成熟度', `<span class="num text-primary fw7">TRL ${a.trl}</span> / 9`],
+    ['综合成熟度', `<span class="num fw7">${a.maturity}</span> 分`],
+    ['场景匹配度', `<span class="num fw7" style="color:${c}">${a.match}%</span>`],
+    ['发明专利', `<span class="num fw7">${a.patents}</span> 项`],
+    ['学术论文', `<span class="num fw7">${a.papers}</span> 篇`],
+    ['转化状态', statusBadge(a.status)],
+    ['资产估值', `<span class="num fw7" style="color:var(--success)">${a.value.toLocaleString()} 万元</span>`],
+  ]);
+
+  // ---------- 应用场景 chips ----------
+  document.getElementById('scenes').innerHTML = a.scenes.map(s=>UI.chip(s,true)).join('');
+
+  // ---------- 市场前景 ----------
+  const D=DB.util;
+  const mainScene = a.scenes[0];
+  const trackMkt = (DB.tracks.find(t=>t.disc===a.discipline)||{market:2000,growth:35});
+  document.getElementById('market').innerHTML =
+    `该成果聚焦 <b style="color:${c}">${a.disciplineName}</b> 方向，核心应用场景为 <b>${a.scenes.join('、')}</b>。`+
+    `所处赛道当前市场规模约 <b class="num text-primary">${trackMkt.market.toLocaleString()} 亿元</b>，年复合增速约 <b class="num" style="color:var(--success)">${trackMkt.growth}%</b>，处于产业放量上行通道。`+
+    `结合技术成熟度（TRL ${a.trl}）与 ${a.patents} 项核心专利布局，成果在 <b>${mainScene}</b> 场景具备较强的差异化竞争力，`+
+    `建议优先推进概念验证与龙头企业联合中试，6-12 个月内具备项目化与作价入股条件。`;
+
+  // ---------- 团队成员(造3-5人) ----------
+  const roles=['项目负责人 / PI','技术骨干','研发工程师','产业化经理','知识产权专员'];
+  const titles=['教授','副教授','研究员','博士后','高级工程师','博士研究生'];
+  const n=D.ri(3,5);
+  const members=[];
+  members.push({name:a.leader.replace(/\s.+$/,''), role:roles[0], title:a.leader.includes('研究员')?'研究员':'教授', yrs:D.ri(12,28), papers:D.ri(20,80), patents:D.ri(8,40)});
+  for(let i=1;i<n;i++) members.push({name:D.person(), role:roles[i], title:D.pick(titles), yrs:D.ri(2,16), papers:D.ri(2,28), patents:D.ri(1,18)});
+  document.getElementById('teamCnt').textContent = members.length+' 人核心团队';
+  document.getElementById('members').innerHTML = members.map(m=>`
+    <div class="flex items-center gap-3" style="padding:11px 0;border-bottom:1px solid var(--border)">
+      <span class="av" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-weight:700;font-size:15px;background:linear-gradient(135deg,${c},color-mix(in srgb,${c} 50%,#fff))">${m.name.slice(0,1)}</span>
+      <div style="flex:1;min-width:0">
+        <div class="fw6">${m.name} <span class="f12 text-mute">${m.title}</span></div>
+        <div class="f12 text-dim">${m.role} · 从业 ${m.yrs} 年</div>
+      </div>
+      <div style="text-align:right" class="f12 text-mute">
+        <span class="num text-primary fw7">${m.patents}</span> 专利 · <span class="num fw7">${m.papers}</span> 论文
+      </div>
+    </div>`).join('');
+
+  // ---------- TRL 雷达(5维) ----------
+  // 由综合指标确定性派生
+  const base=a.maturity;
+  const radarVal=[
+    Math.min(98, a.trl*11+D.ri(-4,6)),            // 技术
+    Math.min(98, a.match-D.ri(0,8)),               // 市场
+    Math.min(98, base+D.ri(-6,8)),                 // 团队
+    Math.min(98, a.trl*9+D.ri(2,14)),              // 工艺
+    Math.min(98, 40+a.patents*1.8+D.ri(0,10)),     // 知识产权
+  ].map(v=>Math.max(35,Math.round(v)));
+  Charts.radar('radar',{
+    indicators:['技术成熟','市场前景','团队实力','工艺/工程','知识产权'],
+    series:[{name:a.title.slice(0,8), value:radarVal}],
+    max:100
+  });
+
+  // 专利/论文 KPI
+  document.getElementById('ppKpi').innerHTML=[
+    UI.kpi({label:'发明专利',value:a.patents,unit:'项',icon:'<i data-lucide="files"></i>'}),
+    UI.kpi({label:'学术论文',value:a.papers,unit:'篇',icon:'<i data-lucide="library"></i>'}),
+  ].join('');
+
+  // ---------- 场景匹配 horizontal bar ----------
+  // 全场景池打分(主场景=成果匹配度,其余派生)
+  const allScenes=['智能制造','智慧城市','医疗健康','能源电力','现代农业','商业航天','低空经济','智能网联汽车'];
+  const sceneScores = allScenes.map(s=>{
+    if(a.scenes.includes(s)) return {name:s, v: s===a.scenes[0]?a.match:Math.max(60,a.match-D.ri(4,16))};
+    return {name:s, v: D.ri(28,62)};
+  }).sort((x,y)=>y.v-x.v).slice(0,6).reverse();
+  Charts.bar('sceneBar',{
+    x:sceneScores.map(s=>s.name),
+    series:[{name:'匹配度',data:sceneScores.map(s=>s.v)}],
+    horizontal:true
+  });
+
+  // ---------- 相关核心专利 ----------
+  const patTypes=['发明专利','发明专利','发明专利','PCT国际专利','实用新型'];
+  const patStatus=[{t:'已授权',c:'green'},{t:'已授权',c:'green'},{t:'实质审查',c:'amber'},{t:'已公开',c:'blue'}];
+  const patN=Math.min(5, Math.max(3, Math.round(a.patents/6)));
+  const kw=a.title.replace(/（.*?）/g,'').slice(0,6);
+  const patWords=['方法','系统','装置','的制备','控制方法','及其应用','结构','的优化方法'];
+  const patList=[];
+  for(let i=0;i<patN;i++){
+    const st=patStatus[D.ri(0,patStatus.length-1)];
+    patList.push({
+      no:'ZL '+D.ri(2020,2025)+' 1 '+String(D.ri(100000,999999))+'.'+D.ri(0,9),
+      title:'一种'+kw+(D.pick(patWords)),
+      type:D.pick(patTypes), status:st, year:D.ri(2020,2025), inv:members[D.ri(0,members.length-1)].name
+    });
+  }
+  document.getElementById('patCnt').textContent='Top '+patList.length+' / 共 '+a.patents+' 项';
+  document.getElementById('patents').innerHTML = patList.map(p=>`
+    <div style="padding:11px 0;border-bottom:1px solid var(--border)">
+      <div class="flex justify-between items-center" style="gap:10px">
+        <div class="fw6" style="flex:1;min-width:0">${p.title}</div>
+        ${UI.tag(p.status.t, p.status.c)}
+      </div>
+      <div class="f12 text-mute mt-2 flex gap-3" style="flex-wrap:wrap">
+        <span>${UI.tag(p.type,'gray')}</span>
+        <span class="num">${p.no}</span>
+        <span>第一发明人 ${p.inv}</span>
+        <span>${p.year}年</span>
+      </div>
+    </div>`).join('');
+
+  // ---------- 操作按钮 ----------
+  document.getElementById('btnPool').onclick=()=>UI.toast('已将《'+a.title.slice(0,12)+'…》加入成果转化项目池','ok');
+  document.getElementById('btnPack').onclick=()=>{
+    UI.drawer('<i data-lucide="bot"></i> AI 生成项目包',
+      `<div class="text-dim mb-3">「AI技术经理人」正基于成果画像生成项目化材料，整合成果与专利、学院与团队、参股/校属企业等数据域。</div>
+       <div class="ecard mb-3" style="cursor:default">
+         <div class="et">${a.title}</div>
+         <div class="em mt-2">学科 ${a.disciplineName} · TRL ${a.trl} · 匹配度 ${a.match}%</div>
+       </div>
+       <div id="genOut" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:13px;line-height:1.85;min-height:200px;white-space:pre-wrap"></div>
+       <div class="mt-3" style="display:flex;gap:9px;justify-content:flex-end">
+         <button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button>
+         <button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('项目包已生成，含BP要点 / 路演材料 / 转化路径','ok')">采纳并归档</button>
+       </div>`,
+      {width:'560px'});
+    const txt=`【项目化建议】\n\n一、技术定位\n${a.title}面向${a.scenes.join('、')}场景，当前技术成熟度 TRL ${a.trl}，拥有 ${a.patents} 项专利与 ${a.papers} 篇论文支撑。\n\n二、商业价值\n所处赛道市场规模约 ${trackMkt.market} 亿元（增速 ${trackMkt.growth}%），成果资产估值 ${(a.value/10000).toFixed(2)} 亿元，具备作价入股条件。\n\n三、转化路径\n1) 6个月内完成概念验证与龙头企业联合中试；\n2) 启动专利布局加固与商标注册；\n3) 引入产业基金，以技术作价方式设立项目公司。\n\n四、风险提示\n需关注工艺放大稳定性与同赛道竞品迭代速度。`;
+    setTimeout(()=>UI.typewriter('genOut',txt,{speed:12}),300);
+  };
+
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['成果与专利','学院与团队','参股/校属企业']);
+})();</script>
+</body></html>

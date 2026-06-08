@@ -1,0 +1,206 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>客户·订单台账 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="operations-ledger">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>客户 · 订单台账</div>
+      <div class="page-sub">托管客户 / 订阅账号 / 任务包订单 三类市场化台账统一管理</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnNew">＋ 新建台账</button>
+      <button class="btn btn-primary btn-sm" id="btnExport"><i data-lucide="upload"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <!-- 核心 KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 客户类型分布 + 续约率 -->
+  <div class="grid mt-4" style="grid-template-columns:1.2fr 1fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>托管客户类型分布</div></div>
+      <div class="chart h260" id="typePie"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>托管客户平均续约率</div></div>
+      <div class="chart h260" id="renewGauge"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>订阅版本结构</div></div>
+      <div class="chart h260" id="editionBar"></div>
+    </div>
+  </div>
+
+  <!-- 三类台账 Tab -->
+  <div class="panel mt-4">
+    <div id="ledgerTabs"></div>
+    <div class="flex justify-between items-center mb-3" style="flex-wrap:wrap;gap:10px">
+      <div id="filter" style="flex:1"></div>
+      <span class="text-mute f12" id="tabHint"></span>
+    </div>
+    <div id="tbl"></div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  const MC=DB.managedClients, SUB=DB.subscriptions, ORD=DB.taskOrders;
+  const totalAmt = MC.reduce((s,c)=>s+c.amount,0)
+    + SUB.reduce((s,c)=>s+c.amount,0)
+    + ORD.reduce((s,c)=>s+(parseFloat(c.amount)||0),0);
+
+  // ---- KPI ----
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'托管客户',value:MC.length,unit:'家',delta:'2 家',deltaUp:true,icon:'<i data-lucide="landmark"></i>'}),
+    UI.kpi({label:'订阅账号/单位',value:SUB.length,unit:'个',delta:SUB.reduce((s,c)=>s+c.accounts,0)+' 席位',deltaUp:true,icon:'<i data-lucide="key"></i>'}),
+    UI.kpi({label:'任务包订单',value:ORD.length,unit:'单',delta:'本月 +5',deltaUp:true,icon:'<i data-lucide="package"></i>'}),
+    UI.kpi({label:'合计签约金额',value:Math.round(totalAmt).toLocaleString(),unit:'万元',delta:'14.2%',deltaUp:true,icon:'<i data-lucide="banknote"></i>'}),
+  ].join('');
+
+  // ---- 客户类型分布饼 ----
+  const typeCount={};
+  MC.forEach(c=>typeCount[c.type]=(typeCount[c.type]||0)+1);
+  Charts.pie('typePie',{data:Object.keys(typeCount).map(k=>({name:k,value:typeCount[k]})),ring:true,legend:true,center:['40%','52%']});
+
+  // ---- 续约率仪表 ----
+  const avgRenew=Math.round(MC.reduce((s,c)=>s+c.renew,0)/MC.length);
+  Charts.gauge('renewGauge',{value:avgRenew,name:'平均续约率(%)',max:100,color:'#16a34a'});
+
+  // ---- 订阅版本结构 ----
+  const edCount={};
+  SUB.forEach(s=>edCount[s.edition]=(edCount[s.edition]||0)+1);
+  Charts.bar('editionBar',{x:Object.keys(edCount),series:[{name:'数量',data:Object.values(edCount)}]});
+
+  // ---- 状态标签辅助 ----
+  const stTag=(s)=>{
+    const map={'服务中':'green','生效':'green','已结算':'green','已交付':'green',
+      '续约中':'blue','交付中':'blue','洽谈中':'amber','即将到期':'amber'};
+    return UI.tag(s, map[s]||'gray');
+  };
+  const money=v=>`<span class="num fw6">${v}</span>`;
+
+  // ---- 三表定义 ----
+  let curTab='mc', tableApi=null, filterApi=null;
+
+  const tabDefs={
+    mc:{
+      hint:'托管客户：地方政府/园区/研究院的旗舰托管与订阅服务',
+      fields:[{key:'type',label:'客户类型',options:[...new Set(MC.map(c=>c.type))]},
+              {key:'plan',label:'套餐',options:[...new Set(MC.map(c=>c.plan))]},
+              {key:'status',label:'状态',options:[...new Set(MC.map(c=>c.status))]}],
+      rows:()=>MC,
+      filter:(rows,v)=>rows.filter(r=>(!v.type||r.type===v.type)&&(!v.plan||r.plan===v.plan)&&(!v.status||r.status===v.status)&&(!v._q||r.name.includes(v._q))),
+      columns:[
+        {key:'id',title:'编号'},
+        {key:'name',title:'客户名称',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'type',title:'类型',render:r=>UI.tag(r.type,'blue')},
+        {key:'plan',title:'套餐',render:r=>r.plan},
+        {key:'amount',title:'年度金额(万)',sortVal:r=>r.amount,render:r=>money(r.amount)},
+        {key:'since',title:'合作起始'},
+        {key:'renew',title:'续约意向',sortVal:r=>r.renew,render:r=>`<div style="min-width:90px">${UI.bar(r.renew, r.renew>=80?'var(--success)':r.renew>=70?'var(--warning)':'var(--danger)')}<span class="f12 text-mute">${r.renew}%</span></div>`},
+        {key:'status',title:'状态',render:r=>stTag(r.status)},
+      ],
+      drawer:r=>{
+        UI.drawer(r.name, UI.descList([
+          ['编号',r.id],['客户类型',UI.tag(r.type,'blue')],['服务套餐',r.plan],
+          ['年度金额',`<span class="num text-primary fw7">${r.amount}</span> 万元`],
+          ['合作起始',r.since],['续约意向',r.renew+'%'],['当前状态',stTag(r.status)],
+        ]) + `<div class="divider"></div>
+          <div class="f13 fw6 mb-3">服务交付概览</div>
+          <div class="grid cols-2" style="gap:10px">
+            ${UI.panel('数据更新',`<div class="num fw7 text-success">${DB.util.ri(85,99)}%</div>`,{})}
+            ${UI.panel('项目导入',`<div class="num fw7 text-primary">${DB.util.ri(8,42)} 个</div>`,{})}
+          </div>
+          <div class="mt-4" style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="UI.toast('续约提醒已推送至客户经理','ok')">发起续约</button><button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button></div>`,
+          {width:'560px'});
+      },
+    },
+    sub:{
+      hint:'订阅账号：二级平台/园区/研究院的标准版、专业版、权限账号订阅',
+      fields:[{key:'edition',label:'订阅版本',options:[...new Set(SUB.map(c=>c.edition))]},
+              {key:'status',label:'状态',options:[...new Set(SUB.map(c=>c.status))]}],
+      rows:()=>SUB,
+      filter:(rows,v)=>rows.filter(r=>(!v.edition||r.edition===v.edition)&&(!v.status||r.status===v.status)&&(!v._q||r.name.includes(v._q))),
+      columns:[
+        {key:'id',title:'编号'},
+        {key:'name',title:'订阅单位',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'edition',title:'版本',render:r=>UI.tag(r.edition, r.edition==='专业版'?'purple':r.edition==='标准版'?'blue':'gray')},
+        {key:'accounts',title:'账号数',sortVal:r=>r.accounts,render:r=>money(r.accounts)},
+        {key:'amount',title:'年费(万)',sortVal:r=>r.amount,render:r=>money(r.amount)},
+        {key:'expire',title:'到期日'},
+        {key:'status',title:'状态',render:r=>stTag(r.status)},
+      ],
+      drawer:r=>{
+        UI.drawer(r.name, UI.descList([
+          ['编号',r.id],['订阅版本',UI.tag(r.edition,'purple')],['授权账号',r.accounts+' 个'],
+          ['年度费用',`<span class="num text-primary fw7">${r.amount}</span> 万元`],
+          ['到期日期',r.expire],['当前状态',stTag(r.status)],
+        ]) + `<div class="divider"></div><div class="f13 fw6 mb-3">账号使用情况</div>
+          ${UI.bar(DB.util.ri(55,95),'var(--primary)')}<div class="f12 text-mute mt-2">月活跃账号占比</div>
+          <div class="mt-4" style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="UI.toast('扩容申请已提交','ok')">账号扩容</button><button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button></div>`,
+          {width:'520px'});
+      },
+    },
+    ord:{
+      hint:'任务包订单：产业分析/成果项目化/企业画像/招商识别等任务包式 AI 服务订单',
+      fields:[{key:'status',label:'状态',options:[...new Set(ORD.map(c=>c.status))]}],
+      rows:()=>ORD,
+      filter:(rows,v)=>rows.filter(r=>(!v.status||r.status===v.status)&&(!v._q||r.task.includes(v._q)||r.client.includes(v._q))),
+      columns:[
+        {key:'id',title:'订单号'},
+        {key:'task',title:'任务包',render:r=>`<span class="fw6">${r.task}</span>`},
+        {key:'client',title:'客户',render:r=>r.client},
+        {key:'amount',title:'金额(万)',sortVal:r=>parseFloat(r.amount),render:r=>money(r.amount)},
+        {key:'date',title:'下单日期'},
+        {key:'status',title:'状态',render:r=>stTag(r.status)},
+      ],
+      drawer:r=>{
+        UI.drawer(r.task, UI.descList([
+          ['订单号',r.id],['任务包',r.task],['下单客户',r.client],
+          ['订单金额',`<span class="num text-primary fw7">${r.amount}</span> 万元`],
+          ['下单日期',r.date],['交付状态',stTag(r.status)],
+        ]) + `<div class="divider"></div><div class="f13 fw6 mb-3">交付物</div>
+          <div class="text-dim f13" style="line-height:1.8">· 分析报告（PDF）<br>· 结构化数据清单<br>· AI 智能体溯源链路</div>
+          <div class="mt-4" style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="UI.toast('交付物已重新下发','ok')">下载交付物</button><button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button></div>`,
+          {width:'520px'});
+      },
+    },
+  };
+
+  function renderTab(tab){
+    curTab=tab; const def=tabDefs[tab];
+    document.getElementById('tabHint').textContent=def.hint;
+    filterApi=UI.filterBar('#filter',{fields:def.fields,search:true,searchPh:'搜索名称...',onChange:apply});
+    const rows=def.filter(def.rows(),{});
+    tableApi=UI.table('#tbl',{columns:def.columns,rows,pageSize:8,onRow:def.drawer,empty:'暂无台账记录'});
+  }
+  function apply(){
+    const def=tabDefs[curTab];
+    tableApi.update(def.filter(def.rows(),filterApi.read()));
+  }
+
+  UI.tabs('#ledgerTabs',[
+    {key:'mc',label:'托管客户 ('+MC.length+')'},
+    {key:'sub',label:'订阅账号 ('+SUB.length+')'},
+    {key:'ord',label:'任务包订单 ('+ORD.length+')'},
+  ], renderTab);
+
+  document.getElementById('btnExport').onclick=()=>UI.toast('当前台账已导出为 Excel','ok');
+  document.getElementById('btnNew').onclick=()=>UI.toast('新建台账表单已打开','ok');
+
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['参股/校属企业','活动与赛事']));
+})();
+</script>
+</body></html>

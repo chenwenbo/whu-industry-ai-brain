@@ -1,0 +1,206 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数据底座总览 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="data-foundation">
+<main class="wuda-view">
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>数据资产底座总览</div>
+      <div class="page-sub">8 类数据域统一汇聚 · 元数据治理 · 血缘与质量监测 · 一切智能的地基</div></div>
+    <div style="display:flex;gap:9px">
+      <a class="btn btn-sm" href="data-catalog.html"><i data-lucide="library"></i> 数据资产目录</a>
+      <button class="btn btn-sm btn-primary" id="btnSync">⟳ 触发全量同步</button>
+    </div>
+  </div>
+
+  <!-- 5 联 KPI -->
+  <div class="grid cols-5" id="kpis"></div>
+
+  <!-- 健康度仪表 + 数据域占比 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1.15fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>综合数据健康度</div><div class="tools"><span class="panel-tag">实时评估</span></div></div>
+      <div class="chart h260" id="gaugeHealth"></div>
+      <div class="grid cols-3" style="gap:8px;margin-top:2px" id="healthDims"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>各域数据量占比</div><div class="tools"><span class="panel-tag">单位：万条</span></div></div>
+      <div class="chart h340" id="pieRecords"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>底座关键指标</div></div>
+      <div id="quickStats"></div>
+    </div>
+  </div>
+
+  <!-- 8 类数据域资产矩阵 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>8 类数据域资产矩阵</div>
+      <div class="tools"><span class="panel-tag">点击域卡查看明细</span></div></div>
+    <div class="grid cols-4 stagger" id="domainGrid"></div>
+  </div>
+
+  <!-- 近12月增长 + 同步任务 -->
+  <div class="grid mt-4" style="grid-template-columns:1.4fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>近 12 月数据量增长趋势</div>
+        <div class="tools"><span class="panel-tag">堆叠 · 万条累计入库</span></div></div>
+      <div class="chart h340" id="lineGrowth"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>同步任务监控</div><div class="tools" id="syncStat"></div></div>
+      <div id="syncTbl" style="max-height:340px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const D=DB.dataDomains, A=DB.dataAssets;
+  const totalTables=D.reduce((s,d)=>s+d.tables,0);
+  const totalRecords=D.reduce((s,d)=>s+d.records,0);
+  const avgHealth=(D.reduce((s,d)=>s+d.health,0)/D.length).toFixed(1);
+
+  // ---- KPI ----
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'数据表总数',value:256,unit:'张',delta:'12 张',deltaUp:true,icon:'<i data-lucide="database"></i>',spark:[210,218,224,230,238,242,246,250,252,254,255,256]}),
+    UI.kpi({label:'数据总量',value:'1,860',unit:'万条',delta:'2.1%',deltaUp:true,icon:'<i data-lucide="bar-chart-3"></i>',spark:[1480,1540,1580,1620,1670,1710,1750,1780,1810,1830,1850,1860]}),
+    UI.kpi({label:'数据域',value:8,unit:'类',delta:'全覆盖',deltaUp:true,icon:'<i data-lucide="puzzle"></i>',spark:[5,5,6,6,7,7,7,8,8,8,8,8]}),
+    UI.kpi({label:'平均健康度',value:'92.4',unit:'分',delta:'1.6',deltaUp:true,icon:'<i data-lucide="heart"></i>',spark:[86,87,88,88,89,90,90,91,91,92,92,92.4]}),
+    UI.kpi({label:'今日新增',value:'4,210',unit:'条',delta:'8.4%',deltaUp:true,icon:'<i data-lucide="zap"></i>',spark:[2100,2600,3100,2800,3400,3900,3600,4100,3800,4300,4000,4210]}),
+  ].join('');
+
+  // ---- 综合健康度仪表 ----
+  Charts.gauge('gaugeHealth',{value:92.4,name:'综合健康度',max:100,color:'#00FFA3'});
+  document.getElementById('healthDims').innerHTML=[
+    ['完整性',96,'#00E5FF'],['准确性',94,'#00FFA3'],['时效性',89,'#FFC857']
+  ].map(([n,v,c])=>`<div style="text-align:center;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:9px 4px">
+    <div class="num fw7" style="font-size:19px;color:${c}">${v}</div><div class="f12 text-dim">${n}</div></div>`).join('');
+
+  // ---- 各域数据量占比 ----
+  Charts.pie('pieRecords',{data:D.map(d=>({name:d.name,value:d.records})),ring:true,legend:true,center:['38%','52%']});
+
+  // ---- 底座关键指标 ----
+  const normalCnt=A.filter(a=>a.status==='正常').length, syncCnt=A.filter(a=>a.status==='同步中').length;
+  document.getElementById('quickStats').innerHTML=
+    UI.descList([
+      ['登记数据资产', `<span class="num text-primary fw7">${A.length}</span> 项`],
+      ['正常 / 同步中', `<span class="text-success fw7">${normalCnt}</span> / <span class="text-warning fw7">${syncCnt}</span>`],
+      ['日更数据域', `<span class="fw7">${D.filter(d=>d.freq==='日更'||d.freq==='实时').length}</span> 类（含实时）`],
+      ['最高健康度域', `${D.slice().sort((a,b)=>b.health-a.health)[0].name} <span class="text-success fw7">${D.slice().sort((a,b)=>b.health-a.health)[0].health}</span>`],
+      ['最近一次入库', `校友企业域 <span class="text-dim">6天前</span>`],
+    ])
+    + `<div class="divider"></div>`
+    + `<div class="f12 text-mute mb-3">敏感分级分布</div>`
+    + ['公开','内部','受限'].map(lv=>{
+        const c=D.filter(d=>d.sensitive===lv).length;
+        const col=lv==='受限'?'red':lv==='内部'?'blue':'green';
+        return `<div class="flex items-center justify-between" style="padding:6px 0"><span>${UI.tag(lv,col)}</span>
+          <div style="flex:1;margin:0 12px">${UI.bar(Math.round(c/D.length*100))}</div><span class="num text-dim">${c} 域</span></div>`;
+      }).join('');
+
+  // ---- 8 类数据域资产矩阵 ----
+  function ringHtml(v){ return `<div class="miniring" style="--p:${v};--primary:${v>=92?'var(--success)':v>=88?'var(--primary)':'var(--warning)'}"><span>${v}</span></div>`; }
+  function statusTag(s){ return s==='正常'?UI.light('g','正常'):s==='同步中'?`<span class="light y"><span class="o"></span>同步中</span>`:UI.light('r',s); }
+  document.getElementById('domainGrid').innerHTML=D.map(d=>`
+    <div class="ecard" data-id="${d.id}">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-3">
+          <span style="width:10px;height:34px;border-radius:4px;background:${d.color};box-shadow:0 0 12px ${d.color}"></span>
+          <div><div class="et">${d.name}</div><div class="em">${d.owner}</div></div>
+        </div>
+        ${ringHtml(d.health)}
+      </div>
+      <div class="grid cols-2 mt-3" style="gap:8px">
+        <div style="background:var(--panel-2);border-radius:8px;padding:8px 10px"><div class="num fw7" style="font-size:18px">${d.tables}</div><div class="f12 text-mute">数据表</div></div>
+        <div style="background:var(--panel-2);border-radius:8px;padding:8px 10px"><div class="num fw7 text-primary" style="font-size:18px">${d.records}<span class="f12">万</span></div><div class="f12 text-mute">数据量</div></div>
+      </div>
+      <div class="mt-3 flex justify-between items-center">
+        <div style="display:flex;gap:5px;align-items:center">${statusTag(d.status)} ${UI.tag(d.freq,'gray')}</div>
+        <span class="f12 text-mute">更新 ${d.updated}</span>
+      </div>
+    </div>`).join('');
+  document.querySelectorAll('#domainGrid .ecard').forEach(c=>c.onclick=()=>openDomain(+c.dataset.id));
+
+  function openDomain(id){
+    const d=D.find(x=>x.id===id);
+    const assets=A.filter(a=>a.domainId===id);
+    const upstream=DB.lineage.filter(l=>l.to===d.name), downstream=DB.lineage.filter(l=>l.from===d.name);
+    const sample=assets.slice(0,1)[0];
+    const body=`
+      <div class="flex items-center gap-3 mb-4">
+        <span style="width:12px;height:40px;border-radius:5px;background:${d.color};box-shadow:0 0 14px ${d.color}"></span>
+        <div><div class="fw7 f18">${d.name}域</div><div class="text-dim f13">责任方：${d.owner} · 敏感级：${d.sensitive} · 更新频率：${d.freq}</div></div>
+        <div style="margin-left:auto">${ringHtml(d.health)}</div>
+      </div>
+      <div class="grid cols-3" style="gap:9px">
+        ${[['数据表',d.tables+' 张'],['数据量',d.records+' 万条'],['最近更新',d.updated]].map(([k,v])=>
+          `<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px"><div class="f12 text-mute">${k}</div><div class="fw7 mt-2">${v}</div></div>`).join('')}
+      </div>
+      <div class="divider"></div>
+      <div class="fw6 mb-3"><i data-lucide="clipboard-list"></i> 域内数据表（${assets.length}）</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${assets.map(a=>`<div class="flex items-center justify-between" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+          <div><div class="fw6 f13">${a.name}</div><div class="f12 text-mute">${a.id} · ${a.fields} 字段 · ${a.records}</div></div>
+          <div style="text-align:right">${statusTag(a.status)}<div class="f12 text-mute mt-2">健康度 <span class="text-primary fw7">${a.health}</span></div></div>
+        </div>`).join('')}
+      </div>
+      <div class="divider"></div>
+      <div class="fw6 mb-3"><i data-lucide="microscope"></i> 字段样本（${sample?sample.name:''}）</div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>字段名</th><th>类型</th><th>说明</th></tr></thead><tbody>
+        ${[['record_id','VARCHAR','主键 · 唯一记录编号'],['domain_code','VARCHAR','所属数据域编码'],['name','VARCHAR','名称/标题'],['owner_org','VARCHAR','责任单位'],['updated_at','DATETIME','最近更新时间'],['data_status','ENUM','正常/同步中/异常']]
+          .map(r=>`<tr><td class="fw6">${r[0]}</td><td>${UI.tag(r[1],'purple')}</td><td class="text-dim">${r[2]}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="divider"></div>
+      <div class="fw6 mb-3"><i data-lucide="link"></i> 数据血缘</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        ${upstream.length?upstream.map(l=>`<div class="f13"><span class="tag tag-blue">上游</span> ${l.from} <span class="text-mute">— ${l.rel} →</span> <span class="text-primary fw6">${d.name}</span></div>`).join(''):''}
+        ${downstream.length?downstream.map(l=>`<div class="f13"><span class="tag tag-green">下游</span> <span class="text-primary fw6">${d.name}</span> <span class="text-mute">— ${l.rel} →</span> ${l.to}</div>`).join(''):''}
+        ${!upstream.length&&!downstream.length?'<div class="text-mute f13">该域为独立数据源，暂无血缘关系</div>':''}
+      </div>
+      <div class="divider"></div>
+      <div class="fw6 mb-3"><i data-lucide="refresh-cw"></i> 最近同步</div>
+      ${(()=>{const ts=DB.syncTasks.filter(t=>t.domain===d.name).slice(0,3);
+        return ts.length?UI.timeline(ts.map(t=>({time:t.time,type:'数据',txt:`${t.name} · ${t.status} · ${t.records.toLocaleString()}条 · 耗时${t.duration}`}))):'<div class="text-mute f13">暂无近期同步记录</div>';})()}
+    `;
+    UI.drawer(d.name+' · 数据域明细',body,{width:'640px'});
+  }
+
+  // ---- 近12月增长堆叠面积 ----
+  const months=Array.from({length:12},(_,i)=>(i+1)+'月');
+  const topDomains=D.slice().sort((a,b)=>b.records-a.records).slice(0,5);
+  Charts.line('lineGrowth',{x:months,stack:true,area:true,legend:true,smooth:true,
+    series:topDomains.map(d=>{
+      const end=d.records;
+      return {name:d.name,data:months.map((_,i)=>Math.round(end*(0.45+i*0.05)))};
+    })});
+
+  // ---- 同步任务 ----
+  const st=DB.syncTasks;
+  const run=st.filter(t=>t.status==='运行中').length, ok=st.filter(t=>t.status==='成功').length, fail=st.filter(t=>t.status==='失败').length;
+  document.getElementById('syncStat').innerHTML=`<span class="panel-tag" style="color:var(--success)">成功 ${ok}</span><span class="panel-tag" style="color:var(--warning)">运行 ${run}</span><span class="panel-tag" style="color:var(--danger)">失败 ${fail}</span>`;
+  document.getElementById('syncTbl').innerHTML=st.map(t=>{
+    const lc=t.status==='成功'?'g':t.status==='运行中'?'y':'r';
+    return `<div class="flex items-center justify-between" style="padding:11px 4px;border-bottom:1px solid var(--border)">
+      <div style="min-width:0;flex:1"><div class="fw6 f13" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.name}</div>
+        <div class="f12 text-mute">${t.domain} · ${t.records.toLocaleString()}条 · ${t.duration}</div></div>
+      <div style="text-align:right;white-space:nowrap;margin-left:10px">${UI.light(lc,t.status)}<div class="f12 text-mute mt-2">${t.time}</div></div>
+    </div>`;
+  }).join('');
+
+  // ---- 交互 ----
+  document.getElementById('btnSync').onclick=()=>UI.toast('已下发全量同步任务，8 个数据域排队执行中','ok');
+
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','活动与赛事']);
+})();</script>
+</body></html>

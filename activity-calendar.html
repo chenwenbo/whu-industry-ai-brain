@@ -1,0 +1,289 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>活动归口台账 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .cal-dow{text-align:center;font-size:12px;color:var(--text-mute);font-weight:600;padding:4px 0}
+  .cal-cell{min-height:104px;border:1px solid var(--border);border-radius:10px;padding:7px;background:var(--panel-2);position:relative;transition:.15s}
+  .cal-cell.other{opacity:.4}
+  .cal-cell.today{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary) inset}
+  .cal-cell .dnum{font-size:12px;font-weight:700;color:var(--text-dim);font-family:Oswald}
+  .cal-ev{display:block;font-size:11px;line-height:1.3;padding:3px 6px;border-radius:6px;margin-top:4px;cursor:pointer;color:#fff;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .cal-ev:hover{filter:brightness(1.08)}
+  .cal-more{font-size:11px;color:var(--primary);cursor:pointer;margin-top:3px;display:inline-block}
+</style>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="activity-calendar">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>活动归口台账</div>
+      <div class="page-sub">训练营 · 创新赛事 · 投融资对接会 · 科学家企业家交流 · 直播 · 政策宣讲 全口径统筹</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <div class="seg" id="viewSeg"><button class="on" data-v="cal"><i data-lucide="calendar"></i> 月历</button><button data-v="list"><i data-lucide="clipboard-list"></i> 列表</button></div>
+      <button class="btn btn-primary" id="btnNew">＋ 登记活动</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 筛选 -->
+  <div id="filter" class="mt-4"></div>
+
+  <!-- 月历 / 列表视图 -->
+  <div class="panel mt-3" id="calPanel">
+    <div class="panel-h">
+      <div class="t"><span class="bar"></span><span id="calTitle"></span></div>
+      <div class="tools" style="display:flex;align-items:center;gap:6px">
+        <button class="btn btn-sm btn-ghost" id="prevM">‹</button>
+        <button class="btn btn-sm btn-ghost" id="todayBtn">今天</button>
+        <button class="btn btn-sm btn-ghost" id="nextM">›</button>
+      </div>
+    </div>
+    <div id="legend" class="flex gap-3 mb-3" style="flex-wrap:wrap;font-size:12px;color:var(--text-dim)"></div>
+    <div id="calBody"></div>
+  </div>
+
+  <div class="panel mt-3" id="listPanel" style="display:none">
+    <div class="panel-h"><div class="t"><span class="bar"></span>活动列表</div>
+      <div class="tools"><span class="panel-tag" id="listCnt"></span></div></div>
+    <div id="listTbl"></div>
+  </div>
+
+  <!-- 图表 -->
+  <div class="grid cols-2 mt-4">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>活动类型分布</div></div>
+      <div class="chart h300" id="typePie"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>月度活动趋势</div>
+        <div class="tools"><span class="panel-tag">场次 / 报名</span></div></div>
+      <div class="chart h300" id="monBar"></div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const acts = DB.activities;
+  const D = DB.util;
+
+  // 类型 -> 颜色
+  const typeColor = {
+    '训练营':'#2b50b8','创新赛事':'#C0392B','投融资对接会':'#16a34a',
+    '科学家—企业家交流会':'#7c3aed','大咖直播':'#d97706','政策宣讲':'#0891b2'
+  };
+  const types = Object.keys(typeColor);
+
+  // ---------- KPI ----------
+  const totalEnroll = acts.reduce((s,a)=>s+a.enroll,0);
+  const totalLeads = acts.reduce((s,a)=>s+a.leads,0);
+  const monthSet = acts.filter(a=>a.date.startsWith('2026-06')||a.date.startsWith('2026-0'+(new Date().getMonth()+1)));
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'累计活动场次',value:DB.topKPI.activities,unit:'场',icon:'<i data-lucide="calendar"></i>',delta:'本季18场',deltaUp:true}),
+    UI.kpi({label:'在册活动(本系统)',value:acts.length,unit:'场',icon:'<i data-lucide="folder"></i>'}),
+    UI.kpi({label:'累计报名人次',value:totalEnroll.toLocaleString(),unit:'人',icon:'<i data-lucide="hand"></i>',spark:[120,180,220,260,310,360,420,480]}),
+    UI.kpi({label:'沉淀业务线索',value:totalLeads,unit:'条',icon:'<i data-lucide="target"></i>',delta:'转化率31%',deltaUp:true}),
+  ].join('');
+
+  // ---------- 图例 ----------
+  document.getElementById('legend').innerHTML = types.map(t=>
+    `<span class="flex items-center gap-2"><span style="width:11px;height:11px;border-radius:3px;background:${typeColor[t]};display:inline-block"></span>${t}</span>`).join('');
+
+  // ---------- 筛选 ----------
+  let filtered = acts.slice();
+  const fb = UI.filterBar('#filter', {
+    fields:[
+      {key:'type',label:'全部类型',options:types},
+      {key:'discipline',label:'全部学科',options:DB.disciplines.map(d=>d.name)},
+      {key:'status',label:'全部状态',options:['筹备中','报名中','已结束']},
+    ],
+    search:true, searchPh:'搜索活动名称...',
+    onChange:v=>{
+      filtered = acts.filter(a=>
+        (!v.type||a.type===v.type) &&
+        (!v.discipline||a.discipline===v.discipline) &&
+        (!v.status||a.status===v.status) &&
+        (!v._q||a.name.includes(v._q))
+      );
+      renderAll();
+    }
+  });
+
+  // ================= 月历 =================
+  // 数据集中在 2026 上半年 -> 默认显示 2026-03
+  let curY=2026, curM=2; // 0-based month (3月)
+  const monthName=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+  function actsOn(y,m,d){
+    const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    return filtered.filter(a=>a.date===ds);
+  }
+
+  function renderCalendar(){
+    document.getElementById('calTitle').textContent = `${curY}年 ${monthName[curM]} · 活动月历`;
+    const first = new Date(curY,curM,1);
+    const startDow = first.getDay(); // 0=Sun
+    const daysInMonth = new Date(curY,curM+1,0).getDate();
+    const prevDays = new Date(curY,curM,0).getDate();
+    const dows=['日','一','二','三','四','五','六'];
+
+    let html = `<div class="cal-grid">${dows.map(d=>`<div class="cal-dow">${d}</div>`).join('')}`;
+    const today = new Date();
+    const cells=[];
+    // 前置占位
+    for(let i=startDow-1;i>=0;i--) cells.push({d:prevDays-i, other:true, y:curM===0?curY-1:curY, m:curM===0?11:curM-1});
+    for(let d=1;d<=daysInMonth;d++) cells.push({d, other:false, y:curY, m:curM});
+    while(cells.length%7!==0) cells.push({d:cells.length-daysInMonth-startDow+1, other:true, y:curM===11?curY+1:curY, m:curM===11?0:curM+1});
+
+    cells.forEach(c=>{
+      const evs = c.other?[]:actsOn(c.y,c.m,c.d);
+      const isToday = c.y===today.getFullYear()&&c.m===today.getMonth()&&c.d===today.getDate();
+      let inner=`<div class="dnum">${c.d}</div>`;
+      evs.slice(0,2).forEach(a=>{
+        inner+=`<span class="cal-ev" data-id="${a.id}" style="background:${typeColor[a.type]}" title="${a.name}">${a.name.replace(/·第.*$/,'')}</span>`;
+      });
+      if(evs.length>2) inner+=`<span class="cal-more" data-day="${c.y}-${c.m}-${c.d}">+${evs.length-2} 更多</span>`;
+      html+=`<div class="cal-cell ${c.other?'other':''} ${isToday?'today':''}">${inner}</div>`;
+    });
+    html+=`</div>`;
+    document.getElementById('calBody').innerHTML = html;
+
+    // 绑定事件点击
+    document.querySelectorAll('#calBody .cal-ev').forEach(el=>el.onclick=()=>openActivity(el.dataset.id));
+    document.querySelectorAll('#calBody .cal-more').forEach(el=>el.onclick=()=>{
+      const [y,m,d]=el.dataset.day.split('-').map(Number);
+      const evs=actsOn(y,m,d);
+      UI.drawer(`${y}年${m+1}月${d}日 · ${evs.length}场活动`,
+        evs.map(a=>`<div class="ecard mb-3" style="cursor:pointer" onclick="window.__openAct('${a.id}')">
+          <div class="flex justify-between items-center"><div class="et">${a.name}</div>${statusTag(a.status)}</div>
+          <div class="em mt-2">${UI.tag(a.type,'gray')} · ${a.discipline} · ${a.venue}</div>
+        </div>`).join(''), {width:'460px'});
+    });
+  }
+
+  // ================= 列表 =================
+  let listApi=null;
+  function statusTag(s){ return UI.tag(s,{'已结束':'gray','报名中':'green','筹备中':'amber'}[s]||'blue'); }
+  function renderList(){
+    document.getElementById('listCnt').textContent = filtered.length+' 场活动';
+    const rows = filtered.slice().sort((a,b)=>a.date.localeCompare(b.date));
+    if(listApi){ listApi.update(rows); return; }
+    listApi = UI.table('#listTbl',{
+      columns:[
+        {key:'date',title:'日期',sortable:true,render:r=>`<span class="num f13">${r.date.slice(5)}</span>`},
+        {key:'name',title:'活动名称',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'type',title:'类型',render:r=>`<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:${typeColor[r.type]}"></span>${r.type}</span>`},
+        {key:'discipline',title:'学科',render:r=>r.discipline},
+        {key:'venue',title:'地点',render:r=>r.venue},
+        {key:'enroll',title:'报名',sortable:true,render:r=>`<span class="num">${r.enroll}</span>`},
+        {key:'leads',title:'线索',sortable:true,render:r=>`<span class="num text-primary fw7">${r.leads}</span>`},
+        {key:'status',title:'状态',render:r=>statusTag(r.status)},
+      ], rows, pageSize:10, onRow:r=>openActivity(r.id)
+    });
+  }
+
+  // ================= 图表 =================
+  let pieC, barC;
+  function renderCharts(){
+    const tc={}; filtered.forEach(a=>tc[a.type]=(tc[a.type]||0)+1);
+    Charts.pie('typePie',{data:types.filter(t=>tc[t]).map(t=>({name:t,value:tc[t]})), ring:true, legend:true, center:['40%','52%']});
+    // 月度趋势(按月聚合场次与报名)
+    const mo=Array.from({length:6},(_,i)=>({m:(i+1)+'月',cnt:0,enroll:0}));
+    filtered.forEach(a=>{ const mi=parseInt(a.date.slice(5,7))-1; if(mi>=0&&mi<6){mo[mi].cnt++;mo[mi].enroll+=a.enroll;} });
+    Charts.init('monBar',{
+      grid:{left:8,right:14,top:30,bottom:6,containLabel:true},
+      legend:{top:0,right:0,data:['场次','报名人次']},
+      tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+      xAxis:{type:'category',data:mo.map(x=>x.m)},
+      yAxis:[{type:'value',name:'场次'},{type:'value',name:'报名',splitLine:{show:false}}],
+      series:[
+        {name:'场次',type:'bar',barMaxWidth:26,data:mo.map(x=>x.cnt),itemStyle:{borderRadius:[4,4,0,0],color:Charts.grad('#2b50b8','rgba(43,80,184,.1)')}},
+        {name:'报名人次',type:'line',yAxisIndex:1,smooth:true,data:mo.map(x=>x.enroll),lineStyle:{width:2.4,color:'#d97706'},itemStyle:{color:'#d97706'}},
+      ]
+    });
+  }
+
+  // ---------- 活动详情抽屉 ----------
+  function openActivity(id){
+    const a = acts.find(x=>x.id===id); if(!a) return;
+    const conv = [
+      {name:'报名',value:a.enroll},{name:'签到',value:a.checkin},
+      {name:'线索',value:a.leads},{name:'项目',value:Math.max(1,a.projects)}
+    ];
+    UI.drawer(a.name, `
+      <div class="flex items-center gap-3 mb-3" style="flex-wrap:wrap">
+        ${UI.tag(a.type,'blue')} ${statusTag(a.status)} ${UI.tag(a.discipline,'gray')}
+      </div>
+      ${UI.descList([
+        ['活动日期',`<span class="num">${a.date}</span>`],
+        ['活动地点',a.venue],
+        ['面向学科',a.discipline],
+        ['报名 / 签到',`<span class="num text-primary fw7">${a.enroll}</span> / <span class="num fw7">${a.checkin}</span>`],
+        ['沉淀线索',`<span class="num fw7" style="color:var(--success)">${a.leads}</span> 条`],
+        ['转化项目',`<span class="num fw7">${a.projects}</span> 个`],
+      ])}
+      <div class="divider"></div>
+      <div class="panel-h" style="margin-bottom:8px"><div class="t" style="font-size:13px"><span class="bar"></span>受邀嘉宾</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${a.guests.map(g=>UI.chip(g,true)).join('')}</div>
+      <div class="divider"></div>
+      <div class="panel-h" style="margin-bottom:8px"><div class="t" style="font-size:13px"><span class="bar"></span>活动转化漏斗</div></div>
+      <div class="chart h220" id="drawerFunnel"></div>
+      <div class="mt-3" style="display:flex;gap:9px;justify-content:flex-end">
+        <button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button>
+        <a class="btn btn-primary btn-sm" href="activity-detail.html?id=${a.id}">查看完整详情 →</a>
+      </div>`, {width:'520px'});
+    setTimeout(()=>Charts.funnel('drawerFunnel',{data:conv}),60);
+  }
+  window.__openAct = id=>{ UI.closeDrawer(); setTimeout(()=>openActivity(id),320); };
+
+  // ---------- 视图切换 ----------
+  let view='cal';
+  function renderAll(){
+    if(view==='cal') renderCalendar(); else renderList();
+    renderCharts();
+  }
+  document.getElementById('viewSeg').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    [...document.querySelectorAll('#viewSeg button')].forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); view=b.dataset.v;
+    document.getElementById('calPanel').style.display = view==='cal'?'':'none';
+    document.getElementById('listPanel').style.display = view==='list'?'':'none';
+    renderAll();
+  });
+  document.getElementById('prevM').onclick=()=>{ curM--; if(curM<0){curM=11;curY--;} renderCalendar(); };
+  document.getElementById('nextM').onclick=()=>{ curM++; if(curM>11){curM=0;curY++;} renderCalendar(); };
+  document.getElementById('todayBtn').onclick=()=>{ const t=new Date(); curY=t.getFullYear(); curM=t.getMonth(); renderCalendar(); };
+
+  document.getElementById('btnNew').onclick=()=>{
+    UI.modal('＋ 登记活动', `
+      <div class="text-dim mb-3 f13">登记后活动将纳入归口台账，自动统计报名、签到与线索转化。</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="grid-column:1/3"><div class="f12 text-mute mb-2">活动名称</div><input type="text" placeholder="如：珞珈产业创新训练营·第9期" style="width:100%"></div>
+        <div><div class="f12 text-mute mb-2">活动类型</div><select style="width:100%">${types.map(t=>`<option>${t}</option>`).join('')}</select></div>
+        <div><div class="f12 text-mute mb-2">面向学科</div><select style="width:100%">${DB.disciplines.map(d=>`<option>${d.name}</option>`).join('')}</select></div>
+        <div><div class="f12 text-mute mb-2">举办日期</div><input type="text" placeholder="2026-07-15"></div>
+        <div><div class="f12 text-mute mb-2">举办地点</div><input type="text" placeholder="线上 / 园区名称"></div>
+      </div>`,
+      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button>
+        <button class="btn btn-primary btn-sm" onclick="UI.closeModal();UI.toast('活动已登记并纳入归口台账','ok')">登记</button>`});
+  };
+
+  renderAll();
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['活动与赛事','参股/校属企业','成果与专利']);
+})();</script>
+</body></html>

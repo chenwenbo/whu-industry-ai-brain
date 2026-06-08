@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI角色工作台 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  .wb-grid{display:grid;grid-template-columns:264px 1fr 320px;gap:14px;align-items:start}
+  .role-item{border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:.18s;margin-bottom:10px;background:var(--panel)}
+  .role-item:hover{border-color:var(--border-strong);transform:translateY(-2px)}
+  .role-item.on{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary),var(--glow);background:color-mix(in srgb,var(--primary) 8%,var(--panel))}
+  .role-ava{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:20px}
+  .chat-box{display:flex;flex-direction:column;height:calc(100vh - 188px);min-height:540px}
+  .chat-scroll{flex:1;overflow-y:auto;padding:4px 6px 4px 0}
+  .msg{display:flex;gap:10px;margin-bottom:18px;align-items:flex-start}
+  .msg .av{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:16px;flex-shrink:0}
+  .bubble{border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.7;max-width:88%}
+  .msg.me{flex-direction:row-reverse}
+  .msg.me .bubble{background:linear-gradient(120deg,var(--primary),var(--accent));color:#04122e;font-weight:500}
+  .msg.ai .bubble{background:var(--panel-2);border:1px solid var(--border)}
+  .msg.ai .av{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+  .msg.me .av{background:color-mix(in srgb,var(--primary) 22%,transparent)}
+  .gen-out{font-size:13px;line-height:1.75;color:var(--text)}
+  .gen-out b{color:var(--primary)}
+  .composer{border:1px solid var(--border);border-radius:14px;padding:10px;background:var(--panel);margin-top:10px}
+  .composer textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:13px;resize:none;outline:none;font-family:inherit;min-height:46px}
+  .composer textarea::placeholder{color:var(--text-mute)}
+  .cap-pill{font-size:11px;border:1px solid var(--border);border-radius:20px;padding:3px 10px;color:var(--text-dim)}
+  .prompt-rec{font-size:12px;border:1px dashed var(--border-strong);border-radius:9px;padding:8px 10px;cursor:pointer;color:var(--text-dim);transition:.16s;margin-bottom:7px;line-height:1.5}
+  .prompt-rec:hover{border-color:var(--primary);color:var(--text);border-style:solid}
+  .out-card{border:1px solid var(--border);border-radius:11px;padding:11px;margin-bottom:9px;cursor:pointer;transition:.16s;background:var(--panel)}
+  .out-card:hover{border-color:var(--primary);transform:translateY(-2px)}
+  .stat-chip{flex:1;text-align:center;padding:8px 4px;border:1px solid var(--border);border-radius:10px;background:var(--panel)}
+  .stat-chip .v{font-family:Oswald;font-size:20px;font-weight:700;color:var(--primary)}
+  .stat-chip .l{font-size:11px;color:var(--text-mute);margin-top:2px}
+  .typing-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--primary);margin:0 1px;animation:breathe 1.2s infinite}
+</style>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="ai-workbench">
+<main class="wuda-view">
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>AI角色工作台</div>
+    <div class="page-sub">三类AI角色协同作业 · 基于统一数据底座的产业研判 · 任务包式智能产出</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-ghost btn-sm" id="btnHistory"><i data-lucide="scroll-text"></i> 历史任务</button>
+      <button class="btn btn-sm" id="btnPrompts"><i data-lucide="sparkles"></i> Prompt 库</button>
+      <a class="btn btn-primary btn-sm" href="ai-tasks.html">任务中心 ▸</a>
+    </div>
+  </div>
+
+  <!-- 当前角色能力说明条 -->
+  <div class="panel glow" id="capBar" style="margin-bottom:14px;background:linear-gradient(110deg,rgba(0,229,255,.08),rgba(123,97,255,.05))"></div>
+
+  <div class="wb-grid">
+    <!-- 左栏:角色切换 -->
+    <div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>AI 角色</div></div>
+        <div id="roleList"></div>
+      </div>
+      <div class="panel" style="margin-top:14px">
+        <div class="panel-h"><div class="t"><span class="bar"></span>推荐 Prompt</div><div class="tools"><span class="panel-tag">按角色</span></div></div>
+        <div id="promptRec"></div>
+      </div>
+    </div>
+
+    <!-- 中栏:对话/任务区 -->
+    <div class="panel" style="display:flex;flex-direction:column">
+      <div class="panel-h"><div class="t"><span class="bar"></span><span id="chatTitle">对话作业区</span></div>
+        <div class="tools"><span class="panel-tag" id="chatStatus">● 就绪</span><span class="panel-tag" id="btnClear">清空</span></div></div>
+      <div class="chat-box">
+        <div class="chat-scroll" id="chatScroll"></div>
+        <div class="composer">
+          <textarea id="composerInput" placeholder="向当前 AI 角色下达任务，例如：分析具身智能赛道未来三年趋势并给出武大布局建议..."></textarea>
+          <div class="flex justify-between items-center mt-2">
+            <div style="display:flex;gap:6px" id="quickCaps"></div>
+            <button class="btn btn-primary btn-sm" id="btnSend">⏎ 生成任务包</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右栏:产出物面板 -->
+    <div>
+      <div class="panel glow">
+        <div class="panel-h"><div class="t"><span class="bar"></span>产出物 · 任务包</div><div class="tools"><span class="panel-tag" id="outCount">0</span></div></div>
+        <div class="flex gap-2 mb-3" id="outStats"></div>
+        <div id="outList" style="max-height:420px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="srcFoot"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  const D=DB, ri=D.util.ri, pick=D.util.pick, picks=D.util.picks;
+
+  // ---- 角色定义 ----
+  const ROLES = {
+    'AI分析师':{
+      key:'AI分析师', icon:'<i data-lucide="bar-chart-3"></i>', color:'var(--primary)',
+      title:'产业研判 · 赛道扫描 · 目标企业识别',
+      desc:'面向产业创新大脑，输出产业趋势报告、热点赛道清单与区域目标企业清单，为招商与布局决策提供依据。',
+      caps:['产业趋势研判','赛道清单生成','产业图谱构建','目标企业识别'],
+      sources:['产业企业与园区','成果与专利','活动与赛事'],
+      greet:'我是 AI 产业分析师。我已接入产业企业与园区、成果与专利、政策与赛道等数据域。请告诉我你想研判的产业方向，我将为你生成「产业报告 + 赛道清单 + 目标企业清单」任务包。',
+      gen:genAnalyst,
+    },
+    'AI技术经理人':{
+      key:'AI技术经理人', icon:'<i data-lucide="microscope"></i>', color:'var(--accent)',
+      title:'成果画像 · 转化路径 · 项目包装',
+      desc:'面向成果项目化，输出成果商业计划书要点、技术转化路径与路演要点，推动实验室成果向产业项目转化。',
+      caps:['成果画像生成','场景匹配分析','转化路径规划','项目BP包装','路演材料生成'],
+      sources:['成果与专利','学院与团队','参股/校属企业'],
+      greet:'我是 AI 技术经理人。我熟悉学校 5 大学科的成果与团队。把成果或方向交给我，我会输出「BP 要点 + 转化路径 + 路演要点」任务包，帮你把成果包装成可投可孵的产业项目。',
+      gen:genManager,
+    },
+    'AI投资人':{
+      key:'AI投资人', icon:'<i data-lucide="briefcase"></i>', color:'var(--success)',
+      title:'投资研判 · 估值测算 · 风险尽调',
+      desc:'面向资本协同，输出企业投资研判、估值区间、风险清单与尽调要点，辅助参股/孵化企业的投资与投后决策。',
+      caps:['企业投资研判','估值区间测算','投后风险扫描','尽调要点生成'],
+      sources:['参股/校属企业','产业企业与园区','成果与专利'],
+      greet:'我是 AI 投资人。我已对齐参股/校属企业台账、投后跟踪与风险预警数据。告诉我标的企业或赛道，我将输出「投资研判 + 估值区间 + 风险清单 + 尽调要点」任务包。',
+      gen:genInvestor,
+    },
+  };
+  const ROLE_KEYS=Object.keys(ROLES);
+  let current='AI分析师';
+  let busy=false;
+  const outputs=[]; // 本次会话产出的任务包 {id,title,role,billing,value,duration,sources,body,scope}
+
+  // ====== 产出文本生成器(结构化) ======
+  function genAnalyst(topic){
+    const trk = D.tracks[ri(0,D.tracks.length-1)];
+    const t2  = D.tracks[ri(0,D.tracks.length-1)];
+    const tgts = picks(D.targetEnterprises, 4);
+    const body =
+`【产业趋势研判 · ${topic}】\n`+
+`一、总体判断\n`+
+`• 该方向当前处于「${trk.stage}」，全国市场规模约 ${trk.market} 亿元，近一年增速 ${trk.growth}%，产业热度指数 ${trk.heat}。\n`+
+`• 武大学科契合度评估为 ${trk.fit} 分，已集聚相关企业 ${trk.ents} 家，具备从成果到产业的牵引基础。\n`+
+`• 近30天产业事件环比上升，建议在「核心零部件 + 行业大模型 + 中试场景」三条线协同布局。\n\n`+
+`二、热点赛道清单(TOP)\n`+
+`① ${trk.name} — 契合度 ${trk.fit} / 增速 ${trk.growth}% / 阶段 ${trk.stage}\n`+
+`② ${t2.name} — 契合度 ${t2.fit} / 增速 ${t2.growth}% / 阶段 ${t2.stage}\n`+
+`③ 关联衍生赛道(中试装备 / 数据服务 / 检测认证)具备配套机会。\n\n`+
+`三、区域目标企业清单\n`+
+tgts.map((e,i)=>`${i+1}. ${e.name}｜${e.discName}｜匹配度 ${e.match}｜${e.city}｜类型:${e.type}\n   契合理由:${e.reason}`).join('\n')+`\n\n`+
+`四、行动建议\n`+
+`• 优先启动 ${tgts[0].name} 的招商对接，由技术经理人配合输出成果匹配方案;\n`+
+`• 将 ${trk.name} 列入学校重点布局赛道,组织专题对接会;\n`+
+`• 输出可交付:产业报告(PDF) + 赛道清单(表) + 目标企业清单(表)。`;
+    return {body, value:(2.4+Math.random()*1.2).toFixed(1), billing:'任务包', dur:ri(3,9)+'分钟',
+      scope:`产业报告 / 赛道清单 / 目标企业清单 · ${topic}`};
+  }
+  function genManager(topic){
+    const a = D.achievements[ri(0,D.achievements.length-1)];
+    const a2 = D.achievements[ri(0,D.achievements.length-1)];
+    const body =
+`【成果项目化方案 · ${topic}】\n`+
+`一、成果画像\n`+
+`• 代表成果:《${a.title}》(${a.disciplineName}/${a.college})\n`+
+`• 负责人:${a.leader}｜TRL ${a.trl}｜专利 ${a.patents} 项｜论文 ${a.papers} 篇｜成熟度 ${a.maturity}\n`+
+`• 应用场景:${a.scenes.join('、')}｜估值参考 ${a.value} 万元｜场景匹配度 ${a.match}\n\n`+
+`二、BP 要点(商业计划书)\n`+
+`• 痛点:${a.disciplineName}行业核心环节存在性能/成本瓶颈;\n`+
+`• 解决方案:基于该成果的核心专利构建产品化方案,形成差异化壁垒;\n`+
+`• 市场:目标场景 ${a.scenes[0]},可延伸至 ${a.scenes.slice(1).join('、')||'相邻行业'};\n`+
+`• 团队:${a.leader} 领衔,具备工程化与产业化经验;\n`+
+`• 关联成果:可与《${a2.title}》形成技术互补。\n\n`+
+`三、转化路径(里程碑)\n`+
+`① 概念验证(0-3月):完成中试样机/小试验证,锁定首批场景客户;\n`+
+`② 项目立项(3-6月):成立项目公司,引入天使轮,申请专利布局;\n`+
+`③ 中试放大(6-12月):入驻加速器,完成产线小批量;\n`+
+`④ 产业化(12月+):规模量产 + 投融资协同放大。\n\n`+
+`四、路演要点\n`+
+`• 一句话:用「${a.title}」解决${a.scenes[0]}场景的关键瓶颈;\n`+
+`• 数据亮点:TRL ${a.trl}、专利 ${a.patents} 项、估值 ${a.value} 万、匹配度 ${a.match};\n`+
+`• 融资诉求:建议天使轮 ${ri(500,2000)} 万,用于中试与团队;\n`+
+`• 可交付:BP 要点 + 转化路径图 + 路演 Deck 大纲。`;
+    return {body, value:(0.8+Math.random()*1.0).toFixed(1), billing:'专项服务', dur:ri(4,12)+'分钟',
+      scope:`BP要点 / 转化路径 / 路演要点 · ${a.title}`};
+  }
+  function genInvestor(topic){
+    const cands = D.enterprises.filter(e=>e.equity>0);
+    const e = cands.length?cands[ri(0,cands.length-1)]:D.enterprises[ri(0,D.enterprises.length-1)];
+    const low = Math.round(e.valuation*0.78), high=Math.round(e.valuation*1.22);
+    const riskTxt = e.risk==='r'?'<span class="edot edot-r"></span> 高':e.risk==='y'?'<span class="edot edot-y"></span> 中':'<span class="edot edot-g"></span> 低';
+    const body =
+`【投资研判报告 · ${topic||e.name}】\n`+
+`一、标的概览\n`+
+`• 企业:${e.name}｜${e.disciplineName}｜${e.stage}｜成立 ${e.founded}年｜${e.city}${e.district}\n`+
+`• 营收 ${e.revenue} 万(增速 ${e.revGrowth}%)｜员工 ${e.employees} 人｜专利 ${e.patents} 项｜轮次 ${e.financingRound}\n`+
+`• 学校持股 ${e.equity}%｜综合评分 ${e.score}｜风险等级 ${riskTxt}\n\n`+
+`二、投资研判\n`+
+`• 赛道:处于${e.disciplineName}景气区间,技术由武大成果牵引,壁垒较强;\n`+
+`• 亮点:${(e.tags||[]).join('、')||'技术领先'};${e.revGrowth>30?'营收高速增长,':'营收稳健,'}具备成长性;\n`+
+`• 结论:${e.score>=80?'建议增持/重点跟踪':e.score>=68?'建议保持观察并辅导':'建议谨慎,优先投后纾困'}。\n\n`+
+`三、估值区间测算\n`+
+`• 账面估值 ${e.valuation.toLocaleString()} 万;\n`+
+`• 合理区间(可比法+收益法):${low.toLocaleString()} ~ ${high.toLocaleString()} 万;\n`+
+`• 对应学校持股 ${e.equity}% 账面价值约 ${Math.round(e.valuation*e.equity/100).toLocaleString()} 万。\n\n`+
+`四、风险清单\n`+
+(e.risk==='r'?'• <span class="edot edot-r"></span> 经营风险:营收连续下滑,需投后辅导;\n• <span class="edot edot-r"></span> 团队风险:核心团队稳定性待观察;\n':
+ e.risk==='y'?'• <span class="edot edot-y"></span> 财务风险:现金流偏紧,关注回款;\n• <span class="edot edot-y"></span> 市场风险:竞争加剧需差异化;\n':
+ '• <span class="edot edot-g"></span> 整体可控:经营稳健,常规跟踪即可;\n')+
+`• 通用:技术迭代、政策与合规、退出通道需持续评估。\n\n`+
+`五、尽调要点(清单)\n`+
+`① 财务:三年报表、回款与现金流、应收账款账龄;\n`+
+`② 技术:核心专利权属、与学校成果的作价关系;\n`+
+`③ 法务:股权结构、对赌条款、知识产权诉讼;\n`+
+`④ 市场:订单/在手合同、客户集中度;\n`+
+`⑤ 团队:核心成员锁定与激励安排。\n`+
+`可交付:投资研判 + 估值区间 + 风险清单 + 尽调清单。`;
+    return {body, value:(1.5+Math.random()*1.5).toFixed(1), billing:'任务包', dur:ri(5,14)+'分钟',
+      scope:`投资研判 / 估值区间 / 风险清单 / 尽调要点 · ${e.name}`};
+  }
+
+  // ====== 渲染:能力说明条 ======
+  function renderCap(){
+    const r=ROLES[current];
+    document.getElementById('capBar').innerHTML =
+      `<div class="flex items-center gap-4" style="flex-wrap:wrap">
+        <div class="role-ava" style="width:48px;height:48px;font-size:26px;background:color-mix(in srgb,${r.color} 18%,transparent)">${r.icon}</div>
+        <div style="flex:1;min-width:240px">
+          <div class="flex items-center gap-2"><span class="fw7 f18">${r.key}</span>${UI.tag(r.title,'blue')}</div>
+          <div class="text-dim f13 mt-2">${r.desc}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;max-width:420px">
+          ${r.caps.map(c=>`<span class="cap-pill"><i data-lucide="zap"></i> ${c}</span>`).join('')}
+        </div>
+      </div>`;
+  }
+  // ====== 渲染:角色列表 ======
+  function renderRoles(){
+    document.getElementById('roleList').innerHTML = ROLE_KEYS.map(k=>{
+      const r=ROLES[k]; const cnt=D.aiTasks.filter(t=>t.role===k).length;
+      return `<div class="role-item ${k===current?'on':''}" data-role="${k}">
+        <div class="flex items-center gap-3">
+          <div class="role-ava" style="background:color-mix(in srgb,${r.color} 18%,transparent)">${r.icon}</div>
+          <div style="flex:1"><div class="fw7 f13">${k}</div><div class="f12 text-mute">${r.caps.length} 项能力 · ${cnt} 历史任务</div></div>
+          ${k===current?'<span class="light g"><span class="o"></span>当前</span>':''}
+        </div></div>`;
+    }).join('');
+    document.querySelectorAll('#roleList .role-item').forEach(el=>el.onclick=()=>switchRole(el.dataset.role));
+  }
+  // ====== 渲染:推荐 prompt ======
+  function renderPromptRec(){
+    const r=ROLES[current];
+    // 基于角色能力 + DB.prompts 组合推荐
+    const recs = r.caps.map(c=>`针对「${c.replace(/(生成|分析|研判|规划|测算|扫描|识别|构建|包装)/,'')}」${c.includes('研判')||c.includes('分析')||c.includes('识别')||c.includes('扫描')?'，'+ (current==='AI分析师'?'生成产业报告与目标企业清单':current==='AI投资人'?'给出估值区间与风险清单':'输出BP要点与转化路径'):'，输出结构化任务包'}`)
+      .concat(D.prompts.slice(0,2));
+    document.getElementById('promptRec').innerHTML = recs.slice(0,5).map(p=>
+      `<div class="prompt-rec" data-p="${UI.esc(p)}"><i data-lucide="lightbulb"></i> ${p}</div>`).join('');
+    document.querySelectorAll('#promptRec .prompt-rec').forEach(el=>el.onclick=()=>{
+      const ta=document.getElementById('composerInput'); ta.value=el.dataset.p; ta.focus();
+    });
+    // 快捷能力胶囊(输入区)
+    document.getElementById('quickCaps').innerHTML = r.caps.slice(0,3).map(c=>`<span class="chip" data-cap="${UI.esc(c)}">${c}</span>`).join('');
+    document.querySelectorAll('#quickCaps .chip').forEach(el=>el.onclick=()=>{
+      document.getElementById('composerInput').value=el.dataset.cap+'：'; document.getElementById('composerInput').focus();
+    });
+  }
+  // ====== 切换角色 ======
+  function switchRole(k){
+    if(busy){ UI.toast('生成进行中,请稍候','warn'); return; }
+    if(k===current) return;
+    current=k;
+    renderCap(); renderRoles(); renderPromptRec();
+    document.getElementById('chatTitle').textContent = k+' · 对话作业区';
+    resetChat();
+    UI.toast('已切换为 '+k,'ok');
+  }
+
+  // ====== 对话区 ======
+  const scroll=()=>{const s=document.getElementById('chatScroll'); s.scrollTop=s.scrollHeight;};
+  function pushUser(text){
+    const s=document.getElementById('chatScroll');
+    const div=document.createElement('div'); div.className='msg me';
+    div.innerHTML=`<div class="av"><i data-lucide="hand"></i></div><div class="bubble">${UI.esc(text)}</div>`;
+    s.appendChild(div); scroll();
+  }
+  function pushAI(html, raw){
+    const s=document.getElementById('chatScroll');
+    const r=ROLES[current];
+    const div=document.createElement('div'); div.className='msg ai';
+    div.innerHTML=`<div class="av">${r.icon}</div><div class="bubble">${html}</div>`;
+    s.appendChild(div); scroll();
+    return div.querySelector('.bubble');
+  }
+  function resetChat(){
+    document.getElementById('chatScroll').innerHTML='';
+    pushAI(`<div class="text-dim f12 mb-2">${ROLES[current].key} · 已就绪</div>${UI.esc(ROLES[current].greet)}`);
+  }
+
+  // ====== 发送 / 流式生成 ======
+  function send(){
+    if(busy) return;
+    const ta=document.getElementById('composerInput');
+    let text=ta.value.trim();
+    if(!text){ UI.toast('请输入任务指令','warn'); return; }
+    pushUser(text); ta.value='';
+    busy=true;
+    document.getElementById('chatStatus').innerHTML='<span class="typing-dot"></span><span class="typing-dot" style="animation-delay:.2s"></span><span class="typing-dot" style="animation-delay:.4s"></span> 生成中';
+    document.getElementById('btnSend').disabled=true;
+
+    const r=ROLES[current];
+    const result = r.gen(text);
+    // 先放一个"正在调度数据域"的提示气泡
+    const meta = `<div class="f12 text-mute mb-2"><i data-lucide="link"></i> 已调度数据域：${r.sources.join(' · ')}　·　角色：${r.key}</div>`;
+    const bubble = pushAI(meta+'<div class="gen-out" id="liveOut"></div>');
+    const target = bubble.querySelector('#liveOut');
+    target.id=''; // 避免重复id
+
+    UI.typewriter(target, result.body, {speed:9, onDone:()=>{
+      // 高亮关键词
+      target.innerHTML = target.innerHTML
+        .replace(/【([^】]+)】/g,'【<b>$1</b>】')
+        .replace(/(一、|二、|三、|四、|五、)/g,'<b>$1</b>');
+      busy=false;
+      document.getElementById('chatStatus').innerHTML='● 就绪';
+      document.getElementById('btnSend').disabled=false;
+      // 生成任务包卡片
+      addOutput(result, text);
+      scroll();
+      UI.toast('任务包已生成，已存入产出物面板','ok');
+    }});
+  }
+
+  // ====== 产出物面板 ======
+  function addOutput(result, prompt){
+    const r=ROLES[current];
+    const id='TASK-'+r.key.slice(2,4)+'-'+(outputs.length+1)+''+Date.now().toString().slice(-3);
+    const item={id, title:result.scope.split(' · ')[1]||r.caps[0], role:r.key, icon:r.icon,
+      billing:result.billing, value:result.value, duration:result.dur,
+      sources:r.sources, body:result.body, scope:result.scope, prompt, time:'刚刚', status:'已交付'};
+    outputs.unshift(item);
+    renderOutputs();
+  }
+  function renderOutputs(){
+    document.getElementById('outCount').textContent=outputs.length;
+    // 统计
+    const delivered=outputs.length;
+    const totalVal=outputs.reduce((s,o)=>s+parseFloat(o.value),0).toFixed(1);
+    const roleSet=new Set(outputs.map(o=>o.role)).size;
+    document.getElementById('outStats').innerHTML=
+      `<div class="stat-chip"><div class="v">${delivered}</div><div class="l">本次产出</div></div>
+       <div class="stat-chip"><div class="v">${totalVal}</div><div class="l">价值(万)</div></div>
+       <div class="stat-chip"><div class="v">${roleSet}</div><div class="l">涉及角色</div></div>`;
+    if(!outputs.length){ document.getElementById('outList').innerHTML=UI.empty('暂无产出，向 AI 角色下达任务即可生成任务包'); return; }
+    document.getElementById('outList').innerHTML=outputs.map((o,i)=>
+      `<div class="out-card" data-i="${i}">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-2"><span style="font-size:16px">${o.icon}</span><span class="fw6 f13" style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${UI.esc(o.title)}</span></div>
+          ${UI.tag(o.status,'green')}
+        </div>
+        <div class="f12 text-mute mt-2">${o.role} · ${o.billing} · ${o.time}</div>
+        <div class="flex justify-between items-center mt-2">
+          <span class="num text-primary fw7">¥ ${o.value} 万</span>
+          <span class="f12 text-dim">展开详情 →</span>
+        </div>
+      </div>`).join('');
+    document.querySelectorAll('#outList .out-card').forEach(el=>el.onclick=()=>openOutput(outputs[+el.dataset.i]));
+  }
+  function openOutput(o){
+    const body=
+      `<div class="flex gap-2 mb-3" style="flex-wrap:wrap">
+        ${UI.tag(o.role,'blue')}${UI.tag(o.billing,'purple')}${UI.tag('耗时 '+o.duration,'gray')}${UI.tag('价值 '+o.value+' 万','amber')}
+      </div>
+      <div class="panel" style="margin:0 0 12px 0;background:var(--panel-2)">
+        ${UI.descList([
+          ['任务编号', '<span class="num">'+o.id+'</span>'],
+          ['交付范围', o.scope],
+          ['触发指令', '<span class="text-dim">'+UI.esc(o.prompt)+'</span>'],
+          ['生成时间', o.time],
+        ])}
+      </div>
+      <div class="panel-h"><div class="t"><span class="bar"></span>交付内容</div></div>
+      <div class="gen-out" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px;white-space:pre-wrap;max-height:340px;overflow:auto">${UI.esc(o.body).replace(/【([^】]+)】/g,'【<b style="color:var(--primary)">$1</b>】')}</div>
+      <div style="margin-top:14px">${UI.srcNote(o.sources)}</div>
+      <div class="flex gap-2 mt-3">
+        <button class="btn btn-primary btn-sm" id="dwOk"><i data-lucide="download"></i> 导出任务包</button>
+        <button class="btn btn-sm" id="dwReuse"><i data-lucide="recycle"></i> 复用到任务中心</button>
+        <button class="btn btn-ghost btn-sm" id="dwRegen">↻ 重新生成</button>
+      </div>`;
+    UI.drawer(o.title, body, {width:'640px'});
+    document.getElementById('dwOk').onclick=()=>UI.toast('任务包已导出(PDF)','ok');
+    document.getElementById('dwReuse').onclick=()=>UI.toast('已复用至 AI 任务中心','ok');
+    document.getElementById('dwRegen').onclick=()=>{UI.closeDrawer();UI.toast('请在对话区重新下达指令','warn');};
+  }
+
+  // ====== 历史任务 / Prompt 库 抽屉 ======
+  document.getElementById('btnHistory').onclick=()=>{
+    const rows=D.aiTasks.concat(D.analysisTasks.map(a=>({id:a.id,title:a.title,role:a.role,status:a.status,created:a.time,duration:'—',billing:'—',value:'—'})));
+    const statTag={'已交付':'green','生成中':'amber','待生成':'gray','已复用':'blue'};
+    const body=`<div class="f12 text-mute mb-3">三类 AI 角色累计执行的任务记录(数据底座单一真源)</div>
+      <div style="display:grid;gap:8px">${rows.map(t=>
+        `<div class="ecard" style="cursor:default;padding:11px">
+          <div class="flex justify-between items-center"><span class="fw6 f13">${UI.esc(t.title)}</span>${UI.tag(t.status,statTag[t.status]||'gray')}</div>
+          <div class="f12 text-mute mt-2">${t.id} · ${t.role} · ${t.created}${t.duration!=='—'?' · 耗时'+t.duration:''}</div>
+        </div>`).join('')}</div>`;
+    UI.drawer('历史任务', body, {width:'560px'});
+  };
+  document.getElementById('btnPrompts').onclick=()=>{
+    let html='';
+    ROLE_KEYS.forEach(k=>{
+      const r=ROLES[k];
+      html+=`<div class="panel-h" style="margin-top:8px"><div class="t"><span class="bar"></span>${r.icon} ${k}</div></div>`;
+      html+=r.caps.map(c=>`<div class="prompt-rec" style="cursor:pointer" data-go="${k}" data-cap="${UI.esc(c)}"><i data-lucide="lightbulb"></i> ${c} → 生成结构化任务包</div>`).join('');
+    });
+    UI.drawer('Prompt 库', html, {width:'560px'});
+    document.querySelectorAll('.drawer .prompt-rec[data-go]').forEach(el=>el.onclick=()=>{
+      UI.closeDrawer();
+      if(el.dataset.go!==current) switchRole(el.dataset.go);
+      const ta=document.getElementById('composerInput'); ta.value=el.dataset.cap+'：'; ta.focus();
+    });
+  };
+
+  // ====== 绑定 ======
+  document.getElementById('btnSend').onclick=send;
+  document.getElementById('btnClear').onclick=()=>{ if(busy){UI.toast('生成中无法清空','warn');return;} resetChat(); };
+  document.getElementById('composerInput').addEventListener('keydown',e=>{
+    if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); send(); }
+  });
+
+  // ====== 初始化 ======
+  renderCap(); renderRoles(); renderPromptRec(); resetChat(); renderOutputs();
+  document.getElementById('chatTitle').textContent = current+' · 对话作业区';
+  document.getElementById('srcFoot').innerHTML=UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','学院与团队']);
+})();
+</script>
+</body>
+</html>

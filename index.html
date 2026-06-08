@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>平台首页门户 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="index">
+<main class="wuda-view">
+  <!-- 欢迎横幅 -->
+  <div class="panel glow fade-in" style="display:flex;align-items:center;justify-content:space-between;gap:20px;background:linear-gradient(110deg,rgba(0,229,255,.10),rgba(123,97,255,.06));overflow:hidden;position:relative">
+    <div style="position:relative;z-index:1">
+      <div class="f12 text-primary fw6" style="letter-spacing:2px">WUHAN UNIVERSITY · INDUSTRY INNOVATION AI BRAIN PLATFORM</div>
+      <div style="font-size:26px;font-weight:800;margin:6px 0">欢迎回来，资产管理公司管理员 <i data-lucide="hand"></i></div>
+      <div class="text-dim">把分散科研资源转化为可组织、可运营、可放大的产业创新能力 —— 学校"产业创新操作系统"与"成果转化组织中枢"</div>
+    </div>
+    <div style="display:flex;gap:10px;position:relative;z-index:1">
+      <a class="btn btn-primary" href="cockpit-school.html">进入校级驾驶舱 ▸</a>
+      <a class="btn" href="brain-overview.html">产业创新大脑</a>
+    </div>
+  </div>
+
+  <!-- 核心 KPI -->
+  <div class="grid cols-4 mt-4" id="kpis"></div>
+
+  <!-- 架构图 + 动态 -->
+  <div class="grid mt-4" style="grid-template-columns:1.6fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>平台总体架构 · 1 + 1 + 3 + N</div>
+        <div class="tools"><span class="panel-tag">点击节点进入模块</span></div></div>
+      <div class="chart h480" id="archGraph"></div>
+      <div style="display:flex;justify-content:center;gap:20px;font-size:12px;color:var(--text-dim);margin-top:4px;flex-wrap:wrap">
+        <span><i data-lucide="database"></i> 1个数据资产底座</span><span><i data-lucide="brain"></i> 1个产业创新大脑</span><span><i data-lucide="bot"></i> 3类AI角色能力</span><span><i data-lucide="rocket"></i> N个业务场景</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>平台最新动态</div><div class="tools"><span class="panel-tag">实时</span></div></div>
+      <div id="feed" style="max-height:480px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- 模块快捷入口 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>核心功能模块</div></div>
+    <div class="grid cols-4 stagger" id="modGrid"></div>
+  </div>
+
+  <div class="src-note"><span class="d"></span>数据来源：高校产业数据资产底座 · 8类数据域统一汇聚（成果与专利、参股企业、产业企业与园区等）</div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  const k=DB.topKPI;
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'科技成果总数',value:k.achievements.toLocaleString(),unit:'项',delta:k.achGrowth+'%',deltaUp:true,icon:'<i data-lucide="microscope"></i>',spark:[42,48,46,55,52,61,58,66,63,70,72,78]}),
+    UI.kpi({label:'在孵 / 参股企业',value:k.enterprises,unit:'家',delta:k.entGrowth+'%',deltaUp:true,icon:'<i data-lucide="building-2"></i>',spark:[20,24,26,28,30,32,35,34,36,38,40,42]}),
+    UI.kpi({label:'对接产业伙伴',value:k.partners.toLocaleString(),unit:'家',delta:k.partnerGrowth+'%',deltaUp:true,icon:'<i data-lucide="handshake"></i>',spark:[60,68,72,80,84,92,98,104,110,118,124,132]}),
+    UI.kpi({label:'本年成果转化额',value:k.convAmount,unit:'亿元',delta:k.convGrowth+'%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[32,41,38,52,49,61,58,72,69,78,81,86]}),
+  ].join('');
+
+  document.getElementById('feed').innerHTML=UI.timeline(DB.platformActivities);
+
+  // 模块宫格
+  const mods=[
+    {t:'双驾驶舱',d:'校级 + 资产公司经营大屏',n:'2 大屏',u:'cockpit-school.html',i:'<i data-lucide="satellite"></i>'},
+    {t:'产业创新大脑',d:'趋势·路线·赛道·企业·项目',n:'5 能力',u:'brain-overview.html',i:'<i data-lucide="brain"></i>'},
+    {t:'AI角色工作台',d:'分析师·技术经理人·投资人',n:'3 角色',u:'ai-workbench.html',i:'<i data-lucide="bot"></i>'},
+    {t:'成果项目化',d:'遴选·画像·成熟度·项目包装',n:DB.achievements.length+' 成果',u:'achievement-library.html',i:'<i data-lucide="microscope"></i>'},
+    {t:'企业画像管理',d:'一企一档·成长台账·投后',n:DB.enterprises.length+' 企业',u:'enterprise-library.html',i:'<i data-lucide="building-2"></i>'},
+    {t:'园区载体管理',d:'空间·入驻·服务事项',n:DB.parks.length+' 园区',u:'park-list.html',i:'<i data-lucide="building"></i>'},
+    {t:'活动归口社群',d:'训练营·赛事·对接会·直播',n:DB.activities.length+' 活动',u:'activity-calendar.html',i:'<i data-lucide="calendar"></i>'},
+    {t:'OPC虚拟孵化',d:'线上社区·陪跑·服务菜单',n:DB.opcProjects.length+' 项目',u:'opc-community.html',i:'<i data-lucide="globe"></i>'},
+    {t:'数据资产底座',d:'8域统一汇聚·血缘·治理',n:'8 域 256 表',u:'data-foundation.html',i:'<i data-lucide="database"></i>'},
+    {t:'运营中心',d:'五类收入·目标·健康度',n:'5 类收入',u:'operations-center.html',i:'<i data-lucide="package"></i>'},
+    {t:'实施计划',d:'五个月建设甘特',n:'5 阶段',u:'implementation-plan.html',i:'<i data-lucide="calendar-days"></i>'},
+    {t:'竞品对标',d:'清华·浙大·上交差异化',n:'3 标杆',u:'competitive-analysis.html',i:'<i data-lucide="scale"></i>'},
+  ];
+  document.getElementById('modGrid').innerHTML=mods.map(m=>`<a class="ecard" href="${m.u}" style="text-decoration:none">
+    <div class="flex items-center gap-3"><div style="width:42px;height:42px;border-radius:11px;display:grid;place-items:center;font-size:21px;background:color-mix(in srgb,var(--primary) 14%,transparent)">${m.i}</div>
+      <div style="flex:1"><div class="et">${m.t}</div><div class="em">${m.d}</div></div></div>
+    <div class="mt-3 flex justify-between items-center"><span class="tag tag-blue">${m.n}</span><span class="text-primary f12">进入 →</span></div></a>`).join('');
+
+  // ---- 1+1+3+N 架构图 ----
+  const P={primary:'#00E5FF',accent:'#7B61FF',green:'#00FFA3',amber:'#FFC857'};
+  const nodes=[
+    {name:'高校产业\n数据资产底座',x:50,y:6,size:62,c:P.green,cat:'底座',url:'data-foundation.html'},
+    {name:'产业创新大脑',x:50,y:40,size:78,c:P.primary,cat:'大脑',url:'brain-overview.html'},
+    {name:'AI分析师',x:18,y:62,size:40,c:P.accent,cat:'AI角色',url:'ai-workbench.html'},
+    {name:'AI技术经理人',x:50,y:64,size:40,c:P.accent,cat:'AI角色',url:'ai-workbench.html'},
+    {name:'AI投资人',x:82,y:62,size:40,c:P.accent,cat:'AI角色',url:'ai-workbench.html'},
+    {name:'成果项目化',x:8,y:92,size:30,c:P.amber,cat:'业务场景',url:'achievement-library.html'},
+    {name:'企业画像',x:29,y:96,size:30,c:P.amber,cat:'业务场景',url:'enterprise-library.html'},
+    {name:'园区载体',x:50,y:98,size:30,c:P.amber,cat:'业务场景',url:'park-list.html'},
+    {name:'活动社群',x:71,y:96,size:30,c:P.amber,cat:'业务场景',url:'activity-calendar.html'},
+    {name:'OPC孵化',x:92,y:92,size:30,c:P.amber,cat:'业务场景',url:'opc-community.html'},
+  ];
+  const idx=n=>nodes.findIndex(x=>x.name===n);
+  const links=[
+    ['高校产业\n数据资产底座','产业创新大脑'],
+    ['产业创新大脑','AI分析师'],['产业创新大脑','AI技术经理人'],['产业创新大脑','AI投资人'],
+    ['AI分析师','成果项目化'],['AI分析师','企业画像'],
+    ['AI技术经理人','成果项目化'],['AI技术经理人','园区载体'],['AI技术经理人','活动社群'],
+    ['AI投资人','企业画像'],['AI投资人','OPC孵化'],['AI投资人','活动社群'],
+    ['产业创新大脑','成果项目化'],['产业创新大脑','OPC孵化'],
+  ];
+  const c=echarts.init(document.getElementById('archGraph'),'wuda-dark');
+  c.setOption({
+    tooltip:{formatter:p=>p.dataType==='node'?p.data.cat:''},
+    series:[{type:'graph',layout:'none',roam:false,coordinateSystem:null,
+      data:nodes.map(n=>({name:n.name,x:n.x*10,y:n.y*6,symbolSize:n.size,url:n.url,cat:n.cat,
+        itemStyle:{color:n.c,shadowBlur:24,shadowColor:n.c,borderWidth:n.cat==='大脑'?3:0,borderColor:'#fff'},
+        label:{show:true,color:'#eaf4ff',fontSize:n.size>50?13:11,fontWeight:n.size>50?700:500,lineHeight:14}})),
+      links:links.map(l=>({source:idx(l[0]),target:idx(l[1]),
+        lineStyle:{color:'#3aa0ff',opacity:.45,width:1.6,curveness:.06}})),
+      emphasis:{focus:'adjacency',lineStyle:{width:3,opacity:.9}},
+    }]});
+  c.on('click',p=>{ if(p.dataType==='node'&&p.data.url)location.href=p.data.url; });
+  window.addEventListener('resize',()=>c.resize());
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>线索池CRM · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="leads">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>线索池 CRM · 客户与项目线索管理</div>
+      <div class="page-sub">归集活动赛事、社群运营、平台访问等多渠道线索，分类管理客户线索与成果项目线索，支撑商机转化与项目入池</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnImport">⤓ 导入线索</button>
+      <button class="btn btn-primary btn-sm" id="btnNew">＋ 新建线索</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- Tabs -->
+  <div class="panel mt-4">
+    <div id="tabs"></div>
+
+    <!-- ===== 客户线索 ===== -->
+    <div id="paneCustomer">
+      <div class="grid mt-4" style="grid-template-columns:1.05fr 1.9fr;gap:18px">
+        <div class="panel" style="margin:0">
+          <div class="panel-h"><div class="t"><span class="bar"></span>客户线索转化漏斗</div><div class="tools"><span class="panel-tag">按阶段</span></div></div>
+          <div class="chart h340" id="custFunnel"></div>
+        </div>
+        <div class="panel" style="margin:0">
+          <div class="panel-h" style="flex-wrap:wrap;gap:12px">
+            <div class="t"><span class="bar"></span>客户线索清单 <span class="tag tag-gray" id="custCnt"></span></div>
+          </div>
+          <div id="custFilter"></div>
+          <div id="custTable" class="mt-4"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 项目线索 ===== -->
+    <div id="paneProject" style="display:none">
+      <div class="grid mt-4" style="grid-template-columns:1.05fr 1.9fr;gap:18px">
+        <div class="panel" style="margin:0">
+          <div class="panel-h"><div class="t"><span class="bar"></span>项目线索评分分布</div><div class="tools"><span class="panel-tag">0-100</span></div></div>
+          <div class="chart h340" id="projScore"></div>
+        </div>
+        <div class="panel" style="margin:0">
+          <div class="panel-h" style="flex-wrap:wrap;gap:12px">
+            <div class="t"><span class="bar"></span>项目线索清单 <span class="tag tag-gray" id="projCnt"></span></div>
+          </div>
+          <div id="projFilter"></div>
+          <div id="projTable" class="mt-4"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const CL = DB.customerLeads, PL = DB.projectLeads;
+
+  // ---------- KPI ----------
+  const custVal = CL.reduce((s,c)=>s+c.value,0);
+  const projVal = PL.reduce((s,p)=>s+p.value,0);
+  const inProgress = CL.filter(c=>c.stage!=='已签约'&&c.stage!=='初步接触').length + PL.filter(p=>p.stage!=='线索'&&p.stage!=='已入池').length;
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'客户线索数',value:CL.length,unit:'条',delta:'9.2%',deltaUp:true,icon:'<i data-lucide="target"></i>',spark:[12,16,15,20,22,26,25,30,32,35,38,40]}),
+    UI.kpi({label:'项目线索数',value:PL.length,unit:'条',delta:'6.5%',deltaUp:true,icon:'<i data-lucide="microscope"></i>',spark:[8,10,9,12,14,16,15,18,20,22,26,30]}),
+    UI.kpi({label:'预计商机价值',value:((custVal+projVal)/10000).toFixed(2),unit:'亿元',delta:'14.1%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[20,28,26,35,33,44,52,49,58,61,70,78]}),
+    UI.kpi({label:'转化推进中',value:inProgress,unit:'条',delta:'8.0%',deltaUp:true,icon:'<i data-lucide="handshake"></i>',spark:[6,9,8,11,13,12,16,18,17,20,22,25]}),
+  ].join('');
+
+  // ---------- 阶段徽章 ----------
+  function custStageBadge(s){
+    const map={'初步接触':'gray','需求确认':'blue','方案沟通':'purple','商务谈判':'amber','已签约':'green'};
+    return UI.tag(s, map[s]||'gray');
+  }
+  function projStageBadge(s){
+    const map={'线索':'gray','初筛':'blue','尽调':'purple','拟立项':'amber','已入池':'green'};
+    return UI.tag(s, map[s]||'gray');
+  }
+  function intentTag(s){
+    const map={'托管运营':'blue','平台订阅':'green','任务包采购':'purple','专业服务':'amber','投资协同':'red'};
+    return UI.tag(s, map[s]||'gray');
+  }
+
+  // ---------- 客户线索漏斗 ----------
+  const custStages=['初步接触','需求确认','方案沟通','商务谈判','已签约'];
+  Charts.funnel('custFunnel',{
+    data:custStages.map(s=>({name:s,value:CL.filter(c=>c.stage===s).length}))
+  });
+
+  // ---------- 客户线索抽屉 ----------
+  function custDrawer(c){
+    const body = `
+      <div class="grid cols-2" style="gap:10px;margin-bottom:16px">
+        ${UI.entityCard({title:'意向类型',meta:intentTag(c.intent),onclick:''})}
+        ${UI.entityCard({title:'预计价值',meta:`<span class="num fw7 text-success f18">${c.value.toLocaleString()}</span> 万元`,onclick:''})}
+      </div>
+      ${UI.panel('线索详情', UI.descList([
+        ['线索编号', `<span class="num">${c.id}</span>`],
+        ['客户名称', UI.esc(c.name)],
+        ['联系人', UI.esc(c.contact)],
+        ['客户类型', UI.tag(c.type,'blue')],
+        ['意向需求', intentTag(c.intent)],
+        ['当前阶段', custStageBadge(c.stage)],
+        ['线索来源', UI.esc(c.source)],
+        ['负责人', UI.esc(c.owner)],
+      ]))}
+      ${UI.panel('跟进时间线', UI.timeline([
+        {time:'今天 10:24',type:'合作',txt:c.owner+' 更新跟进记录：'+c.stage+'，客户对'+c.intent+'方案反馈积极'},
+        {time:'3天前',type:'活动',txt:'通过「'+c.source+'」沉淀该线索，初步评估意向价值 '+c.value+' 万元'},
+        {time:'5天前',type:'数据',txt:'系统自动归集线索并分配至 '+c.owner},
+      ]))}
+      <div style="display:flex;gap:9px;margin-top:6px">
+        <button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('已记录跟进，阶段推进一步','ok')">推进阶段</button>
+        <button class="btn btn-sm" onclick="UI.closeDrawer();UI.toast('已分派技术经理人对接','ok')">分派对接人</button>
+        <button class="btn btn-ghost btn-sm" onclick="UI.closeDrawer()">关闭</button>
+      </div>`;
+    UI.drawer(`<div class="page-title" style="font-size:18px">${UI.esc(c.name)}</div><div class="page-sub" style="margin-top:4px">${c.id} · ${c.type}</div>`, body, {width:'620px'});
+  }
+
+  // ---------- 客户线索筛选 ----------
+  let custCur = CL.slice();
+  UI.filterBar('#custFilter',{
+    fields:[
+      {key:'type',label:'全部类型',options:[...new Set(CL.map(c=>c.type))]},
+      {key:'intent',label:'全部意向',options:[...new Set(CL.map(c=>c.intent))]},
+      {key:'stage',label:'全部阶段',options:custStages},
+    ],
+    search:true, searchPh:'搜索客户 / 联系人 / 负责人...',
+    onChange:v=>{
+      custCur = CL.filter(c=>{
+        if(v.type && c.type!==v.type) return false;
+        if(v.intent && c.intent!==v.intent) return false;
+        if(v.stage && c.stage!==v.stage) return false;
+        if(v._q){const q=v._q.toLowerCase();if(!(c.name+c.contact+c.owner+c.source).toLowerCase().includes(q))return false;}
+        return true;
+      });
+      document.getElementById('custCnt').textContent='共 '+custCur.length+' 条';
+      custTbl.update(custCur);
+    }
+  });
+  const custTbl = UI.table('#custTable',{
+    columns:[
+      {key:'name',title:'客户名称',sortable:false,render:r=>`<div class="fw6">${UI.esc(r.name)}</div><div class="f12 text-mute">${r.id}</div>`},
+      {key:'contact',title:'联系人'},
+      {key:'type',title:'类型',render:r=>UI.tag(r.type,'blue')},
+      {key:'intent',title:'意向',render:r=>intentTag(r.intent)},
+      {key:'value',title:'价值(万)',sortVal:r=>r.value,render:r=>`<span class="num fw7" style="color:var(--success)">${r.value.toLocaleString()}</span>`},
+      {key:'stage',title:'阶段',render:r=>custStageBadge(r.stage)},
+      {key:'source',title:'来源',sortable:false,render:r=>`<span class="f12 text-mute">${UI.esc(r.source)}</span>`},
+      {key:'owner',title:'负责人'},
+      {key:'_op',title:'操作',sortable:false,render:r=>`<span class="text-primary f12 pointer">查看 →</span>`},
+    ],
+    rows:custCur, pageSize:10,
+    onRow:r=>custDrawer(r),
+    empty:'未匹配到客户线索'
+  });
+  document.getElementById('custCnt').textContent='共 '+custCur.length+' 条';
+
+  // ---------- 项目线索评分分布 ----------
+  const buckets=[['55-65',55,65],['66-75',66,75],['76-85',76,85],['86-95',86,95]];
+  Charts.bar('projScore',{
+    x:buckets.map(b=>b[0]+'分'),
+    series:[{name:'项目数',data:buckets.map(b=>PL.filter(p=>p.score>=b[1]&&p.score<=b[2]).length)}]
+  });
+
+  // ---------- 项目线索抽屉 ----------
+  function projDrawer(p){
+    const body=`
+      <div class="grid cols-2" style="gap:10px;margin-bottom:16px">
+        ${UI.entityCard({title:'综合评分',meta:`<span class="num fw7 text-primary f22">${p.score}</span> <span class="text-mute">/ 100</span>`,onclick:''})}
+        ${UI.entityCard({title:'预计转化价值',meta:`<span class="num fw7 text-success f18">${p.value.toLocaleString()}</span> 万元`,onclick:''})}
+      </div>
+      ${UI.panel('项目详情', UI.descList([
+        ['线索编号', `<span class="num">${p.id}</span>`],
+        ['项目名称', UI.esc(p.name)],
+        ['所属学科', UI.tag(p.discipline,'blue')],
+        ['团队', UI.esc(p.team)],
+        ['当前阶段', projStageBadge(p.stage)],
+        ['评分', `<div class="flex items-center gap-2" style="justify-content:flex-end"><div style="width:80px">${UI.bar(p.score)}</div><span class="num fw7">${p.score}</span></div>`],
+        ['来源', UI.esc(p.source)],
+        ['负责人', UI.esc(p.owner)],
+      ]))}
+      ${UI.panel('AI 项目化评估建议', `
+        <div class="text-dim f13" style="line-height:1.7">
+          基于「AI技术经理人」对该成果的初步研判：技术成熟度与<b class="text-primary">${p.discipline}</b>赛道契合度较好，建议进入<b>成果项目化</b>阶段，优先完成 TRL 复核与商业计划书包装，并匹配场景龙头企业进行需求验证。
+        </div>`)}
+      <div style="display:flex;gap:9px;margin-top:6px">
+        <button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('已推送至成果项目化流程','ok')">推进项目化</button>
+        <button class="btn btn-sm" onclick="UI.closeDrawer();UI.toast('已加入项目储备池','ok')">加入储备池</button>
+        <button class="btn btn-ghost btn-sm" onclick="UI.closeDrawer()">关闭</button>
+      </div>`;
+    UI.drawer(`<div class="page-title" style="font-size:18px">${UI.esc(p.name)}</div><div class="page-sub" style="margin-top:4px">${p.id} · ${p.discipline}</div>`, body, {width:'620px'});
+  }
+
+  // ---------- 项目线索筛选 ----------
+  const projStages=['线索','初筛','尽调','拟立项','已入池'];
+  let projCur = PL.slice();
+  UI.filterBar('#projFilter',{
+    fields:[
+      {key:'disc',label:'全部学科',options:[...new Set(PL.map(p=>p.discipline))]},
+      {key:'stage',label:'全部阶段',options:projStages},
+    ],
+    search:true, searchPh:'搜索项目 / 团队 / 负责人...',
+    onChange:v=>{
+      projCur = PL.filter(p=>{
+        if(v.disc && p.discipline!==v.disc) return false;
+        if(v.stage && p.stage!==v.stage) return false;
+        if(v._q){const q=v._q.toLowerCase();if(!(p.name+p.team+p.owner+p.source).toLowerCase().includes(q))return false;}
+        return true;
+      });
+      document.getElementById('projCnt').textContent='共 '+projCur.length+' 条';
+      projTbl.update(projCur);
+    }
+  });
+  const projTbl = UI.table('#projTable',{
+    columns:[
+      {key:'name',title:'项目名称',sortable:false,render:r=>`<div class="fw6">${UI.esc(r.name)}</div><div class="f12 text-mute">${r.id}</div>`},
+      {key:'discipline',title:'学科',render:r=>UI.tag(r.discipline,'blue')},
+      {key:'team',title:'团队'},
+      {key:'score',title:'评分',sortVal:r=>r.score,render:r=>`<div class="flex items-center gap-2"><div style="width:54px">${UI.bar(r.score)}</div><span class="num fw7 f12">${r.score}</span></div>`},
+      {key:'value',title:'价值(万)',sortVal:r=>r.value,render:r=>`<span class="num fw7" style="color:var(--success)">${r.value.toLocaleString()}</span>`},
+      {key:'stage',title:'阶段',render:r=>projStageBadge(r.stage)},
+      {key:'source',title:'来源',sortable:false,render:r=>`<span class="f12 text-mute">${UI.esc(r.source)}</span>`},
+      {key:'owner',title:'负责人'},
+      {key:'_op',title:'操作',sortable:false,render:r=>`<span class="text-primary f12 pointer">查看 →</span>`},
+    ],
+    rows:projCur, pageSize:10,
+    onRow:r=>projDrawer(r),
+    empty:'未匹配到项目线索'
+  });
+  document.getElementById('projCnt').textContent='共 '+projCur.length+' 条';
+
+  // ---------- Tabs ----------
+  UI.tabs('#tabs',[{key:'customer',label:'客户线索'},{key:'project',label:'项目线索'}],key=>{
+    document.getElementById('paneCustomer').style.display = key==='customer'?'':'none';
+    document.getElementById('paneProject').style.display = key==='project'?'':'none';
+  });
+
+  // ---------- 操作按钮 ----------
+  document.getElementById('btnImport').onclick=()=>UI.toast('已从活动 / 社群渠道导入新线索，等待清洗去重','ok');
+  document.getElementById('btnNew').onclick=()=>{
+    UI.modal('新建线索', `
+      <div class="text-dim mb-3">选择线索类型并填写关键信息，系统将自动分配负责人并进入跟进流程。</div>
+      <div class="grid cols-2" style="gap:10px">
+        ${UI.entityCard({title:'客户线索',meta:'政府/园区 · 龙头企业 · 投资机构 · 行业协会等',onclick:''})}
+        ${UI.entityCard({title:'项目线索',meta:'科技成果转化项目 · 团队创业项目',onclick:''})}
+      </div>`,
+      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-primary btn-sm" onclick="UI.closeModal();UI.toast('线索已创建并进入待跟进队列','ok')">创建并跟进</button>`});
+  };
+
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['活动与赛事','参股/校属企业','成果与专利']);
+})();</script>
+</body></html>

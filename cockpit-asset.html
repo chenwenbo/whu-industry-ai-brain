@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>资产公司经营驾驶舱 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="cockpit-asset">
+<main class="wuda-view">
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>资产管理公司经营驾驶舱</div>
+      <div class="page-sub">统一台账 · 股权穿透 · 园区运营 · 收入分析 · 投后风险预警 —— 把分散科研资源沉淀为可经营、可放大的产业创新资产</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <span class="light g">数据已对齐 · 30分钟前</span>
+      <button class="btn btn-sm" id="btnExport"><i data-lucide="download"></i> 导出经营简报</button>
+      <button class="btn btn-sm btn-primary" id="btnReport"><i data-lucide="bar-chart-3"></i> 生成董事会月报</button>
+    </div>
+  </div>
+
+  <!-- 顶部经营 KPI 带 -->
+  <div class="grid cols-6 mt-2" id="kpis"></div>
+
+  <!-- 第一行：股权穿透 treemap + sankey -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1.25fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>股权资产穿透 · 按学科分布</div>
+        <div class="tools"><span class="panel-tag">账面值(万)</span></div></div>
+      <div class="chart h420" id="equityTreemap"></div>
+    </div>
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>国资股权链路 · 学校 → 资产公司 → 学科 → 参股企业</div>
+        <div class="tools"><span class="panel-tag" id="sankeyMeta"></span></div></div>
+      <div class="chart h420" id="equitySankey"></div>
+    </div>
+  </div>
+
+  <!-- 第二行：园区运营对比 + 现金流瀑布 -->
+  <div class="grid mt-4" style="grid-template-columns:1.5fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>六大园区运营对比</div>
+        <div class="tools"><div class="seg" id="parkSeg">
+          <button class="on" data-m="occupancy">出租率 %</button>
+          <button data-m="ents">入驻企业</button>
+          <button data-m="revenue">运营收入 万</button>
+          <button data-m="all">三维对比</button>
+        </div></div></div>
+      <div class="chart h340" id="parkBar"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>本年经营现金流 · 瀑布</div>
+        <div class="tools"><span class="panel-tag" id="cashMeta"></span></div></div>
+      <div class="chart h340" id="cashWaterfall"></div>
+    </div>
+  </div>
+
+  <!-- 第三行：五类服务收入结构 + 近12月收入趋势 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1.6fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>五类服务收入结构</div>
+        <div class="tools"><span class="panel-tag" id="revTotalMeta"></span></div></div>
+      <div class="chart h300" id="revPie"></div>
+      <div id="revTargets" style="margin-top:6px"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>近12个月收入趋势 · 五类业务堆叠</div>
+        <div class="tools"><span class="panel-tag">单位：万元</span></div></div>
+      <div class="chart h340" id="revTrend"></div>
+    </div>
+  </div>
+
+  <!-- 第四行：投后风险红黄绿灯台账 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>投后风险红黄绿灯台账 · 统一穿透管理</div>
+      <div class="tools" id="riskStat"></div></div>
+    <div id="riskFilter"></div>
+    <div id="riskTable" class="mt-3"></div>
+  </div>
+
+  <!-- 第五行：活动转化漏斗 + 风险预警实时流 -->
+  <div class="grid mt-4" style="grid-template-columns:1.1fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>年度活动经营转化漏斗</div>
+        <div class="tools"><span class="panel-tag" id="actMeta"></span></div></div>
+      <div class="chart h340" id="actFunnel"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>风险预警工作台 · 待处置事项</div>
+        <div class="tools"><span class="panel-tag" id="alertMeta"></span></div></div>
+      <div id="alertFeed" style="max-height:340px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  const fmt=n=>Number(n).toLocaleString();
+  const PARKS=DB.parks, PI=DB.postInvest, RT=DB.revenueTypes, TREND=DB.revenueTrend;
+
+  // ====== 顶部经营 KPI ======
+  const totalArea = PARKS.reduce((s,p)=>s+p.area,0);
+  const totalEnts = PARKS.reduce((s,p)=>s+p.ents,0);
+  const avgOcc = Math.round(PARKS.reduce((s,p)=>s+p.occupancy,0)/PARKS.length);
+  const bookSum = PI.reduce((s,p)=>s+p.bookValue,0);          // 万
+  const revSum = RT.reduce((s,r)=>s+r.amount,0);              // 万
+  const acts = DB.activities.length;
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'管理园区载体',value:PARKS.length,unit:'个',delta:'1 异地',deltaUp:true,icon:'<i data-lucide="building"></i>',spark:[3,3,4,4,5,5,5,6,6,6,6,6]}),
+    UI.kpi({label:'在管运营面积',value:totalArea.toFixed(1),unit:'万㎡',delta:'8.2%',deltaUp:true,icon:'<i data-lucide="ruler"></i>',spark:[31,34,36,38,40,42,43,44,45,46,47,48]}),
+    UI.kpi({label:'入驻企业总数',value:totalEnts,unit:'家',delta:'6.4%',deltaUp:true,icon:'<i data-lucide="building-2"></i>',spark:[280,300,312,322,330,340,348,352,358,362,366,369]}),
+    UI.kpi({label:'综合平均出租率',value:avgOcc,unit:'%',delta:'3.1%',deltaUp:true,icon:'<i data-lucide="key"></i>',spark:[68,70,71,72,74,75,76,76,77,77,78,78]}),
+    UI.kpi({label:'股权资产账面总值',value:(bookSum/10000).toFixed(1),unit:'亿元',delta:'11.5%',deltaUp:true,icon:'<i data-lucide="gem"></i>',spark:[32,35,37,39,40,42,43,44,45,46,46,47]}),
+    UI.kpi({label:'年度市场化收入',value:(revSum/10000).toFixed(2),unit:'亿元',delta:'12.7%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[3.2,4.1,3.8,5.2,4.9,6.1,5.8,6.6,6.3,7.0,7.1,7.3]}),
+  ].join('');
+
+  // ====== 股权穿透 treemap ======
+  Charts.treemap('equityTreemap',{data:DB.equityTree.children.map(c=>({
+    name:c.name,
+    value:(c.children||[]).reduce((s,x)=>s+(x.value||0),0),
+    children:c.children
+  }))});
+
+  // ====== 股权链路 sankey：学校→资产公司→学科→参股企业 ======
+  (function(){
+    const eq=DB.enterprises.filter(e=>e.equity>0);
+    const ROOT='武汉大学', ASSET='资产管理公司';
+    const nodes=[{name:ROOT},{name:ASSET}];
+    const seen={[ROOT]:1,[ASSET]:1};
+    const add=n=>{ if(!seen[n]){seen[n]=1;nodes.push({name:n});} };
+    const links=[];
+    // 学校 → 资产公司（账面总值）
+    links.push({source:ROOT,target:ASSET,value:Math.round(bookSum/100)});
+    // 资产公司 → 各学科（账面值汇总）
+    const byDisc={};
+    eq.forEach(e=>{ const bv=Math.round(e.valuation*e.equity/100); byDisc[e.disciplineName]=(byDisc[e.disciplineName]||0)+bv; });
+    Object.keys(byDisc).forEach(d=>{ add(d); links.push({source:ASSET,target:d,value:Math.round(byDisc[d]/100)}); });
+    // 学科 → 参股企业（取每学科账面值 top3，避免节点过密）
+    DB.disciplines.forEach(d=>{
+      const list=eq.filter(e=>e.disciplineName===d.name)
+        .map(e=>({n:e.name.length>10?e.name.slice(0,9)+'…':e.name, v:Math.round(e.valuation*e.equity/100)}))
+        .sort((a,b)=>b.v-a.v).slice(0,3);
+      list.forEach(x=>{ add(x.n); links.push({source:d.name,target:x.n,value:Math.round(x.v/100)}); });
+    });
+    Charts.sankey('equitySankey',{nodes,links});
+    document.getElementById('sankeyMeta').textContent=eq.length+' 家参股/校属企业 · 单位:百万';
+  })();
+
+  // ====== 园区运营对比 bar ======
+  const parkX=PARKS.map(p=>p.name.replace('武汉大学','').replace('·','').replace('（主园区）','主园区').slice(0,8));
+  const parkChart={
+    occupancy:()=>Charts.bar('parkBar',{x:parkX,series:[{name:'出租率%',data:PARKS.map(p=>p.occupancy)}]}),
+    ents:()=>Charts.bar('parkBar',{x:parkX,series:[{name:'入驻企业',data:PARKS.map(p=>p.ents)}]}),
+    revenue:()=>Charts.bar('parkBar',{x:parkX,series:[{name:'运营收入(万)',data:PARKS.map(p=>p.revenue)}]}),
+    all:()=>Charts.bar('parkBar',{x:parkX,legend:true,series:[
+      {name:'入驻企业(家)',data:PARKS.map(p=>p.ents)},
+      {name:'出租率(%)',data:PARKS.map(p=>p.occupancy)},
+      {name:'运营收入(百万)',data:PARKS.map(p=>Math.round(p.revenue/100))},
+    ]}),
+  };
+  parkChart.occupancy();
+  document.querySelectorAll('#parkSeg button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('#parkSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); parkChart[b.dataset.m]();
+  });
+
+  // ====== 现金流瀑布 ======
+  Charts.waterfall('cashWaterfall',{data:DB.cashflow});
+  (function(){
+    let acc=0; DB.cashflow.forEach((d,i)=>{ if(i<DB.cashflow.length-1) acc+=d.v; });
+    document.getElementById('cashMeta').textContent='期末净额 '+fmt(acc)+' 万';
+  })();
+
+  // ====== 五类服务收入结构 pie + 目标完成度 ======
+  Charts.pie('revPie',{data:RT.map(r=>({name:r.key,value:r.amount})),ring:true,legend:true,center:['38%','52%']});
+  document.getElementById('revTotalMeta').textContent='合计 '+fmt(revSum)+' 万 / 年';
+  document.getElementById('revTargets').innerHTML=RT.map(r=>{
+    const pct=Math.round(r.amount/r.target*100);
+    return `<div class="flex items-center gap-3" style="padding:5px 0">
+      <span style="width:9px;height:9px;border-radius:3px;background:${r.color};flex:none"></span>
+      <span class="f12" style="width:78px;flex:none">${r.key}</span>
+      <div style="flex:1">${UI.bar(Math.min(pct,100),r.color)}</div>
+      <span class="num f12 ${pct>=100?'text-success':'text-dim'}" style="width:42px;text-align:right">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  // ====== 近12月收入趋势 stack line ======
+  const keys=['托管运营','平台订阅','任务包式AI','专业服务','投资协同'];
+  Charts.line('revTrend',{
+    x:TREND.map(t=>t.month),
+    legend:true, stack:true, area:true, smooth:true,
+    series:keys.map(k=>({name:k,data:TREND.map(t=>t[k])})),
+  });
+
+  // ====== 投后风险红黄绿灯台账 ======
+  const riskOrder={r:0,y:1,g:2};
+  const riskRows=PI.slice().sort((a,b)=>riskOrder[a.risk]-riskOrder[b.risk] || b.bookValue-a.bookValue);
+  // 统计
+  const rc=PI.reduce((m,p)=>{m[p.risk]=(m[p.risk]||0)+1;return m;},{});
+  document.getElementById('riskStat').innerHTML=
+    `<span class="light r">预警 ${rc.r||0}</span> <span class="light y">关注 ${rc.y||0}</span> <span class="light g">正常 ${rc.g||0}</span>`;
+
+  const riskFb=UI.filterBar('#riskFilter',{
+    fields:[
+      {key:'risk',label:'全部风险等级',options:['预警','关注','正常']},
+      {key:'stage',label:'全部投后阶段',options:[...new Set(PI.map(p=>p.stage))]},
+    ],
+    search:true, searchPh:'搜索企业名称…',
+    onChange:vals=>applyRiskFilter(vals),
+  });
+  const riskColumns=[
+    {key:'ent',title:'参股 / 校属企业',render:r=>`<div class="fw6">${UI.esc(r.ent)}</div><div class="f12 text-mute">${r.entId}</div>`,sortVal:r=>r.ent},
+    {key:'equity',title:'持股%',render:r=>`<span class="num">${r.equity}%</span>`,sortVal:r=>r.equity},
+    {key:'bookValue',title:'账面值(万)',render:r=>`<span class="num fw6">${fmt(r.bookValue)}</span>`,sortVal:r=>r.bookValue},
+    {key:'stage',title:'投后阶段',render:r=>UI.tag(r.stage,r.stage==='拟退出'?'amber':r.stage==='增资扩股'?'purple':'blue')},
+    {key:'kpi',title:'经营健康度',render:r=>`<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:60px">${UI.bar(r.kpi,r.kpi>=80?'var(--success)':r.kpi>=65?'var(--warning)':'var(--danger)')}</div><span class="num f12">${r.kpi}</span></div>`,sortVal:r=>r.kpi},
+    {key:'risk',title:'风险灯',render:r=>UI.light(r.risk),sortVal:r=>riskOrder[r.risk]},
+    {key:'op',title:'操作',sortable:false,render:r=>`<span class="text-primary f12 pointer">穿透详情 →</span>`},
+  ];
+  const riskTbl=UI.table('#riskTable',{
+    columns:riskColumns, rows:riskRows, pageSize:8,
+    onRow:r=>openRiskDrawer(r),
+    empty:'无符合条件的投后企业',
+  });
+  function applyRiskFilter(v){
+    const map={'预警':'r','关注':'y','正常':'g'};
+    let rows=riskRows;
+    if(v.risk) rows=rows.filter(r=>r.risk===map[v.risk]);
+    if(v.stage) rows=rows.filter(r=>r.stage===v.stage);
+    if(v._q){ const q=v._q.trim(); if(q) rows=rows.filter(r=>r.ent.includes(q)||r.entId.includes(q)); }
+    riskTbl.update(rows);
+  }
+  function openRiskDrawer(r){
+    const ent=DB.enterprises.find(e=>e.id===r.entId)||{};
+    const alerts=DB.riskAlerts.filter(a=>a.entId===r.entId);
+    const fins=DB.financings.filter(f=>f.entId===r.entId);
+    const head=`<div class="page-title" style="font-size:18px">${UI.esc(r.ent)} ${UI.light(r.risk)}</div>
+      <div class="page-sub" style="margin-top:2px">${r.entId} · ${ent.disciplineName||''} · ${ent.stage||''}</div>`;
+    const body=`
+      <div class="grid cols-2" style="gap:9px">
+        ${UI.kpi({label:'资产公司持股',value:r.equity,unit:'%',icon:'<i data-lucide="bar-chart-3"></i>'})}
+        ${UI.kpi({label:'股权账面值',value:fmt(r.bookValue),unit:'万',icon:'<i data-lucide="gem"></i>'})}
+        ${UI.kpi({label:'经营健康度',value:r.kpi,unit:'分',icon:'<i data-lucide="heart"></i>'})}
+        ${UI.kpi({label:'企业估值',value:fmt(ent.valuation||0),unit:'万',icon:'<i data-lucide="trending-up"></i>'})}
+      </div>
+      ${UI.panel('企业经营档案', UI.descList([
+        ['所属学科', UI.tag(ent.disciplineName||'—','blue')],
+        ['企业类型', UI.esc(ent.type||'—')],
+        ['所在园区', UI.esc(ent.park||'—')],
+        ['成立年份', (ent.founded||'—')+' 年'],
+        ['年营收', fmt(ent.revenue||0)+' 万 ('+(ent.revGrowth>=0?'+':'')+(ent.revGrowth||0)+'%)'],
+        ['融资轮次', UI.esc(ent.financingRound||'—')],
+        ['投后阶段', UI.tag(r.stage,'purple')],
+        ['上次报送', UI.esc(r.lastReport)],
+      ]),{tag:''})}
+      ${UI.panel('风险预警事项 ('+alerts.length+')',
+        alerts.length?alerts.map(a=>`<div class="flex items-center justify-between" style="padding:9px 0;border-bottom:1px solid var(--border)">
+          <div style="flex:1"><div class="flex items-center gap-2">${UI.light(a.level)} <span class="fw6">${UI.esc(a.type)}</span></div>
+            <div class="f12 text-dim mt-2">${UI.esc(a.desc)}</div></div>
+          <div style="text-align:right"><div class="f12 text-mute">${a.date}</div>${UI.tag(a.status,a.status==='已处理'?'green':a.status==='跟进中'?'amber':'red')}</div>
+        </div>`).join(''):UI.empty('暂无风险事项 · 投后稳定'),{glow:r.risk==='r'})}
+      ${fins.length?UI.panel('历史融资记录',UI.timeline(fins.map(f=>({time:f.date,type:'投资',txt:f.round+' · '+fmt(f.amount)+'万 · '+f.investor})))):''}
+      <div class="flex gap-3 mt-3">
+        <button class="btn btn-primary w-full" onclick="UI.toast('已向技术经理人派发投后辅导工单','ok');UI.closeDrawer()">派发投后辅导工单</button>
+        <button class="btn w-full" onclick="UI.toast('已生成该企业穿透分析报告','ok')">生成穿透报告</button>
+      </div>`;
+    UI.drawer(head, body, {width:'640px'});
+  }
+
+  // ====== 活动经营转化漏斗 ======
+  (function(){
+    const A=DB.activities;
+    const enroll=A.reduce((s,a)=>s+a.enroll,0);
+    const checkin=A.reduce((s,a)=>s+a.checkin,0);
+    const leads=A.reduce((s,a)=>s+a.leads,0);
+    const projects=A.reduce((s,a)=>s+a.projects,0);
+    const signed=DB.customerLeads.filter(l=>l.stage==='已签约').length
+               + DB.projectLeads.filter(l=>l.stage==='已入池').length;
+    Charts.funnel('actFunnel',{data:[
+      {name:'活动报名',value:enroll},
+      {name:'到场签到',value:checkin},
+      {name:'沉淀线索',value:leads},
+      {name:'立项项目',value:projects},
+      {name:'签约/入池',value:signed},
+    ]});
+    document.getElementById('actMeta').textContent=A.length+' 场活动 · 转化率 '+(signed/enroll*100).toFixed(1)+'%';
+  })();
+
+  // ====== 风险预警工作台 feed ======
+  (function(){
+    const pending=DB.riskAlerts.filter(a=>a.status!=='已处理');
+    const lvOrder={r:0,y:1,g:2};
+    const list=pending.slice().sort((a,b)=>lvOrder[a.level]-lvOrder[b.level] || b.date.localeCompare(a.date));
+    document.getElementById('alertMeta').textContent='待处置 '+pending.length+' / 总 '+DB.riskAlerts.length;
+    document.getElementById('alertFeed').innerHTML = list.length?list.map(a=>`
+      <div class="ecard" style="margin-bottom:8px;cursor:pointer" data-ent="${a.entId}">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">${UI.light(a.level)} <span class="tag tag-${a.type.includes('财务')?'amber':a.type.includes('团队')?'purple':a.type.includes('合规')?'red':'blue'}">${UI.esc(a.type)}</span></div>
+          <span class="f12 text-mute">${a.date}</span>
+        </div>
+        <div class="fw6 mt-2" style="font-size:13px">${UI.esc(a.ent)}</div>
+        <div class="f12 text-dim mt-2">${UI.esc(a.desc)}</div>
+        <div class="flex justify-between items-center mt-3">${UI.tag(a.status,a.status==='跟进中'?'amber':'red')}<span class="text-primary f12">查看企业 →</span></div>
+      </div>`).join(''):UI.empty('暂无待处置预警');
+    document.querySelectorAll('#alertFeed .ecard').forEach(card=>card.onclick=()=>{
+      const p=PI.find(x=>x.entId===card.dataset.ent);
+      if(p) openRiskDrawer(p); else UI.toast('该企业暂无投后台账记录','warn');
+    });
+  })();
+
+  // ====== 顶部操作按钮 ======
+  document.getElementById('btnExport').onclick=()=>UI.toast('经营简报已导出至下载中心','ok');
+  document.getElementById('btnReport').onclick=()=>{
+    UI.modal('生成董事会经营月报', `
+      <div class="text-dim mb-3">系统将基于统一台账自动汇总以下经营维度，生成可下载的董事会月报：</div>
+      <div class="grid cols-2" style="gap:9px">
+        ${UI.entityCard({title:'股权资产穿透',meta:'账面总值 '+(bookSum/10000).toFixed(1)+' 亿 · '+PI.length+' 家参股企业',tags:['国资监管','穿透到底']})}
+        ${UI.entityCard({title:'园区运营情况',meta:PARKS.length+' 园区 · 在管 '+totalArea.toFixed(1)+'万㎡ · 出租率 '+avgOcc+'%',tags:['载体运营']})}
+        ${UI.entityCard({title:'市场化收入',meta:'年度 '+(revSum/10000).toFixed(2)+' 亿 · 五类业务结构',tags:['收入分析']})}
+        ${UI.entityCard({title:'投后风险',meta:'预警 '+(rc.r||0)+' · 关注 '+(rc.y||0)+' · 正常 '+(rc.g||0),tags:['红黄绿灯']})}
+      </div>`,
+      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-sm btn-primary" onclick="UI.closeModal();UI.toast('董事会经营月报生成中，预计30秒','ok')">确认生成</button>`});
+  };
+
+  // ====== 数据来源脚注 ======
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['参股/校属企业','科技园与创意园','活动与赛事']);
+})();
+</script>
+</body>
+</html>

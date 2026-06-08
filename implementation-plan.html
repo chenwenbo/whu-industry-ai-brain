@@ -1,0 +1,142 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>五个月实施计划 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="implementation-plan">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>五个月实施计划</div>
+      <div class="page-sub">平台分五阶段建设 · 调研定稿 → 数据底座 → 原型开发 → AI角色 → 试运行验收</div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnMilestone"><i data-lucide="flag"></i> 里程碑视图</button>
+      <button class="btn btn-primary btn-sm" id="btnPlan"><i data-lucide="upload"></i> 导出实施方案</button>
+    </div>
+  </div>
+
+  <!-- 进度 KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 甘特图 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>实施甘特图 · 五个月建设路线</div>
+      <div class="tools"><span class="light g">已完成</span><span class="light y">进行中</span><span class="light r" style="filter:grayscale(1);opacity:.6">未开始</span></div></div>
+    <div class="chart h300" id="gantt"></div>
+  </div>
+
+  <!-- 五阶段时间线卡片 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>阶段任务详情</div><div class="tools"><span class="panel-tag text-mute f12">点击卡片查看交付物</span></div></div>
+    <div id="phaseCards"></div>
+  </div>
+
+  <!-- 里程碑列表 + 整体进度 -->
+  <div class="grid mt-4" style="grid-template-columns:1.5fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>关键里程碑</div></div>
+      <div id="milestones"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>整体建设进度</div></div>
+      <div class="chart h220" id="overallRing"></div>
+      <div class="divider"></div>
+      <div id="phaseProgress"></div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function(){
+  const P=DB.phases;
+  const done=P.filter(p=>p.status==='已完成').length;
+  const doing=P.filter(p=>p.status==='进行中').length;
+  const overall=Math.round(P.reduce((s,p)=>s+p.progress,0)/P.length);
+  const statusTag=s=>UI.tag(s, s==='已完成'?'green':s==='进行中'?'amber':'gray');
+  const statusColor=p=>p.progress===100?'var(--success)':p.progress>0?'var(--primary)':'var(--text-mute)';
+
+  // ---- KPI ----
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'整体建设进度',value:overall,unit:'%',delta:'按计划推进',deltaUp:true,icon:'<i data-lucide="bar-chart-3"></i>',spark:[10,22,40,52,60,62,62,62,62,62]}),
+    UI.kpi({label:'已完成阶段',value:done,unit:'/ 5',delta:'阶段一、二',deltaUp:true,icon:'<i data-lucide="check-circle"></i>'}),
+    UI.kpi({label:'进行中阶段',value:doing,unit:'个',delta:'阶段三 62%',deltaUp:true,icon:'<i data-lucide="hourglass"></i>'}),
+    UI.kpi({label:'建设总周期',value:5,unit:'个月',delta:'当前第 3 月',deltaUp:true,icon:'<i data-lucide="calendar-days"></i>'}),
+  ].join('');
+
+  // ---- 甘特 ----
+  Charts.gantt('gantt',{phases:P});
+
+  // ---- 阶段卡片(时间线) ----
+  document.getElementById('phaseCards').innerHTML=
+    `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px" id="pcg"></div>`;
+  document.getElementById('pcg').innerHTML=P.map((p,i)=>`
+    <div class="ecard" data-i="${i}" style="display:flex;flex-direction:column;border-top:3px solid ${statusColor(p)}">
+      <div class="flex justify-between items-center" style="margin-bottom:6px">
+        <span class="num fw7" style="font-size:22px;color:${statusColor(p)};font-family:var(--font-num)">0${i+1}</span>
+        ${statusTag(p.status)}
+      </div>
+      <div class="et" style="margin:0">${p.phase}</div>
+      <div class="em" style="margin:2px 0 8px">${p.month}</div>
+      <div class="f12 text-dim" style="line-height:1.6;flex:1;min-height:96px">${p.tasks}</div>
+      <div class="divider"></div>
+      <div class="f12 text-mute" style="margin-bottom:6px"><i data-lucide="package"></i> ${p.deliver}</div>
+      ${UI.bar(p.progress, statusColor(p))}
+      <div class="f12 text-mute mt-2" style="text-align:right">${p.progress}%</div>
+    </div>`).join('');
+  document.querySelectorAll('#pcg .ecard').forEach(c=>c.onclick=()=>showPhase(+c.dataset.i));
+
+  function showPhase(i){
+    const p=P[i];
+    const delivers=p.deliver.split('、');
+    UI.drawer(p.phase+' · '+p.month,
+      UI.descList([
+        ['阶段',p.phase],['时间',p.month],['状态',statusTag(p.status)],
+        ['进度',`<span class="num fw7" style="color:${statusColor(p)}">${p.progress}%</span>`],
+      ]) +
+      `<div class="divider"></div><div class="f13 fw6 mb-3">阶段重点任务</div>
+       <div class="text-dim f13" style="line-height:1.9">${p.tasks}</div>
+       <div class="divider"></div><div class="f13 fw6 mb-3">主要成果 / 交付物</div>
+       <div style="display:flex;flex-direction:column;gap:8px">
+         ${delivers.map(d=>`<div class="flex items-center gap-2" style="padding:9px 12px;background:var(--panel-2);border-radius:9px"><span style="color:${statusColor(p)}">▣</span><span class="f13 fw6">${d}</span></div>`).join('')}
+       </div>
+       <div class="mt-4"><button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button></div>`,
+      {width:'560px'});
+  }
+
+  // ---- 里程碑列表 ----
+  const milestones=P.map((p,i)=>({
+    time:p.month,
+    type: p.progress===100?'成果':p.progress>0?'活动':'数据',
+    txt:`${p.phase}：${p.deliver}（${p.status}）`,
+  }));
+  document.getElementById('milestones').innerHTML=UI.timeline(milestones);
+
+  // ---- 整体进度环 ----
+  Charts.progressRing('overallRing',{value:overall,color:'var(--primary)'});
+
+  // ---- 分阶段进度条 ----
+  document.getElementById('phaseProgress').innerHTML=P.map(p=>`
+    <div style="margin-bottom:11px">
+      <div class="flex justify-between f12" style="margin-bottom:4px">
+        <span class="fw6">${p.phase} · ${p.month}</span><span class="text-mute">${p.progress}%</span>
+      </div>
+      ${UI.bar(p.progress, statusColor(p))}
+    </div>`).join('');
+
+  // ---- 交互 ----
+  document.getElementById('btnPlan').onclick=()=>UI.toast('五个月实施方案已导出（含甘特、阶段任务、交付物清单）','ok');
+  document.getElementById('btnMilestone').onclick=()=>{ document.getElementById('milestones').scrollIntoView({behavior:'smooth'}); };
+
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['平台建设方案','项目实施计划']));
+})();
+</script>
+</body></html>

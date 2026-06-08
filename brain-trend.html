@@ -1,0 +1,179 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>产业趋势研判 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="brain-trend">
+<main class="wuda-view">
+  <div class="crumb"><a href="brain-overview.html">← 返回产业创新大脑</a></div>
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>产业趋势研判</div>
+      <div class="page-sub">追踪产业热度、技术热词、政策事件与技术成熟度曲线，识别布局窗口</div></div>
+    <div style="display:flex;gap:9px">
+      <div class="seg" id="rangeSeg"><button class="on" data-r="12">近12月</button><button data-r="6">近6月</button><button data-r="3">近3月</button></div>
+      <button class="btn btn-primary btn-sm" id="btnReport"><i data-lucide="brain"></i> 生成趋势报告</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 产业热度趋势 + 赛道热度榜 -->
+  <div class="grid mt-4" style="grid-template-columns:1.55fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>五大产业方向热度趋势</div><div class="tools"><span class="panel-tag" id="trendRangeTag">近 12 个月 · 热度指数</span></div></div>
+      <div class="chart h380" id="trendLine"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>赛道热度榜</div><div class="tools"><span class="panel-tag pointer" id="sortBy">按热度 ⇅</span></div></div>
+      <div id="trackRank" style="max-height:368px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- 技术热词云 + 政策事件时间线 -->
+  <div class="grid mt-4" style="grid-template-columns:1.25fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>技术热词云</div><div class="tools"><span class="panel-tag">近 30 天产业事件提取 · 点击下钻</span></div></div>
+      <div class="chart h340" id="wordCloud"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>政策与产业事件</div><div class="tools"><span class="panel-tag">按时间倒序</span></div></div>
+      <div id="policyTl" style="max-height:340px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- 技术成熟度曲线(Gartner) -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>技术成熟度曲线 · Gartner 式</div>
+      <div class="tools"><span class="panel-tag">X 成熟度阶段 · Y 市场期望 · 气泡 = 关注度</span></div></div>
+    <div class="chart h420" id="hypeChart"></div>
+    <div style="display:flex;justify-content:space-around;font-size:11px;color:var(--text-mute);margin-top:2px;flex-wrap:wrap">
+      <span>① 萌芽期</span><span>② 期望膨胀期</span><span>③ 泡沫破裂低谷期</span><span>④ 稳步爬升期</span><span>⑤ 生产成熟期</span>
+    </div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  // ---------- KPI ----------
+  const topHeat=[...DB.tracks].sort((a,b)=>b.heat-a.heat)[0];
+  const avgGrowth=Math.round(DB.tracks.reduce((s,t)=>s+t.growth,0)/DB.tracks.length);
+  const burst=DB.tracks.filter(t=>t.stage==='爆发期').length;
+  const policyOpen=DB.policyEvents.filter(p=>p.status==='可申报'||p.status==='申报中').length;
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'最热赛道',value:topHeat.name.length>6?topHeat.name.slice(0,6):topHeat.name,unit:'',delta:'热度 '+topHeat.heat,deltaUp:true,icon:'<i data-lucide="flame"></i>'}),
+    UI.kpi({label:'赛道平均增速',value:avgGrowth,unit:'%',delta:'同比加速',deltaUp:true,icon:'<i data-lucide="trending-up"></i>',spark:[28,31,30,35,38,41,44,48,52,55,58,62]}),
+    UI.kpi({label:'爆发期赛道',value:burst,unit:'个',delta:'高优窗口',deltaUp:true,icon:'<i data-lucide="zap"></i>'}),
+    UI.kpi({label:'可申报政策',value:policyOpen,unit:'项',delta:'窗口期',deltaUp:true,icon:'<i data-lucide="scroll-text"></i>'}),
+  ].join('');
+
+  // ---------- 五大产业方向热度趋势(造数) ----------
+  const months=Array.from({length:12},(_,i)=>(i+1)+'月');
+  const trendSeries={
+    '人工智能':[68,72,70,78,82,85,88,90,92,95,97,99],
+    '机器人':[55,58,62,66,70,75,80,84,88,90,93,96],
+    '生物医药':[72,70,74,73,76,78,77,80,79,82,81,80],
+    '半导体光芯片':[60,62,65,68,70,72,75,76,78,80,82,84],
+    '空间信息':[58,60,63,66,68,72,74,78,80,84,86,90],
+  };
+  let curRange=12;
+  function drawTrend(n){
+    const x=months.slice(12-n);
+    Charts.line('trendLine',{x, series:Object.keys(trendSeries).map(k=>({name:k,data:trendSeries[k].slice(12-n)})), area:false, smooth:true, legend:true});
+    document.getElementById('trendRangeTag').textContent='近 '+n+' 个月 · 热度指数';
+  }
+  drawTrend(12);
+  document.querySelectorAll('#rangeSeg button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('#rangeSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    curRange=+b.dataset.r; drawTrend(curRange);
+  });
+
+  // ---------- 赛道热度榜(可切排序) ----------
+  let sortKey='heat';
+  function renderRank(){
+    const sorted=[...DB.tracks].sort((a,b)=>b[sortKey]-a[sortKey]);
+    document.getElementById('trackRank').innerHTML=sorted.map((t,i)=>{
+      const dn=DB.disciplines.find(d=>d.id===t.disc);
+      return '<div class="ecard track-row pointer" data-name="'+t.name+'" style="margin-bottom:9px;padding:11px 13px">'+
+        '<div class="flex justify-between items-center"><div class="flex items-center gap-2">'+
+          '<span class="num" style="width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:700;background:'+(i<3?'linear-gradient(135deg,var(--primary),var(--accent))':'var(--panel-2)')+';color:'+(i<3?'#04122e':'var(--text-dim)')+'">'+(i+1)+'</span>'+
+          '<span class="fw6" style="font-size:13px">'+t.name+'</span></div>'+UI.tag(t.stage, t.stage==='爆发期'?'red':t.stage==='成长期'?'amber':'gray')+'</div>'+
+        '<div class="flex gap-3 mt-2 f12 text-mute"><span><i data-lucide="flame"></i> 热度 '+t.heat+'</span><span><i data-lucide="trending-up"></i> +'+t.growth+'%</span><span><i data-lucide="target"></i> 契合 '+t.fit+'</span></div>'+
+        UI.bar(t.heat,dn?dn.color:'var(--primary)')+'</div>';
+    }).join('');
+    document.querySelectorAll('#trackRank .track-row').forEach(r=>r.onclick=()=>openTrack(r.dataset.name));
+  }
+  function openTrack(name){
+    const t=DB.tracks.find(x=>x.name===name); if(!t)return;
+    const dn=DB.disciplines.find(d=>d.id===t.disc);
+    UI.drawer(t.name, UI.descList([
+      ['所属学科', dn?UI.tag(dn.name,'blue'):t.disc],
+      ['市场规模', '<span class="num text-primary">'+t.market+'</span> 亿元'],
+      ['年增速', '<span class="text-success num">+'+t.growth+'%</span>'],
+      ['武大契合度', '<span class="num">'+t.fit+'</span> / 100'],
+      ['产业热度', '<span class="num">'+t.heat+'</span>'],
+      ['关联企业', t.ents+' 家'],
+      ['所处阶段', UI.tag(t.stage, t.stage==='爆发期'?'red':'amber')],
+    ])+'<div class="divider"></div><div class="text-mute f12 mb-3">大脑研判</div>'+
+      '<div style="font-size:13px;line-height:1.8">该赛道当前处于<b>'+t.stage+'</b>，市场规模约 '+t.market+' 亿元、年增速 '+t.growth+'%，与武大「'+(dn?dn.name:'')+'」方向契合度达 '+t.fit+'。建议'+(t.heat>=90?'优先纳入重点布局，启动目标企业识别与招商。':'持续跟踪，择机切入。')+'</div>'+
+      '<div class="mt-4 flex gap-2"><button class="btn btn-primary btn-sm" onclick="UI.toast(\'已加入重点跟踪赛道\',\'ok\');UI.closeDrawer()">加入跟踪</button><a class="btn btn-sm" href="brain-track.html">赛道详细分析 →</a></div>',
+      {width:'520px'});
+  }
+  renderRank();
+  document.getElementById('sortBy').onclick=()=>{ sortKey = sortKey==='heat'?'growth':sortKey==='growth'?'fit':'heat';
+    document.getElementById('sortBy').textContent='按'+({heat:'热度',growth:'增速',fit:'契合度'}[sortKey])+' ⇅'; renderRank(); };
+
+  // ---------- 技术热词云 ----------
+  Charts.wordcloud('wordCloud',{words:DB.hotwords});
+  setTimeout(()=>{ const el=document.getElementById('wordCloud'); if(el&&echarts.getInstanceByDom(el)){
+    echarts.getInstanceByDom(el).on('click',p=>{ UI.toast('下钻分析「'+p.name+'」相关产业事件与目标企业','ok'); });
+  }},200);
+
+  // ---------- 政策与产业事件时间线 ----------
+  const lvType={'国家级':'预警','省级':'政策','市级':'政策','光谷':'活动'};
+  const sortedPol=[...DB.policyEvents].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('policyTl').innerHTML=UI.timeline(sortedPol.map(p=>({
+    time:p.date, type:lvType[p.level]||'政策',
+    txt:'['+p.level+'] '+p.title+' · '+p.discipline+' · 匹配度'+p.match+' · '+UI.tag(p.status, p.status==='可申报'?'green':p.status==='申报中'?'blue':p.status==='已截止'?'gray':'amber'),
+  })));
+
+  // ---------- 技术成熟度曲线(Gartner, 造10点) ----------
+  // value:[阶段x(1-5), 市场期望y, 关注度size]
+  const hypePoints=[
+    {name:'脑机接口',value:[1.2,42,62],color:'#9254DE'},
+    {name:'量子计算',value:[1.5,55,58],color:'#9254DE'},
+    {name:'具身智能/人形机器人',value:[2.1,95,90],color:'#36CFC9'},
+    {name:'AI大模型与智能体',value:[2.6,98,99],color:'#00E5FF'},
+    {name:'低空经济',value:[2.4,88,88],color:'#73D13D'},
+    {name:'存算一体',value:[3.1,60,70],color:'#FFC857'},
+    {name:'合成生物',value:[3.4,72,80],color:'#73D13D'},
+    {name:'硅光集成',value:[3.9,76,85],color:'#FFA940'},
+    {name:'卫星遥感',value:[4.4,70,75],color:'#9254DE'},
+    {name:'北斗高精度定位',value:[4.8,64,78],color:'#9254DE'},
+  ];
+  Charts.scatter('hypeChart',{data:hypePoints, xName:'成熟度阶段', yName:'市场期望', symbolField:2});
+  // 叠加 Gartner 曲线参考线
+  setTimeout(()=>{ const el=document.getElementById('hypeChart'); if(el&&echarts.getInstanceByDom(el)){
+    const ins=echarts.getInstanceByDom(el);
+    const curve=[]; for(let xx=0.5;xx<=5;xx+=0.1){ const y=20+78*Math.exp(-Math.pow((xx-2.4)*1.6,2))+ (xx>3?(xx-3)*14:0); curve.push([xx, Math.min(98,y)]); }
+    ins.setOption({series:[{}, {type:'line',data:curve,smooth:true,showSymbol:false,silent:true,lineStyle:{color:'rgba(0,229,255,.35)',width:2,type:'dashed'},z:0}]});
+  }},120);
+
+  // ---------- 顶部按钮 ----------
+  document.getElementById('btnReport').onclick=()=>{
+    if(window.openAIAssistant){ window.openAIAssistant('分析五大产业方向未来三年趋势并给出武大布局建议'); }
+    else UI.toast('正在生成产业趋势报告...','ok');
+  };
+
+  // 脚注
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['产业企业与园区','成果与专利','活动与赛事']));
+})();</script>
+</body></html>

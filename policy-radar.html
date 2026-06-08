@@ -1,0 +1,171 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>政策雷达 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="policy-radar">
+<main class="wuda-view">
+  <div class="crumb"><a href="brain-overview.html">← 返回产业创新大脑</a></div>
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>政策雷达 · 惠企政策智能匹配</div>
+    <div class="page-sub">汇聚国家 / 省 / 市 / 光谷四级政策，按学科自动匹配学校成果，识别申报窗口与到期提醒</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnSub"><i data-lucide="radar"></i> 订阅政策</button>
+      <button class="btn btn-sm btn-primary" id="btnMatch"><i data-lucide="bot"></i> 一键智能匹配</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid cols-4" id="kpis"></div>
+
+  <!-- 级别分布饼 + 到期提醒 + 匹配TOP -->
+  <div class="grid mt-4 cols-3">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>政策级别分布</div></div>
+      <div class="chart h260" id="levelPie"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>申报截止提醒</div><div class="tools"><span class="panel-tag" id="ddTag"></span></div></div>
+      <div id="deadlineList" style="max-height:260px;overflow-y:auto"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>政策匹配度 TOP</div></div>
+      <div id="matchTop" style="max-height:260px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- 政策库 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>政策库</div><div class="tools"><span class="panel-tag" id="polCnt"></span></div></div>
+    <div id="polFilter" class="mb-3"></div>
+    <div id="polTable"></div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const POL=DB.policyEvents, D=DB.disciplines;
+  const discById=name=>D.find(d=>d.name===name)||{icon:'<i data-lucide="pin"></i>',color:'#888'};
+  const levelTag={'国家级':'red','省级':'amber','市级':'blue','光谷':'purple'};
+  const statusTag={'可申报':'green','申报中':'blue','已截止':'gray','长期':'purple'};
+  // 截止日是否临近(非长期有效)
+  const isDeadline=p=>p.deadline!=='长期有效';
+  const daysLeft=p=>{ if(!isDeadline(p))return null; const t=new Date(p.deadline)-new Date('2026-06-08'); return Math.round(t/86400000); };
+
+  // ---- KPI ----
+  const canApply=POL.filter(p=>p.status==='可申报'||p.status==='申报中').length;
+  const dueSoon=POL.filter(p=>{const d=daysLeft(p);return d!==null&&d>=0&&d<=60;}).length;
+  const avgMatch=Math.round(POL.reduce((s,p)=>s+p.match,0)/POL.length);
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'在库政策',value:POL.length,unit:'条',delta:'本月+4',deltaUp:true,icon:'<i data-lucide="scroll-text"></i>',spark:[6,7,8,9,10,11,12]}),
+    UI.kpi({label:'可申报政策',value:canApply,unit:'条',delta:'抓住窗口',deltaUp:true,icon:'<i data-lucide="check-circle"></i>',spark:[2,3,4,5,canApply]}),
+    UI.kpi({label:'临近截止(60天)',value:dueSoon,unit:'条',delta:'优先处理',deltaUp:false,icon:'<i data-lucide="alarm-clock"></i>',spark:[1,2,2,3,dueSoon]}),
+    UI.kpi({label:'平均匹配度',value:avgMatch,unit:'%',delta:'+2.6%',deltaUp:true,icon:'<i data-lucide="target"></i>',spark:[72,74,76,78,avgMatch]}),
+  ].join('');
+
+  // ---- 级别分布饼 ----
+  const lvMap={}; POL.forEach(p=>lvMap[p.level]=(lvMap[p.level]||0)+1);
+  Charts.pie('levelPie',{data:Object.entries(lvMap).map(([k,v])=>({name:k,value:v})),ring:true,legend:true});
+
+  // ---- 截止提醒(按剩余天数升序) ----
+  const ddList=POL.filter(isDeadline).map(p=>({p,d:daysLeft(p)})).filter(x=>x.d!==null).sort((a,b)=>a.d-b.d);
+  document.getElementById('ddTag').textContent=ddList.length+' 条限期';
+  document.getElementById('deadlineList').innerHTML=ddList.length?ddList.map(({p,d})=>{
+    const urgent=d<0?'r':d<=30?'r':d<=60?'y':'g';
+    const lab=d<0?'已逾期':d+' 天后截止';
+    return `<div class="flex items-center gap-3 pol-dd" data-id="${p.id}" style="padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      <div style="flex:1;min-width:0"><div class="f13 fw6" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.title}</div>
+        <div class="f12 text-mute mt-1">${UI.tag(p.level,levelTag[p.level])} 截止 ${p.deadline}</div></div>
+      ${UI.light(urgent,lab)}</div>`;
+  }).join(''):UI.empty('暂无限期政策');
+
+  // ---- 匹配TOP ----
+  const top=POL.slice().sort((a,b)=>b.match-a.match).slice(0,6);
+  document.getElementById('matchTop').innerHTML=UI.rankList(top.map(p=>({name:p.title,value:p.match+'%',sub:p.level+' · '+p.discipline})));
+
+  // ---- 抽屉:政策详情 ----
+  function openDrawer(p){
+    const d=discById(p.discipline);
+    const dl=daysLeft(p);
+    const achs=DB.achievements.filter(a=>a.disciplineName===p.discipline).sort((a,b)=>b.match-a.match).slice(0,5);
+    const body=`
+      <div class="mb-3">
+        <div class="flex items-center gap-2 mb-2">${UI.tag(p.level,levelTag[p.level])}${UI.tag(p.status,statusTag[p.status]||'gray')}<span class="tag tag-blue">${d.icon} ${p.discipline}</span></div>
+        <div class="fw7 f18">${p.title}</div>
+        <div class="text-mute f12 mt-2">发布日期 ${p.date} · 申报截止 ${p.deadline}${dl!==null?`（${dl<0?'已逾期':'剩 '+dl+' 天'}）`:''}</div>
+      </div>
+      <div class="grid cols-3 mb-3">
+        <div class="panel" style="margin:0;padding:12px;text-align:center"><div class="text-mute f12">匹配度</div><div class="num text-primary" style="font-size:24px;font-weight:700">${p.match}<span class="f13">%</span></div></div>
+        <div class="panel" style="margin:0;padding:12px;text-align:center"><div class="text-mute f12">政策级别</div><div class="fw7" style="font-size:16px;margin-top:6px">${p.level}</div></div>
+        <div class="panel" style="margin:0;padding:12px;text-align:center"><div class="text-mute f12">匹配成果</div><div class="num" style="font-size:24px;font-weight:700">${achs.length}<span class="f13">项</span></div></div>
+      </div>
+      <div class="panel" style="margin:0 0 12px">
+        <div class="panel-h"><div class="t"><span class="bar"></span>政策要点</div></div>
+        <div class="f13 text-dim" style="padding:4px 2px;line-height:1.9">面向 <b>${p.discipline}</b> 领域，鼓励高校成果产业化、企业研发投入与新质生产力培育。符合条件主体可申请专项资金、税收优惠及配套场景资源支持，重点向 ${p.level==='光谷'?'东湖高新区企业':p.level==='市级'?'武汉市域主体':p.level==='省级'?'湖北省内创新主体':'国家战略科技力量'} 倾斜。</div>
+      </div>
+      <div class="panel" style="margin:0 0 12px">
+        <div class="panel-h"><div class="t"><span class="bar"></span>申报指引</div></div>
+        <div style="padding:4px 2px">
+          ${[['资格初审','核对主体资质、学科方向与政策范围匹配性'],['材料准备','整理成果证明、专利清单、财务及研发投入材料'],['系统申报',`登录 ${p.level==='国家级'?'国家科技管理信息系统':p.level==='省级'?'湖北省政务服务平台':'武汉光谷一站式服务平台'} 在线提交`],['评审跟踪','配合答辩/现场核查，跟踪评审进度']].map((s,i)=>
+            `<div class="flex gap-3" style="align-items:flex-start;padding:7px 0;${i<3?'border-bottom:1px solid var(--border)':''}">
+              <span class="num" style="width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:12px;font-weight:700;background:linear-gradient(135deg,var(--primary),var(--accent));color:#04122e">${i+1}</span>
+              <div><div class="f13 fw6">${s[0]}</div><div class="f12 text-mute mt-1">${s[1]}</div></div></div>`).join('')}
+        </div>
+      </div>
+      <div class="panel" style="margin:0">
+        <div class="panel-h"><div class="t"><span class="bar"></span>可匹配学校成果（${p.discipline}）</div></div>
+        <div>${achs.length?UI.rankList(achs.map(a=>({name:a.title,value:a.match+'%',sub:a.college+' · TRL'+a.trl}))):UI.empty('暂无匹配成果')}</div>
+      </div>`;
+    UI.drawer('政策详情',body,{width:'680px'});
+  }
+  // 截止提醒卡点击 → 抽屉
+  setTimeout(()=>document.querySelectorAll('.pol-dd').forEach(el=>el.onclick=()=>openDrawer(POL.find(p=>p.id===el.dataset.id))),60);
+
+  // ---- 政策库表 ----
+  const cols=[
+    {key:'level',title:'级别',sortable:true,sortVal:r=>({'国家级':4,'省级':3,'市级':2,'光谷':1}[r.level]),render:r=>UI.tag(r.level,levelTag[r.level])},
+    {key:'title',title:'政策标题',render:r=>`<div class="fw6">${r.title}</div>`},
+    {key:'discipline',title:'相关学科',render:r=>{const d=discById(r.discipline);return `<span class="tag tag-blue">${d.icon} ${r.discipline}</span>`;}},
+    {key:'date',title:'发布日期',sortable:true,sortVal:r=>r.date,render:r=>`<span class="text-mute f12">${r.date}</span>`},
+    {key:'deadline',title:'申报截止',sortable:true,sortVal:r=>isDeadline(r)?new Date(r.deadline).getTime():9e15,render:r=>{
+      if(!isDeadline(r))return `<span class="tag tag-purple">长期有效</span>`;
+      const dl=daysLeft(r); const c=dl<0?'var(--danger)':dl<=30?'var(--danger)':dl<=60?'var(--warning)':'var(--text-dim)';
+      return `<span class="f12">${r.deadline}</span> <span class="f12" style="color:${c}">(${dl<0?'逾期':dl+'天'})</span>`;}},
+    {key:'match',title:'匹配度',sortable:true,sortVal:r=>r.match,render:r=>`<div style="min-width:84px"><div class="f12 num fw7 ${r.match>=85?'text-success':'text-primary'}">${r.match}%</div>${UI.bar(r.match,r.match>=85?'var(--success)':'var(--primary)')}</div>`},
+    {key:'status',title:'状态',render:r=>UI.tag(r.status,statusTag[r.status]||'gray')},
+    {key:'op',title:'操作',sortable:false,render:r=>`<button class="btn btn-sm btn-ghost">详情/指引</button>`},
+  ];
+  const tbl=UI.table('#polTable',{columns:cols,rows:POL,pageSize:8,onRow:openDrawer,empty:'无符合条件的政策'});
+  document.getElementById('polCnt').textContent='共 '+POL.length+' 条政策';
+
+  // ---- 筛选 ----
+  UI.filterBar('#polFilter',{
+    fields:[
+      {key:'level',label:'全部级别',options:['国家级','省级','市级','光谷']},
+      {key:'discipline',label:'全部学科',options:D.map(d=>d.name)},
+      {key:'status',label:'全部状态',options:['可申报','申报中','已截止','长期']},
+    ],
+    search:true,searchPh:'搜索政策标题...',
+    onChange:v=>{ let r=POL.filter(p=>(!v.level||p.level===v.level)&&(!v.discipline||p.discipline===v.discipline)&&(!v.status||p.status===v.status)&&(!v._q||p.title.toLowerCase().includes(v._q.toLowerCase())));
+      tbl.update(r); document.getElementById('polCnt').textContent='共 '+r.length+' 条政策'; }
+  });
+
+  // ---- 操作按钮 ----
+  document.getElementById('btnSub').onclick=()=>{
+    UI.modal('订阅政策推送',`<div class="f13 text-dim mb-3">选择关注的学科与级别，新政策发布及临近截止时自动提醒。</div>
+      <div class="mb-3"><div class="f12 text-mute mb-2">关注学科</div><div style="display:flex;gap:6px;flex-wrap:wrap">${D.map((d,i)=>UI.chip(d.icon+' '+d.name,i<2)).join('')}</div></div>
+      <div><div class="f12 text-mute mb-2">关注级别</div><div style="display:flex;gap:6px;flex-wrap:wrap">${['国家级','省级','市级','光谷'].map((l,i)=>UI.chip(l,i<3)).join('')}</div></div>`,
+      {footer:`<button class="btn" onclick="UI.closeModal()">取消</button><button class="btn btn-primary" onclick="UI.closeModal();UI.toast('政策订阅已开启，将通过站内信与邮件推送','ok')">确认订阅</button>`});
+  };
+  document.getElementById('btnMatch').onclick=()=>UI.toast('已对 '+POL.length+' 条政策完成学科成果智能匹配，TOP榜已刷新','ok');
+
+  document.querySelector('main').insertAdjacentHTML('beforeend',UI.srcNote(['成果与专利','参股/校属企业']));
+})();</script>
+</body></html>

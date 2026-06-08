@@ -1,0 +1,221 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>活动详情 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="light" data-page="activity-calendar">
+<main class="wuda-view">
+  <div class="crumb"><a href="activity-calendar.html">← 返回活动台账</a> <span>/</span> <span id="crumbName"></span></div>
+
+  <!-- 头部 -->
+  <div class="panel" id="header"></div>
+
+  <!-- KPI -->
+  <div class="grid cols-4 mt-4" id="kpis"></div>
+
+  <!-- 主体 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1fr">
+    <!-- 左 -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>活动基本信息</div></div>
+        <div id="baseInfo"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>活动议程</div>
+          <div class="tools"><span class="panel-tag" id="agendaCnt"></span></div></div>
+        <div id="agenda"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>受邀嘉宾</div>
+          <div class="tools"><span class="panel-tag" id="guestCnt"></span></div></div>
+        <div class="grid cols-2" id="guests" style="gap:12px"></div>
+      </div>
+    </div>
+
+    <!-- 右 -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="panel glow">
+        <div class="panel-h"><div class="t"><span class="bar"></span>活动转化漏斗</div>
+          <div class="tools"><span class="panel-tag">报名→签到→线索→项目</span></div></div>
+        <div class="chart h300" id="funnel"></div>
+        <div class="grid cols-2 mt-3" id="convKpi"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>沉淀客户线索</div>
+          <div class="tools"><span class="panel-tag" id="leadCnt"></span></div></div>
+        <div id="leadList"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>关联项目线索</div>
+          <div class="tools"><span class="panel-tag" id="projCnt"></span></div></div>
+        <div id="projList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  const id = window.qparam('id');
+  const a = (id && DB.activities.find(x=>x.id===id)) || DB.activities[0];
+  const D = DB.util;
+  document.getElementById('crumbName').textContent = a.name;
+  document.title = a.name + ' · 武汉大学产业创新AI智脑平台';
+
+  const typeColor = {
+    '训练营':'#2b50b8','创新赛事':'#C0392B','投融资对接会':'#16a34a',
+    '科学家—企业家交流会':'#7c3aed','大咖直播':'#d97706','政策宣讲':'#0891b2'
+  };
+  const c = typeColor[a.type]||'var(--primary)';
+  const statusTag = s => UI.tag(s,{'已结束':'gray','报名中':'green','筹备中':'amber'}[s]||'blue');
+
+  // ---------- 头部 ----------
+  const checkRate = Math.round(a.checkin/Math.max(1,a.enroll)*100);
+  document.getElementById('header').innerHTML = `
+    <div class="flex justify-between" style="align-items:flex-start;gap:20px;flex-wrap:wrap">
+      <div style="flex:1;min-width:320px">
+        <div class="flex items-center gap-3" style="flex-wrap:wrap">
+          <span style="font-size:11px;border:1px solid ${c};color:${c};border-radius:6px;padding:2px 9px;font-weight:600">${a.type}</span>
+          ${statusTag(a.status)} ${UI.tag(a.discipline,'gray')}
+          ${a.leads>=30?UI.tag('高转化活动','green'):''}
+        </div>
+        <div style="font-size:23px;font-weight:800;margin:11px 0 8px">${a.name}</div>
+        <div class="text-dim" style="font-size:13.5px;line-height:1.7;max-width:680px">
+          本场${a.type}面向<b>${a.discipline}</b>方向，围绕产业创新与成果转化主题组织，旨在促进科学家与企业家深度对接、沉淀高质量产业线索与转化项目。</div>
+        <div class="flex gap-4 mt-3" style="flex-wrap:wrap;font-size:13px">
+          <span><span class="text-mute">活动编号</span> <span class="num fw6">${a.id}</span></span>
+          <span><span class="text-mute">日期</span> <span class="num fw6">${a.date}</span></span>
+          <span><span class="text-mute">地点</span> <span class="fw6">${a.venue}</span></span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-end">
+        <div style="text-align:right">
+          <div class="f12 text-mute">签到率</div>
+          <div class="num fw7" style="font-size:30px;color:${c};font-family:Oswald">${checkRate}<span style="font-size:15px">%</span></div>
+        </div>
+        <div style="display:flex;gap:9px">
+          <button class="btn" id="btnReport"><i data-lucide="file-text"></i> 复盘报告</button>
+          <button class="btn btn-primary" id="btnFollow"><i data-lucide="target"></i> 线索跟进</button>
+        </div>
+      </div>
+    </div>`;
+
+  // ---------- KPI ----------
+  document.getElementById('kpis').innerHTML=[
+    UI.kpi({label:'报名人数',value:a.enroll,unit:'人',icon:'<i data-lucide="hand"></i>'}),
+    UI.kpi({label:'实际签到',value:a.checkin,unit:'人',icon:'<i data-lucide="check-circle"></i>',delta:checkRate+'%',deltaUp:checkRate>=70}),
+    UI.kpi({label:'沉淀线索',value:a.leads,unit:'条',icon:'<i data-lucide="target"></i>'}),
+    UI.kpi({label:'转化项目',value:a.projects,unit:'个',icon:'<i data-lucide="rocket"></i>'}),
+  ].join('');
+
+  // ---------- 基本信息 descList ----------
+  document.getElementById('baseInfo').innerHTML = UI.descList([
+    ['活动类型',`<span style="color:${c};font-weight:700">${a.type}</span>`],
+    ['举办日期',`<span class="num">${a.date}</span>`],
+    ['举办地点',a.venue],
+    ['面向学科',a.discipline],
+    ['活动状态',statusTag(a.status)],
+    ['报名人次',`<span class="num text-primary fw7">${a.enroll}</span> 人`],
+    ['签到人次',`<span class="num fw7">${a.checkin}</span> 人（${checkRate}%）`],
+    ['线索转化率',`<span class="num fw7" style="color:var(--success)">${Math.round(a.leads/Math.max(1,a.checkin)*100)}%</span>`],
+  ]);
+
+  // ---------- 议程(确定性生成) ----------
+  const agendaTpl = {
+    '训练营':['开营仪式与导师介绍','产业趋势主题课','成果项目化实战工坊','一对一导师辅导','结营路演与点评'],
+    '创新赛事':['赛事启动与规则宣讲','初赛项目路演','专家评审问辩','决赛终极路演','颁奖与资本对接'],
+    '投融资对接会':['园区与基金介绍','优质项目集中路演','投资人圆桌点评','一对一闭门洽谈','签约与意向对接'],
+    '科学家—企业家交流会':['主题主旨演讲','科学家成果展示','企业需求发布','供需对接洽谈','合作意向签署'],
+    '大咖直播':['开场与嘉宾介绍','主题分享直播','弹幕互动问答','案例深度拆解','直播间资源对接'],
+    '政策宣讲':['政策背景解读','申报条件与流程','典型案例分析','现场答疑互动','一对一申报辅导'],
+  };
+  const ag = (agendaTpl[a.type]||agendaTpl['训练营']);
+  document.getElementById('agendaCnt').textContent = ag.length+' 个环节';
+  let st=9*60;
+  document.getElementById('agenda').innerHTML = UI.timeline(ag.map((t,i)=>{
+    const h=Math.floor(st/60), mm=st%60; st+=D.ri(30,60);
+    const tp=['活动','成果','合作','投资','活动'][i%5];
+    return {time:String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'), txt:t, type:tp};
+  }));
+
+  // ---------- 嘉宾卡片 ----------
+  document.getElementById('guestCnt').textContent = a.guests.length+' 位嘉宾';
+  const guestOrg = {'院士':'中国工程院','教授':'武汉大学','投资人':'光谷创投','龙头企业CTO':'行业龙头企业','政府部门':'东湖高新区管委会','创业导师':'珞珈创业营'};
+  document.getElementById('guests').innerHTML = a.guests.map(g=>{
+    const nm=D.person();
+    return `<div class="ecard" style="cursor:default">
+      <div class="flex items-center gap-3">
+        <span class="av" style="width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:16px;background:linear-gradient(135deg,${c},color-mix(in srgb,${c} 50%,#fff))">${nm.slice(0,1)}</span>
+        <div style="flex:1;min-width:0">
+          <div class="fw6">${nm} <span class="f12 text-mute">${g}</span></div>
+          <div class="f12 text-dim">${guestOrg[g]||'特邀嘉宾'}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ---------- 转化漏斗 ----------
+  const conv = [
+    {name:'报名',value:a.enroll},
+    {name:'签到',value:a.checkin},
+    {name:'沉淀线索',value:Math.max(a.leads,1)},
+    {name:'转化项目',value:Math.max(a.projects,1)},
+  ];
+  Charts.funnel('funnel',{data:conv});
+  document.getElementById('convKpi').innerHTML=[
+    UI.kpi({label:'报名→签到',value:checkRate,unit:'%',icon:'<i data-lucide="download"></i>'}),
+    UI.kpi({label:'签到→线索',value:Math.round(a.leads/Math.max(1,a.checkin)*100),unit:'%',icon:'<i data-lucide="target"></i>'}),
+  ].join('');
+
+  // ---------- 沉淀客户线索(按 source 匹配) ----------
+  let custLeads = DB.customerLeads.filter(l=>l.source===a.name);
+  if(!custLeads.length) custLeads = DB.customerLeads.slice(0, Math.min(5, Math.max(2, Math.round(a.leads/8))));
+  document.getElementById('leadCnt').textContent = custLeads.length+' 条客户线索';
+  const stageTag = s => UI.tag(s,{'已签约':'green','商务谈判':'blue','方案沟通':'purple','需求确认':'amber','初步接触':'gray'}[s]||'gray');
+  document.getElementById('leadList').innerHTML = custLeads.length
+    ? custLeads.map(l=>`<div style="padding:11px 0;border-bottom:1px solid var(--border)">
+        <div class="flex justify-between items-center" style="gap:10px">
+          <div class="fw6" style="flex:1;min-width:0">${l.name}</div>${stageTag(l.stage)}
+        </div>
+        <div class="f12 text-mute mt-2 flex gap-3" style="flex-wrap:wrap">
+          <span>${UI.tag(l.type,'gray')}</span><span>意向 ${l.intent}</span>
+          <span class="num">¥${l.value}万</span><span>跟进 ${l.owner}</span>
+        </div>
+      </div>`).join('')
+    : UI.empty('暂无沉淀线索');
+
+  // ---------- 关联项目线索 ----------
+  let projLeads = DB.projectLeads.filter(l=>l.source===a.name);
+  if(!projLeads.length) projLeads = DB.projectLeads.filter(l=>l.discipline===a.discipline).slice(0,3);
+  if(!projLeads.length) projLeads = DB.projectLeads.slice(0,3);
+  document.getElementById('projCnt').textContent = projLeads.length+' 个项目线索';
+  const pstageTag = s => UI.tag(s,{'已入池':'green','拟立项':'blue','尽调':'purple','初筛':'amber','线索':'gray'}[s]||'gray');
+  document.getElementById('projList').innerHTML = projLeads.length
+    ? projLeads.map(l=>`<div style="padding:11px 0;border-bottom:1px solid var(--border)">
+        <div class="flex justify-between items-center" style="gap:10px">
+          <div class="fw6" style="flex:1;min-width:0">${l.name}</div>${pstageTag(l.stage)}
+        </div>
+        <div class="f12 text-mute mt-2 flex gap-3" style="flex-wrap:wrap">
+          <span>${UI.tag(l.discipline,'gray')}</span><span>${l.team}</span>
+          <span>评分 <b class="text-primary num">${l.score}</b></span><span class="num">¥${l.value}万</span>
+        </div>
+      </div>`).join('')
+    : UI.empty('暂无项目线索');
+
+  // ---------- 操作 ----------
+  document.getElementById('btnReport').onclick=()=>UI.toast('正在生成《'+a.name.slice(0,12)+'…》活动复盘报告','ok');
+  document.getElementById('btnFollow').onclick=()=>UI.toast('已将 '+custLeads.length+' 条线索派单至客户经理跟进','ok');
+
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['活动与赛事','参股/校属企业','成果与专利']);
+})();</script>
+</body></html>
