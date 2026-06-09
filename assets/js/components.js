@@ -135,7 +135,7 @@
     tabs(container,items,onSwitch){ // items:[{key,label}]
       const el=typeof container==='string'?$(container):container;
       el.classList.add('tabs');
-      el.innerHTML=items.map((it,i)=>`<div class="tab ${i===0?'active':''}" data-tab="${it.key}">${esc(it.label)}</div>`).join('');
+      el.innerHTML=items.map((it,i)=>`<div class="tab ${i===0?'active':''}" data-tab="${it.key}">${it.html!==undefined?it.html:esc(it.label)}</div>`).join('');
       el.addEventListener('click',e=>{const t=e.target.closest('.tab');if(!t)return;$$('.tab',el).forEach(x=>x.classList.remove('active'));t.classList.add('active');onSwitch&&onSwitch(t.dataset.tab);});
       onSwitch&&onSwitch(items[0].key);
     },

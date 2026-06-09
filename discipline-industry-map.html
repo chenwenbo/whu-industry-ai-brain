@@ -149,7 +149,7 @@
   }
 
   // ---- Tab ----
-  UI.tabs('#discTabs',DISC.map(d=>({key:d.id,label:d.icon+' '+d.name})),render);
+  UI.tabs('#discTabs',DISC.map(d=>({key:d.id,label:d.name,html:d.icon+' '+d.name})),render);
 
   document.getElementById('btnReport').onclick=()=>{
     const x=window.__curDisc;
