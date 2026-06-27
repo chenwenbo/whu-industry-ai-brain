@@ -5,12 +5,9 @@
    ========================================================================== */
 (function(){
   const NAV = [
-    {group:'数字底座', items:[
-      {p:'data-catalog', t:'数据资产目录', i:'<i data-lucide="files"></i>'},
-      {p:'data-foundation', t:'数据底座总览', i:'<i data-lucide="database"></i>'},
-    ]},
-    {group:'决策驾驶舱', items:[
-      {p:'cockpit-school', t:'校级产业创新驾驶舱', i:'<i data-lucide="satellite"></i>', badge:'大屏'},
+    {group:'决策分析', items:[
+      {p:'data-foundation', t:'数据底座总览', i:'<i data-lucide="database"></i>', alias:['data-catalog']},
+      {p:'cockpit-school', t:'产业驾驶舱', i:'<i data-lucide="satellite"></i>', badge:'大屏'},
     ]},
     {group:'三大AI智能体', items:[
       {p:'ai-workbench', q:'research', t:'AI产业研究院', i:'<i data-lucide="brain"></i>'},

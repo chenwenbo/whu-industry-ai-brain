@@ -38,7 +38,7 @@
       <div class="text-dim">以高校产业数据资产为底座、以三大AI智能体为抓手 —— 由资产管理公司经营，为学校领导与地方政府服务</div>
     </div>
     <div style="display:flex;gap:10px;position:relative;z-index:1">
-      <a class="btn btn-primary" href="cockpit-school.html">进入校级驾驶舱 ▸</a>
+      <a class="btn btn-primary" href="cockpit-school.html">进入产业驾驶舱 ▸</a>
       <a class="btn" href="ai-workbench.html?role=research">AI 产业研究院</a>
     </div>
   </div>
@@ -146,7 +146,7 @@
 
   // ===== 双决策驾驶舱 =====
   const cockpits=[
-    {t:'校级产业创新驾驶舱',d:'重点产业方向 · 成果转化路径 · 全国布局 · 本年转化收益',u:'cockpit-school.html',i:'<i data-lucide="satellite"></i>',c:'var(--primary)'},
+    {t:'产业驾驶舱',d:'重点产业方向 · 成果转化路径 · 全国布局 · 本年转化收益',u:'cockpit-school.html',i:'<i data-lucide="satellite"></i>',c:'var(--primary)'},
     {t:'资产管理驾驶舱',d:'已并入园区管理 · 出租率/空置率 · 股权穿透 · 投后风险',u:'park-list.html',i:'<i data-lucide="bar-chart-3"></i>',c:'var(--whu)'},
   ];
   document.getElementById('cockpitGrid').innerHTML=cockpits.map(b=>`
@@ -175,7 +175,7 @@
   const P={base:'var(--success)',cockpit:'var(--whu)',agent:'var(--primary)',board:'var(--warning)'};
   const nodes=[
     {name:'高校产业\n数据资产底座',x:50,y:7,size:60,c:P.base,cat:'数字底座',url:'data-foundation.html'},
-    {name:'校级\n驾驶舱',x:30,y:26,size:42,c:P.cockpit,cat:'决策驾驶舱',url:'cockpit-school.html'},
+    {name:'产业\n驾驶舱',x:30,y:26,size:42,c:P.cockpit,cat:'决策驾驶舱',url:'cockpit-school.html'},
     {name:'资产管理\n驾驶舱',x:70,y:26,size:42,c:P.cockpit,cat:'决策驾驶舱',url:'park-list.html'},
     {name:'AI产业研究院',x:24,y:50,size:46,c:P.agent,cat:'AI智能体',url:'ai-workbench.html?role=research'},
     {name:'AI技术经理人',x:50,y:50,size:46,c:P.agent,cat:'AI智能体',url:'ai-workbench.html?role=tech'},
@@ -191,7 +191,7 @@
   const idx=n=>nodes.findIndex(x=>x.name===n);
   const links=[];
   // 底座 → 双驾驶舱 + 三智能体
-  ['校级\n驾驶舱','资产管理\n驾驶舱','AI产业研究院','AI技术经理人','AI投资人'].forEach(n=>links.push(['高校产业\n数据资产底座',n]));
+  ['产业\n驾驶舱','资产管理\n驾驶舱','AI产业研究院','AI技术经理人','AI投资人'].forEach(n=>links.push(['高校产业\n数据资产底座',n]));
   // 智能体 → 功能板块（科技招商式联动）
   links.push(['AI产业研究院','创新图谱'],['AI产业研究院','产业图谱'],['AI产业研究院','创新成果']);
   links.push(['AI技术经理人','创新成果'],['AI技术经理人','企业管理'],['AI技术经理人','服务广场'],['AI技术经理人','活动与培训']);
