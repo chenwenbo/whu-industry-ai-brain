@@ -1,8 +1,8 @@
 {
-  "pid": 19618,
-  "port": 27178,
-  "token": "ef683e8e-2363-43cf-a2e3-f90d46740ed8",
-  "startedAt": "2026-06-27T11:49:41.860Z",
+  "pid": 28996,
+  "port": 32673,
+  "token": "13ad9b93-46d2-4819-9f06-15ea135495cb",
+  "startedAt": "2026-06-27T12:36:12.515Z",
   "serverPath": "/Users/chenwenbo/.claude/skills/gstack/browse/src/server.ts",
   "mode": "launched"
 }

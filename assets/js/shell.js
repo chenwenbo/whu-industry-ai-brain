@@ -11,7 +11,6 @@
     ]},
     {group:'决策驾驶舱', items:[
       {p:'cockpit-school', t:'校级产业创新驾驶舱', i:'<i data-lucide="satellite"></i>', badge:'大屏'},
-      {p:'cockpit-asset', t:'资产管理驾驶舱', i:'<i data-lucide="bar-chart-3"></i>', badge:'大屏'},
     ]},
     {group:'三大AI智能体', items:[
       {p:'ai-workbench', q:'research', t:'AI产业研究院', i:'<i data-lucide="brain"></i>'},
@@ -23,7 +22,7 @@
       {p:'industry-graph', t:'产业图谱', i:'<i data-lucide="network"></i>'},
       {p:'achievement-library', t:'创新成果', i:'<i data-lucide="microscope"></i>', alias:['achievement-detail','project-pipeline']},
       {p:'enterprise-library', t:'企业管理', i:'<i data-lucide="building-2"></i>', alias:['enterprise-detail','post-investment']},
-      {p:'park-list', t:'园区管理', i:'<i data-lucide="building"></i>', alias:['park-detail']},
+      {p:'park-list', t:'园区管理', i:'<i data-lucide="building"></i>', alias:['park-detail','cockpit-asset']},
       {p:'opc-services', t:'服务广场', i:'<i data-lucide="shopping-bag"></i>'},
       {p:'activity-calendar', t:'活动与培训', i:'<i data-lucide="calendar"></i>', alias:['activity-detail']},
     ]},
