@@ -351,12 +351,60 @@ picks(investors,3).map((iv,i)=>`${i+1}. ${iv} — 关注${a.disciplineName}早�
     s.appendChild(div); if(window.lucide) lucide.createIcons(); scroll();
     return div.querySelector('.bubble');
   }
-  function resetChat(){
+  // ====== 欢迎 / 空状态(热门提示词 + 按智能体分组的推荐场景) ======
+  function welcomeHTML(){
     const a=AGENTS[current];
-    document.getElementById('chatScroll').innerHTML='';
-    const greet=`<div class="text-dim f12 mb-2">${a.key} · 已就绪</div>`+
-      `我是「${a.key}」。${UI.esc(a.desc)}<br><span class="text-mute f12">点击上方或左侧的演示场景即可快速开始。</span>`;
-    pushAI(greet);
+    const hot=HOT_PROMPTS.map((h,idx)=>{
+      const ag=AGENTS[h.role], s=ag.scenes[h.i]; if(!s) return '';
+      return `<span class="hot-chip" data-hot="${idx}"><i data-lucide="flame" class="fire"></i>${s.label}<span class="who">· ${ag.key}</span></span>`;
+    }).join('');
+    const order=[current, ...Object.keys(AGENTS).filter(k=>k!==current)];
+    const groups=order.map(k=>{
+      const ag=AGENTS[k];
+      const cards=ag.scenes.map((s,i)=>
+        `<div class="scene-card" data-go="${k}" data-i="${i}">
+          <div class="ci" style="background:color-mix(in srgb,${ag.color} 16%,transparent);color:${ag.color}"><i data-lucide="${s.icon}"></i></div>
+          <div style="min-width:0"><div class="ct">${s.label}</div><div class="cp">${UI.esc(s.prompt)}</div></div>
+        </div>`).join('');
+      return `<div class="scene-group">
+        <div class="sg-head">
+          <div class="ic" style="background:color-mix(in srgb,${ag.color} 16%,transparent);color:${ag.color}">${ag.icon}</div>
+          <div class="nm">${ag.key}</div><div class="badge">${ag.scenes.length} 个场景</div>
+          ${k===current?'<span class="light g" style="margin-left:auto"><span class="o"></span>当前</span>':''}
+        </div>
+        <div class="sg-grid">${cards}</div>
+      </div>`;
+    }).join('');
+    return `<div class="welcome">
+      <div class="wc-top">
+        <div class="wc-ava" style="background:color-mix(in srgb,${a.color} 18%,transparent);color:${a.color}">${a.icon}</div>
+        <div class="wc-sum">${a.summary}</div>
+        <div class="wc-desc">${UI.esc(a.desc)}</div>
+      </div>
+      <div class="wc-label">热门提示词</div>
+      <div class="hot-rail">${hot}</div>
+      <div class="wc-label">推荐场景 · 点击卡片即可开始</div>
+      ${groups}
+    </div>`;
+  }
+  function bindWelcome(){
+    document.querySelectorAll('#chatScroll .hot-chip').forEach(el=>el.onclick=()=>{
+      const h=HOT_PROMPTS[+el.dataset.hot]; goScene(h.role, h.i);
+    });
+    document.querySelectorAll('#chatScroll .scene-card').forEach(el=>el.onclick=()=>{
+      goScene(el.dataset.go, +el.dataset.i);
+    });
+  }
+  function resetChat(){
+    const sc=document.getElementById('chatScroll');
+    sc.innerHTML=welcomeHTML();
+    bindWelcome();
+    if(window.lucide) lucide.createIcons();
+  }
+  // 首次发言前清掉欢迎页，进入会话态
+  function ensureConversation(){
+    const sc=document.getElementById('chatScroll');
+    if(sc.querySelector('.welcome')) sc.innerHTML='';
   }
 
   // ====== 发送 / 流式生成 ======
@@ -365,7 +413,13 @@ picks(investors,3).map((iv,i)=>`${i+1}. ${iv} — 关注${a.disciplineName}早�
     const ta=document.getElementById('composerInput');
     let text=ta.value.trim();
     if(!text){ UI.toast('请输入提问或任务指令','warn'); return; }
-    pushUser(text); ta.value='';
+    ta.value='';
+    runPrompt(text);
+  }
+  function runPrompt(text){
+    if(busy) return;
+    ensureConversation();
+    pushUser(text);
     busy=true;
     document.getElementById('chatStatus').innerHTML='<span class="typing-dot"></span><span class="typing-dot" style="animation-delay:.2s"></span><span class="typing-dot" style="animation-delay:.4s"></span> 生成中';
     document.getElementById('btnSend').disabled=true;
@@ -381,89 +435,40 @@ picks(investors,3).map((iv,i)=>`${i+1}. ${iv} — 关注${a.disciplineName}早�
       target.innerHTML = target.innerHTML
         .replace(/【([^】]+)】/g,'【<b>$1</b>】')
         .replace(/(一、|二、|三、|四、|五、)/g,'<b>$1</b>');
+      appendDeliver(bubble, result, text);
       busy=false;
       document.getElementById('chatStatus').innerHTML='● 就绪';
       document.getElementById('btnSend').disabled=false;
-      addOutput(result, text);
       scroll();
-      UI.toast('已生成产出，已存入右侧产出物面板','ok');
+      UI.toast('已生成','ok');
     }});
   }
-
-  // ====== 任务产出 / 产出物面板 ======
-  function addOutput(result, prompt){
-    const a=AGENTS[current];
-    const id='OUT-'+current.slice(0,2).toUpperCase()+'-'+(outputs.length+1)+''+Date.now().toString().slice(-3);
-    const item={id, title:result.scope.split(' · ')[1]||a.key, role:a.key, icon:a.icon,
-      billing:result.billing, value:result.value, duration:result.dur,
-      sources:a.sources, body:result.body, scope:result.scope, prompt, time:'刚刚', status:'已交付'};
-    outputs.unshift(item);
-    renderOutputs();
-  }
-  function renderOutputs(){
-    document.getElementById('outCount').textContent=outputs.length;
-    const delivered=outputs.length;
-    const totalVal=outputs.reduce((s,o)=>s+parseFloat(o.value),0).toFixed(1);
-    const roleSet=new Set(outputs.map(o=>o.role)).size;
-    document.getElementById('outStats').innerHTML=
-      `<div class="stat-chip"><div class="v">${delivered}</div><div class="l">本次产出</div></div>
-       <div class="stat-chip"><div class="v">${totalVal}</div><div class="l">价值(万)</div></div>
-       <div class="stat-chip"><div class="v">${roleSet}</div><div class="l">涉及智能体</div></div>`;
-    if(!outputs.length){ document.getElementById('outList').innerHTML=UI.empty('暂无产出，向智能体提问或点击演示场景即可生成'); if(window.lucide) lucide.createIcons(); return; }
-    document.getElementById('outList').innerHTML=outputs.map((o,i)=>
-      `<div class="out-card" data-i="${i}">
-        <div class="flex justify-between items-center">
-          <div class="flex items-center gap-2"><span style="font-size:16px">${o.icon}</span><span class="fw6 f13" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${UI.esc(o.title)}</span></div>
-          ${UI.tag(o.status,'green')}
-        </div>
-        <div class="f12 text-mute mt-2">${o.role} · ${o.billing} · ${o.time}</div>
-        <div class="flex justify-between items-center mt-2">
-          <span class="num text-primary fw7">¥ ${o.value} 万</span>
-          <span class="f12 text-dim">展开详情 →</span>
-        </div>
-      </div>`).join('');
+  // ====== 气泡内:交付 meta + 消息操作栏(复制 / 导出 / 重新生成) ======
+  function appendDeliver(bubble, result, text){
+    const wrap=document.createElement('div');
+    wrap.innerHTML=
+      `<div class="deliver-meta">
+         <span><i data-lucide="package-check"></i>交付：${UI.esc(result.scope)}</span>
+         <span><i data-lucide="clock"></i>耗时 ${result.dur}</span>
+         <span><i data-lucide="gem"></i>参考价值 ${result.value} 万</span>
+       </div>
+       <div class="msg-actions">
+         <span class="msg-act" data-act="copy"><i data-lucide="copy"></i>复制</span>
+         <span class="msg-act" data-act="export"><i data-lucide="download"></i>导出</span>
+         <span class="msg-act" data-act="regen"><i data-lucide="refresh-cw"></i>重新生成</span>
+       </div>`;
+    bubble.appendChild(wrap);
     if(window.lucide) lucide.createIcons();
-    document.querySelectorAll('#outList .out-card').forEach(el=>el.onclick=()=>openOutput(outputs[+el.dataset.i]));
-  }
-  function openOutput(o){
-    const body=
-      `<div class="flex gap-2 mb-3" style="flex-wrap:wrap">
-        ${UI.tag(o.role,'blue')}${UI.tag(o.billing,'purple')}${UI.tag('耗时 '+o.duration,'gray')}${UI.tag('价值 '+o.value+' 万','amber')}
-      </div>
-      <div class="panel" style="margin:0 0 12px 0;background:var(--panel-2)">
-        ${UI.descList([
-          ['产出编号', '<span class="num">'+o.id+'</span>'],
-          ['交付范围', o.scope],
-          ['触发指令', '<span class="text-dim">'+UI.esc(o.prompt)+'</span>'],
-          ['生成时间', o.time],
-        ])}
-      </div>
-      <div class="panel-h"><div class="t"><span class="bar"></span>交付内容</div></div>
-      <div class="gen-out" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px;white-space:pre-wrap;max-height:340px;overflow:auto">${UI.esc(o.body).replace(/【([^】]+)】/g,'【<b style="color:var(--primary)">$1</b>】')}</div>
-      <div style="margin-top:14px">${UI.srcNote(o.sources)}</div>
-      <div class="flex gap-2 mt-3">
-        <button class="btn btn-primary btn-sm" id="dwOk"><i data-lucide="download"></i> 导出产出物</button>
-        <button class="btn btn-sm" id="dwReuse"><i data-lucide="recycle"></i> 复用</button>
-        <button class="btn btn-ghost btn-sm" id="dwRegen">↻ 重新生成</button>
-      </div>`;
-    UI.drawer(o.title, body, {width:'640px'});
-    document.getElementById('dwOk').onclick=()=>UI.toast('产出物已导出(PDF)','ok');
-    document.getElementById('dwReuse').onclick=()=>UI.toast('已复用该产出','ok');
-    document.getElementById('dwRegen').onclick=()=>{UI.closeDrawer();UI.toast('请在对话区重新下达指令','warn');};
+    wrap.querySelector('[data-act="copy"]').onclick=()=>{
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(result.body).then(()=>UI.toast('已复制交付内容','ok'),()=>UI.toast('复制失败','warn'));
+      } else { UI.toast('当前环境不支持复制','warn'); }
+    };
+    wrap.querySelector('[data-act="export"]').onclick=()=>UI.toast('产出物已导出(PDF)','ok');
+    wrap.querySelector('[data-act="regen"]').onclick=()=>{ if(busy){UI.toast('生成中，请稍候','warn');return;} runPrompt(text); };
   }
 
-  // ====== 历史产出 / 演示场景库 抽屉 ======
-  document.getElementById('btnHistory').onclick=()=>{
-    const rows=D.aiTasks.concat(D.analysisTasks.map(a=>({id:a.id,title:a.title,role:a.role,status:a.status,created:a.time})));
-    const statTag={'已交付':'green','生成中':'amber','待生成':'gray','已复用':'blue'};
-    const body=`<div class="f12 text-mute mb-3">三大智能体累计执行的产出记录(数据底座单一真源)</div>
-      <div style="display:grid;gap:8px">${rows.map(t=>
-        `<div class="ecard" style="cursor:default;padding:11px">
-          <div class="flex justify-between items-center"><span class="fw6 f13">${UI.esc(t.title)}</span>${UI.tag(t.status,statTag[t.status]||'gray')}</div>
-          <div class="f12 text-mute mt-2">${t.id} · ${t.role} · ${t.created}</div>
-        </div>`).join('')}</div>`;
-    UI.drawer('历史产出', body, {width:'560px'});
-  };
+  // ====== 演示场景库 抽屉 ======
   document.getElementById('btnScenes').onclick=()=>{
     let html='';
     Object.keys(AGENTS).forEach(k=>{
@@ -474,9 +479,7 @@ picks(investors,3).map((iv,i)=>`${i+1}. ${iv} — 关注${a.disciplineName}早�
     UI.drawer('演示场景库', html, {width:'600px'});
     document.querySelectorAll('.drawer .scene-side[data-go]').forEach(el=>el.onclick=()=>{
       UI.closeDrawer();
-      const k=el.dataset.go, i=+el.dataset.i;
-      if(k!==current) switchAgent(k);
-      setTimeout(()=>fillScene(i),60);
+      goScene(el.dataset.go, +el.dataset.i);
     });
   };
 
@@ -489,7 +492,6 @@ picks(investors,3).map((iv,i)=>`${i+1}. ${iv} — 关注${a.disciplineName}早�
 
   // ====== 初始化 ======
   syncAgent();
-  renderOutputs();
   document.getElementById('srcFoot').innerHTML=UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','政策与赛道','投资库']);
   if(window.lucide) lucide.createIcons();
 })();
