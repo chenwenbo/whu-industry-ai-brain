@@ -9,21 +9,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
-  /* 左:智能体切换 + 演示场景  中:大对话框(主面积)  右:任务产出 */
-  .wb-grid{display:grid;grid-template-columns:248px 1fr 318px;gap:14px;align-items:start}
-  .agent-item{border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:.18s;margin-bottom:10px;background:var(--panel)}
-  .agent-item:hover{border-color:var(--border-strong);transform:translateY(-2px)}
-  .agent-item.on{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary),var(--glow);background:color-mix(in srgb,var(--primary) 8%,var(--panel))}
-  .agent-ava{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:21px;flex-shrink:0}
-  /* 顶部总结条 */
-  .agent-hero{overflow:hidden;position:relative;margin-bottom:14px}
-  .agent-hero .eyebrow{font-size:12px;font-weight:600;letter-spacing:2px}
-  .agent-hero .hl{font-size:23px;font-weight:800;margin:7px 0 6px}
-  /* 大对话框 —— 占据页面主要面积 */
-  .chat-box{display:flex;flex-direction:column;height:calc(100vh - 250px);min-height:560px}
+  /* 单列居中 · 典型智能体对话 UI */
+  .chat-wrap{max-width:880px;margin:0 auto}
+  /* 顶部:三大智能体分段切换 */
+  .agent-seg{display:flex;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:6px;margin-bottom:14px;box-shadow:var(--glow-soft)}
+  .seg-pill{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:.18s;color:var(--text-dim);font-weight:600;font-size:13.5px;border:1px solid transparent}
+  .seg-pill:hover{color:var(--text);background:var(--panel-2)}
+  .seg-pill.on{color:var(--text);background:color-mix(in srgb,var(--seg) 12%,var(--panel));border-color:var(--seg);box-shadow:0 0 0 1px var(--seg)}
+  .seg-pill .ic{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:14px}
+  .seg-pill .ic i{width:15px;height:15px}
+  /* 大对话框 —— 页面主体 */
+  .chat-box{display:flex;flex-direction:column;height:calc(100vh - 248px);min-height:540px}
   .chat-scroll{flex:1;overflow-y:auto;padding:6px 8px 6px 2px}
   .msg{display:flex;gap:10px;margin-bottom:18px;align-items:flex-start}
   .msg .av{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:17px;flex-shrink:0}
+  .msg .av i{width:17px;height:17px}
   .bubble{border-radius:13px;padding:13px 15px;font-size:13.5px;line-height:1.75;max-width:90%}
   .msg.me{flex-direction:row-reverse}
   .msg.me .bubble{background:linear-gradient(120deg,var(--primary),var(--accent));color:var(--on-brand);font-weight:500}
@@ -32,20 +32,55 @@
   .msg.me .av{background:color-mix(in srgb,var(--primary) 22%,transparent)}
   .gen-out{font-size:13.5px;line-height:1.8;color:var(--text)}
   .gen-out b{color:var(--primary)}
-  .composer{border:1px solid var(--border-strong);border-radius:14px;padding:11px 12px;background:var(--panel);margin-top:12px}
-  .composer textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;resize:none;outline:none;font-family:inherit;min-height:54px}
+  /* 气泡内:交付 meta + 消息操作栏 */
+  .deliver-meta{margin-top:11px;padding-top:10px;border-top:1px dashed var(--border);font-size:12px;color:var(--text-mute);display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+  .deliver-meta i{width:13px;height:13px;vertical-align:-2px;margin-right:3px}
+  .msg-actions{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+  .msg-act{font-size:12px;border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;color:var(--text-dim);background:var(--panel);display:inline-flex;align-items:center;gap:5px;transition:.16s}
+  .msg-act:hover{border-color:var(--primary);color:var(--text)}
+  .msg-act i{width:13px;height:13px}
+  /* 输入框 */
+  .composer{border:1px solid var(--border-strong);border-radius:16px;padding:12px 14px;background:var(--panel);margin-top:12px;transition:.16s}
+  .composer:focus-within{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary),var(--glow)}
+  .composer textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:14px;resize:none;outline:none;font-family:inherit;min-height:52px}
   .composer textarea::placeholder{color:var(--text-mute)}
-  /* 演示场景 chip */
+  /* 演示场景 chip(输入框上方) */
   .scene-chip{font-size:12.5px;border:1px solid var(--border-strong);border-radius:20px;padding:6px 13px;cursor:pointer;color:var(--text-dim);transition:.16s;background:var(--panel);display:inline-flex;align-items:center;gap:6px}
   .scene-chip:hover{border-color:var(--primary);color:var(--text);background:color-mix(in srgb,var(--primary) 8%,var(--panel))}
   .scene-chip i{width:14px;height:14px}
+  /* 场景库抽屉沿用 */
   .scene-side{font-size:12px;border:1px dashed var(--border-strong);border-radius:9px;padding:8px 10px;cursor:pointer;color:var(--text-dim);transition:.16s;margin-bottom:7px;line-height:1.5}
   .scene-side:hover{border-color:var(--primary);color:var(--text);border-style:solid}
-  .out-card{border:1px solid var(--border);border-radius:11px;padding:11px;margin-bottom:9px;cursor:pointer;transition:.16s;background:var(--panel)}
-  .out-card:hover{border-color:var(--primary);transform:translateY(-2px)}
-  .stat-chip{flex:1;text-align:center;padding:8px 4px;border:1px solid var(--border);border-radius:10px;background:var(--panel)}
-  .stat-chip .v{font-family:Oswald;font-size:20px;font-weight:700;color:var(--primary)}
-  .stat-chip .l{font-size:11px;color:var(--text-mute);margin-top:2px}
+  /* 欢迎 / 空状态 */
+  .welcome{padding:10px 4px 6px;max-width:780px;margin:0 auto}
+  .welcome .wc-top{text-align:center;margin-bottom:6px}
+  .welcome .wc-ava{width:62px;height:62px;border-radius:18px;display:grid;place-items:center;font-size:30px;margin:6px auto 14px}
+  .welcome .wc-ava i{width:30px;height:30px}
+  .welcome .wc-sum{font-size:20px;font-weight:800;margin-bottom:8px}
+  .welcome .wc-desc{font-size:13px;color:var(--text-dim);line-height:1.7;max-width:600px;margin:0 auto}
+  .wc-label{font-size:12px;color:var(--text-mute);letter-spacing:1px;margin:22px 0 11px;display:flex;align-items:center;gap:7px}
+  .wc-label::before{content:"";width:3px;height:13px;border-radius:2px;background:var(--primary)}
+  /* 热门提示词 */
+  .hot-rail{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .hot-chip{font-size:12.5px;border:1px solid var(--border-strong);border-radius:20px;padding:7px 14px;cursor:pointer;color:var(--text-dim);background:var(--panel);display:inline-flex;align-items:center;gap:7px;transition:.16s}
+  .hot-chip:hover{border-color:var(--primary);color:var(--text);transform:translateY(-1px);box-shadow:var(--glow-soft)}
+  .hot-chip .fire{color:#ff7a3c;width:14px;height:14px}
+  .hot-chip .who{font-size:11px;color:var(--text-mute)}
+  /* 推荐场景(按智能体分组) */
+  .scene-group{margin-bottom:6px}
+  .sg-head{display:flex;align-items:center;gap:9px;margin:16px 0 10px}
+  .sg-head .ic{width:27px;height:27px;border-radius:8px;display:grid;place-items:center;font-size:15px;flex-shrink:0}
+  .sg-head .ic i{width:15px;height:15px}
+  .sg-head .nm{font-size:13.5px;font-weight:700}
+  .sg-head .badge{font-size:11px;color:var(--text-mute)}
+  .sg-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .scene-card{border:1px solid var(--border);border-radius:11px;padding:11px 12px;cursor:pointer;transition:.16s;background:var(--panel);display:flex;gap:10px;align-items:flex-start}
+  .scene-card:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:var(--glow-soft)}
+  .scene-card .ci{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex-shrink:0;font-size:15px}
+  .scene-card .ci i{width:15px;height:15px}
+  .scene-card .ct{font-size:13px;font-weight:600;margin-bottom:2px}
+  .scene-card .cp{font-size:11.5px;color:var(--text-mute);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  @media(max-width:640px){.sg-grid{grid-template-columns:1fr}.agent-seg{flex-direction:column}}
   .typing-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--primary);margin:0 1px;animation:breathe 1.2s infinite}
 </style>
 <script src="assets/js/lucide.min.js"></script>
@@ -54,36 +89,23 @@
 <main class="wuda-view">
   <div class="page-head">
     <div><div class="page-title"><span class="accentbar"></span><span id="pageTitle">三大AI智能体</span></div>
-    <div class="page-sub">AI产业研究院 · AI技术经理人 · AI投资人 —— 基于统一数据底座的大对话框智能体，让产业研判与成果转化「可用」</div></div>
+    <div class="page-sub">AI产业研究院 · AI技术经理人 · AI投资人 —— 基于统一数据底座的对话式智能体，让产业研判与成果转化「可用」</div></div>
     <div style="display:flex;gap:9px">
-      <button class="btn btn-ghost btn-sm" id="btnHistory"><i data-lucide="scroll-text"></i> 历史产出</button>
       <button class="btn btn-sm" id="btnScenes"><i data-lucide="sparkles"></i> 演示场景库</button>
     </div>
   </div>
 
-  <!-- 智能体顶部总结条(占满，含一句话总结 + 演示场景指引 chips) -->
-  <div class="panel glow agent-hero" id="agentHero" style="background:linear-gradient(110deg,rgba(0,229,255,.10),rgba(138,19,48,.06))"></div>
+  <div class="chat-wrap">
+    <!-- 顶部:三大智能体切换 -->
+    <div class="agent-seg" id="agentSeg"></div>
 
-  <div class="wb-grid">
-    <!-- 左栏:三大智能体切换 + 演示场景速览 -->
-    <div>
-      <div class="panel">
-        <div class="panel-h"><div class="t"><span class="bar"></span>三大智能体</div></div>
-        <div id="agentList"></div>
-      </div>
-      <div class="panel" style="margin-top:14px">
-        <div class="panel-h"><div class="t"><span class="bar"></span>演示场景</div><div class="tools"><span class="panel-tag">点击填入对话框</span></div></div>
-        <div id="sceneSide"></div>
-      </div>
-    </div>
-
-    <!-- 中栏:大对话框(主体面积) -->
-    <div class="panel" style="display:flex;flex-direction:column">
-      <div class="panel-h"><div class="t"><span class="bar"></span><span id="chatTitle">对话作业区</span></div>
-        <div class="tools"><span class="panel-tag" id="chatStatus">● 就绪</span><span class="panel-tag pointer" id="btnClear">清空</span></div></div>
+    <!-- 对话作业区(单一主体) -->
+    <div class="panel" style="display:flex;flex-direction:column;padding:14px 16px">
+      <div class="panel-h" style="margin-bottom:10px"><div class="t"><span class="bar"></span><span id="chatTitle">对话作业区</span></div>
+        <div class="tools"><span class="panel-tag" id="chatStatus">● 就绪</span><span class="panel-tag pointer" id="btnClear">清空对话</span></div></div>
       <div class="chat-box">
         <div class="chat-scroll" id="chatScroll"></div>
-        <!-- 对话框上方的演示场景指引 chips -->
+        <!-- 输入框上方的演示场景指引 chips -->
         <div id="sceneRail" style="display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 2px"></div>
         <div class="composer">
           <textarea id="composerInput" placeholder="向当前智能体提问或下达任务..."></textarea>
@@ -94,18 +116,9 @@
         </div>
       </div>
     </div>
-
-    <!-- 右栏:任务产出 / 产出物 -->
-    <div>
-      <div class="panel glow">
-        <div class="panel-h"><div class="t"><span class="bar"></span>任务产出 · 产出物</div><div class="tools"><span class="panel-tag" id="outCount">0</span></div></div>
-        <div class="flex gap-2 mb-3" id="outStats"></div>
-        <div id="outList" style="max-height:calc(100vh - 360px);overflow-y:auto"></div>
-      </div>
-    </div>
   </div>
 
-  <div id="srcFoot"></div>
+  <div id="srcFoot" style="max-width:880px;margin:14px auto 0"></div>
 </main>
 
 <script src="assets/js/data.js"></script>
@@ -175,7 +188,15 @@
   }
   let current=readRole();
   let busy=false;
-  const outputs=[]; // {id,title,role,...,body,scope}
+
+  // 热门提示词(跨三大智能体精选，{role, i} 指向各自 scenes)
+  const HOT_PROMPTS=[
+    {role:'research', i:0}, // 产业趋势研判
+    {role:'tech',     i:0}, // 科技成果转化
+    {role:'invest',   i:0}, // 帮老师写BP
+    {role:'research', i:2}, // 赛道选择
+    {role:'invest',   i:2}, // 对接投资机构
+  ];
 
   // ====== 产出文本生成器(结构化，底层复用 DB) ======
   function genResearch(topic){
@@ -264,49 +285,35 @@ picks(investors,3).map((iv,i)=>`${i+1}. ${iv} — 关注${a.disciplineName}早�
       scope:`BP要点 / 亮点提炼 / 估值区间 / 机构对接 · ${e.name}`};
   }
 
-  // ====== 渲染:顶部总结条 ======
-  function renderHero(){
-    const a=AGENTS[current];
-    document.getElementById('agentHero').innerHTML =
-      `<div class="eyebrow text-primary">${a.eyebrow}</div>
-       <div class="hl">${a.summary}</div>
-       <div class="text-dim f13" style="max-width:820px">${a.desc}</div>
-       <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-         <span class="text-mute f12" style="margin-right:2px">演示场景：</span>
-         ${a.scenes.map((s,i)=>`<span class="scene-chip" data-scene="${i}"><i data-lucide="${s.icon}"></i>${s.label}</span>`).join('')}
-       </div>`;
-    document.querySelectorAll('#agentHero .scene-chip').forEach(el=>el.onclick=()=>fillScene(+el.dataset.scene));
-  }
-  // ====== 渲染:智能体列表 ======
-  function renderAgents(){
-    document.getElementById('agentList').innerHTML = Object.keys(AGENTS).map(k=>{
-      const a=AGENTS[k];
-      return `<div class="agent-item ${k===current?'on':''}" data-role="${k}">
-        <div class="flex items-center gap-3">
-          <div class="agent-ava" style="background:color-mix(in srgb,${a.color} 18%,transparent)">${a.icon}</div>
-          <div style="flex:1;min-width:0"><div class="fw7 f13">${a.key}</div><div class="f12 text-mute">${a.scenes.length} 个演示场景</div></div>
-          ${k===current?'<span class="light g"><span class="o"></span>当前</span>':''}
-        </div></div>`;
+  // ====== 渲染:顶部三大智能体分段切换 ======
+  function renderAgentSeg(){
+    document.getElementById('agentSeg').innerHTML = Object.keys(AGENTS).map(k=>{
+      const a=AGENTS[k], on=k===current;
+      return `<div class="seg-pill ${on?'on':''}" data-role="${k}" style="--seg:${a.color}">
+        <span class="ic" style="background:color-mix(in srgb,${a.color} 18%,transparent);color:${a.color}">${a.icon}</span>
+        <span>${a.key}</span></div>`;
     }).join('');
-    document.querySelectorAll('#agentList .agent-item').forEach(el=>el.onclick=()=>switchAgent(el.dataset.role));
+    document.querySelectorAll('#agentSeg .seg-pill').forEach(el=>el.onclick=()=>switchAgent(el.dataset.role));
   }
-  // ====== 渲染:左栏演示场景 + 对话框上方 chips ======
+  // ====== 渲染:输入框上方场景 chips + 数据域 ======
   function renderScenes(){
     const a=AGENTS[current];
-    document.getElementById('sceneSide').innerHTML = a.scenes.map((s,i)=>
-      `<div class="scene-side" data-scene="${i}"><i data-lucide="${s.icon}"></i> ${s.label}</div>`).join('');
-    document.querySelectorAll('#sceneSide .scene-side').forEach(el=>el.onclick=()=>fillScene(+el.dataset.scene));
-    // 对话框上方指引轨(取前若干场景)
     document.getElementById('sceneRail').innerHTML = `<span class="text-mute f12" style="align-self:center">试试：</span>`+
       a.scenes.slice(0,4).map((s,i)=>`<span class="scene-chip" data-scene="${i}"><i data-lucide="${s.icon}"></i>${s.label}</span>`).join('');
     document.querySelectorAll('#sceneRail .scene-chip').forEach(el=>el.onclick=()=>fillScene(+el.dataset.scene));
     document.getElementById('srcLine').textContent = '已接入：'+a.sources.join(' · ');
   }
-  // 演示场景 → 填入对话框
+  // 演示场景 → 填入对话框(当前智能体)
   function fillScene(i){
     const a=AGENTS[current], s=a.scenes[i]; if(!s) return;
     const ta=document.getElementById('composerInput');
     ta.value=s.prompt; ta.focus();
+  }
+  // 跨智能体场景 → 切到对应智能体并填入(欢迎页卡片/热门提示词)
+  function goScene(k,i){
+    if(busy){ UI.toast('生成进行中，请稍候','warn'); return; }
+    if(k!==current) switchAgent(k);
+    fillScene(i);
   }
 
   // ====== 切换智能体 ======
@@ -323,8 +330,8 @@ picks(investors,3).map((iv,i)=>`${i+1}. ${iv} — 关注${a.disciplineName}早�
     const a=AGENTS[current];
     document.getElementById('pageTitle').textContent=a.key;
     document.getElementById('chatTitle').textContent=a.key+' · 对话作业区';
-    document.getElementById('composerInput').placeholder='向「'+a.key+'」提问或下达任务，例如点击上方演示场景...';
-    renderHero(); renderAgents(); renderScenes(); resetChat();
+    document.getElementById('composerInput').placeholder='向「'+a.key+'」提问或下达任务，例如点击场景卡片...';
+    renderAgentSeg(); renderScenes(); resetChat();
     if(window.lucide) lucide.createIcons();
   }
 
