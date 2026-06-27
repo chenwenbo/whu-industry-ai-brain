@@ -132,10 +132,9 @@
       <div class="ag-go">进入智能体大对话框 <i data-lucide="arrow-right"></i></div>
     </a>`).join('');
 
-  // ===== 数字底座（数据资产 + 知识图谱，同一菜单两页面） =====
+  // ===== 数字底座（数据资产） =====
   const bases=[
-    {t:'数据底座总览',d:'几类高校数据资产举证 · 统计概览逐层钻取',u:'data-foundation.html',i:'<i data-lucide="database"></i>',c:'var(--success)'},
-    {t:'数据资产目录',d:'8类数据资产 · 成果与专利打通 · 明细钻取',u:'data-catalog.html',i:'<i data-lucide="files"></i>',c:'var(--accent)'},
+    {t:'数据资产',d:'几类高校数据资产举证 · 统计概览逐层钻取',u:'data-foundation.html',i:'<i data-lucide="database"></i>',c:'var(--success)'},
   ];
   document.getElementById('baseGrid').innerHTML=bases.map(b=>`
     <a class="base-card" href="${b.u}">
