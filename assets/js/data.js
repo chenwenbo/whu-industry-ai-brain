@@ -527,11 +527,55 @@
     institutes: parks.filter(p=>p.type==='异地协同载体').concat(seq(8,i=>({name:pick(['温州','深圳','合肥','杭州','苏州','宁波','东莞'])+'·武汉大学产业创新研究院',type:'异地研究院',occupancy:ri(55,90),ents:ri(10,60)}))),
   };
 
+  // =====================================================================
+  // 9b. 数据资产页（科研实力总览）增补 —— 明细筛选所需演示数据
+  //     全部追加在 inventoryDrill 之后、导出之前；不改动既有生成顺序，
+  //     仅消耗后续 seed，不影响其它页面的稳定假数据。
+  // =====================================================================
+  // 学科与团队：补 教授/副教授/人才标签数（profs/assocProfs 由 teams.members 推导，确定性）
+  inventoryDrill.disciplines = disciplines.map(d=>{
+    const dTeams = teams.filter(t=>t.discipline===d.id);
+    const members = dTeams.reduce((s,t)=>s+t.members,0);
+    return {
+      id:d.id, name:d.name, color:d.color, col:d.colleges.join('、'),
+      teams:dTeams.length, ach:achievements.filter(a=>a.discipline===d.id).length,
+      profs:Math.round(members*0.32), assocProfs:Math.round(members*0.41),
+      talents:ri(8,40),
+    };
+  });
+  // 人才（按学科）：逐人列表，支持 年份 + 学科 筛选
+  inventoryDrill.talentList = seq(60,i=>{
+    const d=pick(disciplines);
+    return {name:person()+' 教授', type:pick(['长江学者','国家杰青','国家优青','万人计划']),
+      discipline:d.name, college:pick(d.colleges), year:ri(2016,2024)};
+  });
+  // 论文：年度趋势（总量 / 顶刊 / 高被引）
+  inventoryDrill.paperTrend = seq(6,i=>({year:2020+i, total:ri(3200,4600), top:ri(110,180), highCited:ri(40,120)}));
+  // 横向项目：扩量 + 学科字段（年份/学科 可筛）
+  inventoryDrill.hprojects = seq(40,i=>{
+    const d=pick(disciplines);
+    return {year:ri(2020,2025), name:d.name+pick(['关键技术','装备研制','算法','工艺','系统集成'])+'合作开发',
+      partner:pick(['华为','东风汽车','长飞光纤','烽火通信','人福医药','高德红外','中信科','光迅科技','逸飞激光'])+'有限公司',
+      contract:pick(['横向技术开发','技术服务','技术咨询','成果转让'])+'合同',
+      amount:ri(80,1200), college:pick(d.colleges), disciplineName:d.name};
+  });
+  // 纵向项目：扩量 + 学科字段（年份/学科 可筛）
+  inventoryDrill.vprojects = seq(36,i=>{
+    const d=pick(disciplines);
+    return {year:ri(2020,2025), name:d.name+pick(['基础研究','重点专项','面上项目','青年项目']),
+      source:pick(['国家自然科学基金','国家重点研发计划','省重点研发','科技部专项']),
+      amount:ri(100,3000), pi:person()+' 教授', disciplineName:d.name};
+  });
+  // 专利聚合：年度新增（按授权年）+ 法律状态分布（供图表）
+  const patentYearly=(()=>{const m={};patents.forEach(p=>{m[p.grantYear]=(m[p.grantYear]||0)+1;});
+    const years=Object.keys(m).sort();return {x:years,series:[{name:'新增授权',data:years.map(y=>m[y])}]};})();
+  const patentStatus=['已授权','实质审查','公开'].map(s=>({name:s,value:patents.filter(p=>p.status===s).length}));
+
   // 暴露
   window.DB = {
     disciplines, allColleges, hubeiCities, wuhanDistricts,
     achievements, teams, patents, achievementPatents,
-    assetInventory, inventoryDrill,
+    assetInventory, inventoryDrill, patentYearly, patentStatus,
     enterprises, financings, postInvest, riskAlerts, funds,
     parks, spaceUnits, tickets, onboarding,
     activities, customerLeads, projectLeads, communities,
