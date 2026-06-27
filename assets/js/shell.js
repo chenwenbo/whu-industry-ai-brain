@@ -6,7 +6,7 @@
 (function(){
   const NAV = [
     {group:'决策分析', items:[
-      {p:'data-foundation', t:'数据资产', i:'<i data-lucide="database"></i>'},
+      {p:'data-foundation', t:'数据资产', i:'<i data-lucide="database"></i>', alias:['data-catalog']},
       {p:'cockpit-school', t:'产业驾驶舱', i:'<i data-lucide="satellite"></i>', badge:'大屏'},
     ]},
     {group:'三大AI智能体', items:[
@@ -181,6 +181,7 @@
     DB.achievements.forEach(a=>idx.push({cat:'科技成果',name:a.title,meta:a.disciplineName,url:'achievement-detail.html?id='+a.id,i:'<i data-lucide="microscope"></i>'}));
     DB.enterprises.forEach(e=>idx.push({cat:'企业',name:e.name,meta:e.type+' · '+e.disciplineName,url:'enterprise-detail.html?id='+e.id,i:'<i data-lucide="building-2"></i>'}));
     DB.parks.forEach(p=>idx.push({cat:'园区',name:p.name,meta:p.type,url:'park-detail.html?id='+p.id,i:'<i data-lucide="building"></i>'}));
+    DB.dataAssets.forEach(d=>idx.push({cat:'数据资产',name:d.name,meta:d.domain,url:'data-catalog.html',i:'<i data-lucide="files"></i>'}));
     return idx; }
   const SEARCH_INDEX=buildIndex();
   const cmdMask=document.createElement('div');cmdMask.className='cmd-mask';
