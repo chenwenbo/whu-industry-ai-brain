@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>活动归口台账 · 武汉大学产业创新AI智脑平台</title>
+<title>活动与培训 · 武汉大学产业创新AI智脑平台</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
@@ -23,8 +23,8 @@
 <main class="wuda-view">
   <div class="page-head">
     <div>
-      <div class="page-title"><span class="accentbar"></span>活动归口台账</div>
-      <div class="page-sub">训练营 · 创新赛事 · 投融资对接会 · 科学家企业家交流 · 直播 · 政策宣讲 全口径统筹</div>
+      <div class="page-title"><span class="accentbar"></span>活动与培训</div>
+      <div class="page-sub">大赛 · 培训 · 活动动态 · 政策宣讲 · 科技转化讲座 全口径同步统筹，凡园区/学校举办活动一处汇聚，台账+转化漏斗留存</div>
     </div>
     <div style="display:flex;gap:9px">
       <div class="seg" id="viewSeg"><button class="on" data-v="cal"><i data-lucide="calendar"></i> 月历</button><button data-v="list"><i data-lucide="clipboard-list"></i> 列表</button></div>
@@ -61,7 +61,7 @@
   <!-- 图表 -->
   <div class="grid cols-2 mt-4">
     <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>活动类型分布</div></div>
+      <div class="panel-h"><div class="t"><span class="bar"></span>板块分布（大赛/培训/活动/政策/讲座）</div></div>
       <div class="chart h300" id="typePie"></div>
     </div>
     <div class="panel">
@@ -69,6 +69,13 @@
         <div class="tools"><span class="panel-tag">场次 / 报名</span></div></div>
       <div class="chart h300" id="monBar"></div>
     </div>
+  </div>
+
+  <!-- 活动动态 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>活动动态</div>
+      <div class="tools"><span class="panel-tag">园区 / 学校举办活动同步</span></div></div>
+    <div id="dynFeed"></div>
   </div>
 
   <div id="srcNote"></div>
@@ -88,14 +95,20 @@
     '科学家—企业家交流会':'var(--violet)','大咖直播':'var(--gold)','政策宣讲':'var(--cyan)'
   };
   const types = Object.keys(typeColor);
+  // 板块归类(大赛/培训/活动/政策/讲座)——映射到底层活动类型
+  const groupOf = t => ({
+    '创新赛事':'大赛','训练营':'培训','投融资对接会':'活动动态',
+    '科学家—企业家交流会':'科技转化讲座','大咖直播':'科技转化讲座','政策宣讲':'政策宣讲'
+  })[t]||'活动动态';
 
   // ---------- KPI ----------
   const totalEnroll = acts.reduce((s,a)=>s+a.enroll,0);
   const totalLeads = acts.reduce((s,a)=>s+a.leads,0);
   const monthSet = acts.filter(a=>a.date.startsWith('2026-06')||a.date.startsWith('2026-0'+(new Date().getMonth()+1)));
+  const trainCnt = acts.filter(a=>groupOf(a.type)==='培训').length;
   document.getElementById('kpis').innerHTML=[
     UI.kpi({label:'累计活动场次',value:DB.topKPI.activities,unit:'场',icon:'<i data-lucide="calendar"></i>',delta:'本季18场',deltaUp:true}),
-    UI.kpi({label:'在册活动(本系统)',value:acts.length,unit:'场',icon:'<i data-lucide="folder"></i>'}),
+    UI.kpi({label:'其中培训/讲座',value:acts.filter(a=>['培训','科技转化讲座'].includes(groupOf(a.type))).length,unit:'场',icon:'<i data-lucide="graduation-cap"></i>'}),
     UI.kpi({label:'累计报名人次',value:totalEnroll.toLocaleString(),unit:'人',icon:'<i data-lucide="hand"></i>',spark:[120,180,220,260,310,360,420,480]}),
     UI.kpi({label:'沉淀业务线索',value:totalLeads,unit:'条',icon:'<i data-lucide="target"></i>',delta:'转化率31%',deltaUp:true}),
   ].join('');
@@ -106,8 +119,10 @@
 
   // ---------- 筛选 ----------
   let filtered = acts.slice();
+  const groups=['大赛','培训','活动动态','政策宣讲','科技转化讲座'];
   const fb = UI.filterBar('#filter', {
     fields:[
+      {key:'group',label:'全部板块',options:groups},
       {key:'type',label:'全部类型',options:types},
       {key:'discipline',label:'全部学科',options:DB.disciplines.map(d=>d.name)},
       {key:'status',label:'全部状态',options:['筹备中','报名中','已结束']},
@@ -115,6 +130,7 @@
     search:true, searchPh:'搜索活动名称...',
     onChange:v=>{
       filtered = acts.filter(a=>
+        (!v.group||groupOf(a.type)===v.group) &&
         (!v.type||a.type===v.type) &&
         (!v.discipline||a.discipline===v.discipline) &&
         (!v.status||a.status===v.status) &&
@@ -200,8 +216,8 @@
   // ================= 图表 =================
   let pieC, barC;
   function renderCharts(){
-    const tc={}; filtered.forEach(a=>tc[a.type]=(tc[a.type]||0)+1);
-    Charts.pie('typePie',{data:types.filter(t=>tc[t]).map(t=>({name:t,value:tc[t]})), ring:true, legend:true, center:['40%','52%']});
+    const gc={}; filtered.forEach(a=>{const g=groupOf(a.type);gc[g]=(gc[g]||0)+1;});
+    Charts.pie('typePie',{data:groups.filter(g=>gc[g]).map(g=>({name:g,value:gc[g]})), ring:true, legend:true, center:['40%','52%']});
     // 月度趋势(按月聚合场次与报名)
     const mo=Array.from({length:6},(_,i)=>({m:(i+1)+'月',cnt:0,enroll:0}));
     filtered.forEach(a=>{ const mi=parseInt(a.date.slice(5,7))-1; if(mi>=0&&mi<6){mo[mi].cnt++;mo[mi].enroll+=a.enroll;} });
@@ -253,9 +269,17 @@
 
   // ---------- 视图切换 ----------
   let view='cal';
+  function renderDynamics(){
+    const sorted = filtered.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+    const statusType = s => ({'已结束':'活动','报名中':'合作','筹备中':'数据'}[s]||'活动');
+    document.getElementById('dynFeed').innerHTML = sorted.length ? UI.timeline(sorted.map(a=>({
+      time:a.date.slice(5), type:statusType(a.status),
+      txt:`<b>[${groupOf(a.type)}]</b> ${a.name} · ${a.venue} · 报名${a.enroll}人，沉淀线索${a.leads}条 <span class="tag tag-gray" style="margin-left:4px">${a.status}</span>`
+    }))) : UI.empty('暂无活动动态');
+  }
   function renderAll(){
     if(view==='cal') renderCalendar(); else renderList();
-    renderCharts();
+    renderCharts(); renderDynamics();
   }
   document.getElementById('viewSeg').addEventListener('click',e=>{
     const b=e.target.closest('button'); if(!b) return;
@@ -270,8 +294,8 @@
   document.getElementById('todayBtn').onclick=()=>{ const t=new Date(); curY=t.getFullYear(); curM=t.getMonth(); renderCalendar(); };
 
   document.getElementById('btnNew').onclick=()=>{
-    UI.modal('＋ 登记活动', `
-      <div class="text-dim mb-3 f13">登记后活动将纳入归口台账，自动统计报名、签到与线索转化。</div>
+    UI.modal('＋ 登记活动 / 培训', `
+      <div class="text-dim mb-3 f13">登记后活动将纳入活动与培训台账并同步至全平台，自动统计报名、签到与线索转化。</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div style="grid-column:1/3"><div class="f12 text-mute mb-2">活动名称</div><input type="text" placeholder="如：珞珈产业创新训练营·第9期" style="width:100%"></div>
         <div><div class="f12 text-mute mb-2">活动类型</div><select style="width:100%">${types.map(t=>`<option>${t}</option>`).join('')}</select></div>

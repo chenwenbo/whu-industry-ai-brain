@@ -77,6 +77,38 @@
     };
   });
 
+  // ---- 专利明细（与成果打通：每件专利归属某成果 achId）----
+  // 类型：发明专利 / 实用新型 / PCT国际专利；状态：已授权 / 实质审查 / 公开
+  const patentTypePool=['发明专利','发明专利','发明专利','实用新型','PCT国际专利'];
+  const patentStatusPool=['已授权','已授权','实质审查','公开'];
+  const patentVerbs=['一种','基于深度学习的','面向产业应用的','高性能','低功耗','可重构'];
+  const patents=[];
+  achievements.forEach(a=>{
+    // 每个成果挂 2~5 件代表性专利（受成果 patents 计数约束，明细取代表项）
+    const n=Math.min(5, Math.max(2, Math.round(a.patents/6)));
+    seq(n,j=>{
+      const type=j===0?'发明专利':pick(patentTypePool);
+      patents.push({
+        id:'PAT-'+a.discipline.toUpperCase()+'-'+a.id.slice(-3)+'-'+pad(j+1),
+        no:(type==='PCT国际专利'?'PCT/CN'+ri(2021,2025):'ZL'+ri(2021,2025)+'1'+pad(ri(1,999)))+pad(ri(1,999)+j),
+        title:pick(patentVerbs)+a.title.slice(0,10)+pick(['的方法','系统','装置','及其应用','结构']),
+        type, status:pick(patentStatusPool),
+        achId:a.id, achTitle:a.title, discipline:a.discipline, disciplineName:a.disciplineName,
+        college:a.college, inventor:a.leader.replace(/\s.+$/,''),
+        applyYear:ri(2019, a.year), grantYear:ri(a.year, 2025),
+        claims:ri(6,28), cited:ri(0,42), value:ri(20,1200), // 专利价值评估(万元)
+        transferable:rnd()>.35, // 是否可转化
+      });
+    });
+  });
+  // 成果↔专利 关联视图（供目录"打通"展示）
+  const achievementPatents = achievements.map(a=>({
+    achId:a.id, achTitle:a.title, discipline:a.discipline, disciplineName:a.disciplineName,
+    college:a.college, leader:a.leader, trl:a.trl, value:a.value, status:a.status,
+    patentTotal:a.patents,
+    patents:patents.filter(p=>p.achId===a.id),  // 代表性专利明细
+  }));
+
   // =====================================================================
   // 2. 企业域（孵化/参股/校属/校友）
   // =====================================================================
@@ -234,29 +266,37 @@
   // =====================================================================
   // 6. 数据资产底座域（元数据）
   // =====================================================================
+  // 7 类高校数据资产域（成果与专利打通为一域；校友企业待校友会统筹）
   const dataDomains = [
-    {id:1,name:'成果与专利',color:'var(--dom-1)',tables:38,records:420,health:95,freq:'日更',owner:'科学技术发展研究院',sensitive:'内部',updated:'2小时前',status:'正常'},
-    {id:2,name:'学院与团队',color:'var(--dom-2)',tables:22,records:68,health:93,freq:'周更',owner:'人事部/科研院',sensitive:'内部',updated:'1天前',status:'正常'},
-    {id:3,name:'研究院与平台',color:'var(--dom-3)',tables:18,records:45,health:88,freq:'周更',owner:'发展规划与学科建设处',sensitive:'内部',updated:'3天前',status:'同步中'},
-    {id:4,name:'科技园与创意园',color:'var(--dom-4)',tables:15,records:32,health:91,freq:'日更',owner:'资产管理公司',sensitive:'内部',updated:'4小时前',status:'正常'},
-    {id:5,name:'参股/校属企业',color:'var(--dom-5)',tables:26,records:120,health:94,freq:'日更',owner:'资产管理公司',sensitive:'受限',updated:'1小时前',status:'正常'},
-    {id:6,name:'活动与赛事',color:'var(--dom-6)',tables:20,records:56,health:86,freq:'实时',owner:'资产管理公司',sensitive:'公开',updated:'12分钟前',status:'同步中'},
-    {id:7,name:'校友企业',color:'var(--dom-7)',tables:31,records:310,health:90,freq:'月更',owner:'校友总会/资产公司',sensitive:'内部',updated:'6天前',status:'正常'},
-    {id:8,name:'产业企业与园区',color:'var(--dom-8)',tables:86,records:809,health:92,freq:'日更',owner:'资产管理公司',sensitive:'内部',updated:'30分钟前',status:'正常'},
+    {id:1,name:'成果与专利',color:'var(--dom-1)',tables:42,records:520,health:95,freq:'日更',owner:'科学技术发展研究院',sensitive:'内部',updated:'2小时前',status:'正常',note:'成果(老师团队可转化项目)与专利(发明/实用新型/PCT)、论文打通'},
+    {id:2,name:'学院与团队',color:'var(--dom-2)',tables:22,records:68,health:93,freq:'周更',owner:'人事部/科研院',sensitive:'内部',updated:'1天前',status:'正常',note:'按学科聚集团队，叠加人才领域标签(长江/杰青)'},
+    {id:3,name:'研究院平台/科研院',color:'var(--dom-3)',tables:18,records:45,health:88,freq:'周更',owner:'发展规划与学科建设处',sensitive:'内部',updated:'3天前',status:'同步中',note:'各地研究院、国家重点实验室、创新平台'},
+    {id:4,name:'创业园/园区',color:'var(--dom-4)',tables:24,records:96,health:91,freq:'日更',owner:'资产管理公司',sensitive:'内部',updated:'4小时前',status:'正常',note:'大学科技园、创意园、加速器、异地协同载体'},
+    {id:5,name:'参股企业和校属企业',color:'var(--dom-5)',tables:30,records:158,health:94,freq:'日更',owner:'资产管理公司',sensitive:'受限',updated:'1小时前',status:'正常',note:'学校直系控股/参股企业，含股权与投后'},
+    {id:6,name:'活动赛事',color:'var(--dom-6)',tables:20,records:56,health:86,freq:'实时',owner:'资产管理公司',sensitive:'公开',updated:'12分钟前',status:'同步中',note:'大赛、培训、活动动态'},
+    {id:7,name:'校友企业',color:'var(--dom-7)',tables:31,records:310,health:88,freq:'月更',owner:'校友总会(统筹中)',sensitive:'内部',updated:'6天前',status:'同步中',note:'待校友会统筹：出思路、数据落地难'},
   ];
-  const assetTblNames={1:['发明专利基础信息表','科技成果登记表','技术合同台账','软件著作权表','论文成果表'],2:['学院基础信息表','科研团队表','人才信息表','导师信息表'],3:['研究院信息表','重点实验室表','创新平台表'],4:['园区基础表','楼宇空间表','入驻企业表','服务事项表'],5:['参股企业台账','股权结构表','经营指标表','投后跟踪表'],6:['活动台账','报名记录表','嘉宾信息表','线索记录表'],7:['校友企业表','校友信息表','校友融资表'],8:['产业企业库','工商信息表','产业链图谱表','园区分布表']};
+  const assetTblNames={
+    1:['科技成果登记表','成果可转化清单','发明专利基础信息表','实用新型专利表','PCT国际专利表','技术合同台账','软件著作权表','论文成果表(顶刊/存量/新增)'],
+    2:['学院基础信息表','科研团队表','人才信息表(长江/杰青)','导师信息表'],
+    3:['研究院信息表','国家重点实验室表','创新平台表','科研院平台表'],
+    4:['创业园/园区基础表','楼宇空间表','入驻企业表','服务事项表'],
+    5:['参股企业台账','校属企业台账','股权结构表','经营指标表','投后跟踪表'],
+    6:['活动台账','赛事记录表','报名签到表','嘉宾信息表'],
+    7:['校友企业表','校友信息表','校友融资表'],
+  };
   const dataAssets=[];
   dataDomains.forEach(d=>{(assetTblNames[d.id]||['核心数据表']).forEach((nm,j)=>{
     dataAssets.push({id:'DS-'+pad(d.id)+pad(j+1),name:nm,domain:d.name,domainId:d.id,fields:ri(12,68),records:ri(2,86)+'万',freq:d.freq,updated:d.updated,owner:d.owner,status:pick(['正常','正常','正常','同步中']),health:ri(82,98),sensitive:d.sensitive});
   });});
   const lineage = [
     {from:'学院与团队',to:'成果与专利',rel:'第一发明人关联'},
-    {from:'成果与专利',to:'参股/校属企业',rel:'技术作价入股'},
-    {from:'校友企业',to:'产业企业与园区',rel:'工商主体匹配'},
-    {from:'参股/校属企业',to:'科技园与创意园',rel:'入驻关联'},
-    {from:'活动与赛事',to:'参股/校属企业',rel:'线索转化'},
-    {from:'产业企业与园区',to:'成果与专利',rel:'需求牵引'},
-    {from:'研究院与平台',to:'成果与专利',rel:'成果产出'},
+    {from:'成果与专利',to:'参股企业和校属企业',rel:'技术作价入股'},
+    {from:'校友企业',to:'参股企业和校属企业',rel:'工商主体匹配'},
+    {from:'参股企业和校属企业',to:'创业园/园区',rel:'入驻关联'},
+    {from:'活动赛事',to:'参股企业和校属企业',rel:'线索转化'},
+    {from:'研究院平台/科研院',to:'成果与专利',rel:'成果产出'},
+    {from:'成果与专利',to:'活动赛事',rel:'成果路演'},
   ];
   const qualityIssues = seq(16,i=>({
     id:'GV-'+pad(i+1), domain:pick(dataDomains).name, type:pick(['缺失值','重复记录','格式错误','逻辑冲突','更新超期']),
@@ -452,10 +492,46 @@
     name:'武汉大学', children: disciplines.map(d=>({name:d.name, children: enterprises.filter(e=>e.equity>0&&e.discipline===d.id).slice(0,4).map(e=>({name:e.name.slice(0,8),value:Math.round(e.valuation*e.equity/100)}))}))
   };
 
+  // =====================================================================
+  // 9. 业务向资产盘点（数据底座总览：几类数据资产举证，非面向技术）
+  //    每项支持逐层钻取明细(钻取数据见 inventoryDrill)
+  // =====================================================================
+  const _patInvent=patents.filter(p=>p.type==='发明专利').length;
+  const _patUtil=patents.filter(p=>p.type==='实用新型').length;
+  const _patPCT=patents.filter(p=>p.type==='PCT国际专利').length;
+  const assetInventory=[
+    {key:'discipline',label:'优势学科',value:5,unit:'个',icon:'layers',dom:'var(--dom-2)',sub:'人工智能·机器人·生物医药·半导体·空间信息',drill:'disciplines'},
+    {key:'teacher',label:'科研老师/PI',value:1860,unit:'人',icon:'users',dom:'var(--dom-2)',sub:'按学科聚集，含长江/杰青领域标签',drill:'teachers'},
+    {key:'achievement',label:'可转化成果',value:achievements.length,unit:'项',icon:'lightbulb',dom:'var(--dom-1)',sub:'老师团队自研、可转化项目',drill:'achievements'},
+    {key:'patent',label:'专利合计',value:_patInvent+_patUtil+_patPCT,unit:'件',icon:'file-badge',dom:'var(--dom-1)',sub:`发明 ${_patInvent} · 实用新型 ${_patUtil} · PCT ${_patPCT}`,drill:'patents'},
+    {key:'paper',label:'论文存量',value:'3.2',unit:'万篇',icon:'book-open',dom:'var(--dom-1)',sub:'顶刊 860 篇 · 年新增 4,200 篇',drill:'papers'},
+    {key:'hproject',label:'横向项目',value:1240,unit:'项',icon:'handshake',dom:'var(--dom-1)',sub:'校企合作 · 含签约方/合同/金额',drill:'hprojects'},
+    {key:'vproject',label:'纵向项目',value:2860,unit:'项',icon:'flag',dom:'var(--dom-1)',sub:'国家/省部级科研项目',drill:'vprojects'},
+    {key:'park',label:'创业园/园区',value:parks.length,unit:'个',icon:'building',dom:'var(--dom-4)',sub:'大学科技园·创意园·加速器',drill:'parks'},
+    {key:'institute',label:'研究院平台',value:14,unit:'个',icon:'landmark',dom:'var(--dom-3)',sub:'含各地异地研究院',drill:'institutes'},
+    {key:'area',label:'管理面积',value:'47.6',unit:'万㎡',icon:'maximize',dom:'var(--dom-4)',sub:'园区楼宇可经营面积',drill:'area'},
+    {key:'equityEnt',label:'参股企业',value:enterprises.filter(e=>e.equity>0).length,unit:'家',icon:'briefcase',dom:'var(--dom-5)',sub:'学校/资产公司直系控股参股',drill:'equityEnt'},
+    {key:'parkEnt',label:'园区企业',value:parks.reduce((s,p)=>s+p.ents,0),unit:'家',icon:'store',dom:'var(--dom-4)',sub:'各园区入驻企业合计',drill:'parkEnt'},
+    {key:'alumniEnt',label:'校友企业',value:'8,600+',unit:'家',icon:'graduation-cap',dom:'var(--dom-7)',sub:'待校友会统筹·数据落地中',drill:'alumniEnt'},
+    {key:'platform',label:'创新平台',value:6,unit:'个',icon:'beaker',dom:'var(--dom-3)',sub:'国家重点实验室',drill:'platforms'},
+    {key:'talent',label:'高层次人才',value:286,unit:'人',icon:'award',dom:'var(--dom-2)',sub:'长江学者·杰青等',drill:'talents'},
+  ];
+  // 逐层钻取明细（点资产卡片看明细：年份/签约方/合同/金额 等）
+  const inventoryDrill={
+    disciplines: disciplines.map(d=>({name:d.name,col:d.colleges.join('、'),teams:teams.filter(t=>t.discipline===d.id).length,ach:achievements.filter(a=>a.discipline===d.id).length})),
+    hprojects: seq(12,i=>{const d=pick(disciplines);return {year:ri(2021,2025),name:d.name+pick(['关键技术','装备研制','算法','工艺'])+'合作开发',partner:pick(['华为','东风汽车','长飞光纤','烽火通信','人福医药','高德红外'])+'有限公司',contract:'横向技术开发合同',amount:ri(80,1200),college:pick(d.colleges)};}),
+    vprojects: seq(10,i=>{const d=pick(disciplines);return {year:ri(2021,2025),name:d.name+pick(['基础研究','重点专项','面上项目']),source:pick(['国家自然科学基金','国家重点研发计划','省重点研发','科技部专项']),amount:ri(100,3000),pi:person()+' 教授'};}),
+    papers: [{tier:'顶刊(Nature/Science/CNS子刊)',cnt:860,disc:'全学科'},{tier:'一区论文',cnt:9800,disc:'全学科'},{tier:'存量论文',cnt:32000,disc:'累计'},{tier:'年度新增',cnt:4200,disc:'2025年'}],
+    talents: [{type:'长江学者',cnt:96},{type:'国家杰青',cnt:72},{type:'国家优青',cnt:64},{type:'万人计划',cnt:54}],
+    platforms: [{name:'测绘遥感信息工程国家重点实验室',disc:'空间信息'},{name:'水资源工程与调度全国重点实验室',disc:'交叉'},{name:'病毒学国家重点实验室',disc:'生物医药'},{name:'软件工程国家重点实验室',disc:'人工智能'},{name:'杂交水稻全国重点实验室',disc:'生物医药'},{name:'地球空间信息技术协同创新中心',disc:'空间信息'}],
+    institutes: parks.filter(p=>p.type==='异地协同载体').concat(seq(8,i=>({name:pick(['温州','深圳','合肥','杭州','苏州','宁波','东莞'])+'·武汉大学产业创新研究院',type:'异地研究院',occupancy:ri(55,90),ents:ri(10,60)}))),
+  };
+
   // 暴露
   window.DB = {
     disciplines, allColleges, hubeiCities, wuhanDistricts,
-    achievements, teams,
+    achievements, teams, patents, achievementPatents,
+    assetInventory, inventoryDrill,
     enterprises, financings, postInvest, riskAlerts, funds,
     parks, spaceUnits, tickets, onboarding,
     activities, customerLeads, projectLeads, communities,

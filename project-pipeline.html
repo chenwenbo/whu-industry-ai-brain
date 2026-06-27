@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>项目化流水线 · 武汉大学产业创新AI智脑平台</title>
+<title>成果转化看板 · 武汉大学产业创新AI智脑平台</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
@@ -11,12 +11,12 @@
 <main class="wuda-view">
   <div class="page-head">
     <div>
-      <div class="page-title"><span class="accentbar"></span>成果项目化流水线看板</div>
-      <div class="page-sub">从成果遴选到路演材料的六阶段流水线，拖拽卡片推进项目化进程，AI技术经理人全流程辅助</div>
+      <div class="page-title"><span class="accentbar"></span>成果转化看板</div>
+      <div class="page-sub">查看每项成果当前处于哪个转化阶段——成果遴选→成果画像→成熟度评估→场景匹配→成果包装→路演材料，AI技术经理人全流程辅助</div>
     </div>
     <div style="display:flex;gap:9px">
-      <button class="btn btn-sm" id="btnReport">⤓ 导出流水线报表</button>
-      <button class="btn btn-primary btn-sm" id="btnNew">＋ 新建项目包</button>
+      <button class="btn btn-sm" id="btnReport">⤓ 导出转化报表</button>
+      <button class="btn btn-primary btn-sm" id="btnNew">＋ 推进新成果</button>
     </div>
   </div>
 
@@ -26,11 +26,11 @@
   <!-- 流水线整体 + 学科分布 -->
   <div class="grid mt-4" style="grid-template-columns:1.55fr 1fr">
     <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>项目化阶段漏斗</div><div class="tools"><span class="panel-tag">各阶段在制项目数</span></div></div>
+      <div class="panel-h"><div class="t"><span class="bar"></span>成果转化阶段漏斗</div><div class="tools"><span class="panel-tag">各阶段在转成果数</span></div></div>
       <div class="chart h300" id="funnel"></div>
     </div>
     <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>在制项目学科分布</div><div class="tools"><span class="panel-tag">按5大学科</span></div></div>
+      <div class="panel-h"><div class="t"><span class="bar"></span>在转成果学科分布</div><div class="tools"><span class="panel-tag">按5大学科</span></div></div>
       <div class="chart h300" id="discPie"></div>
     </div>
   </div>
@@ -38,7 +38,7 @@
   <!-- 看板 -->
   <div class="panel mt-4">
     <div class="panel-h" style="flex-wrap:wrap;gap:12px">
-      <div class="t"><span class="bar"></span>项目化流水线看板 <span class="tag tag-gray" id="totalTag"></span></div>
+      <div class="t"><span class="bar"></span>成果转化看板 <span class="tag tag-gray" id="totalTag"></span></div>
       <div class="tools">
         <span class="panel-tag">拖拽卡片可推进/回退阶段</span>
         <div class="fb-field" style="margin-left:10px"><select id="discFilter"></select></div>
@@ -65,7 +65,7 @@
     {key:'profile', title:'② 成果画像', desc:'生成多维成果画像'},
     {key:'maturity',title:'③ 成熟度评估', desc:'TRL与转化条件评估'},
     {key:'scene',   title:'④ 场景匹配', desc:'对接产业落地场景'},
-    {key:'package', title:'⑤ 项目包装', desc:'BP与作价方案设计'},
+    {key:'package', title:'⑤ 成果包装', desc:'成果推介卡与作价方案'},
     {key:'pitch',   title:'⑥ 路演材料', desc:'路演与资本对接'},
   ];
 
@@ -79,7 +79,7 @@
     if(a.status==='已转化') return 'pitch';
     return 'maturity';
   }
-  // 仅取一部分高潜成果进入流水线(匹配度排序取前 36)
+  // 仅取一部分高潜成果进入转化看板(匹配度排序取前 36)
   const pipeline = DB.achievements.slice().sort((a,b)=>b.match-a.match).slice(0,36)
     .map(a=>({...a, lane:laneOf(a)}));
 
@@ -93,7 +93,7 @@
     document.getElementById('stageKpis').innerHTML=lanes.map(l=>
       UI.kpi({label:l.title.replace(/^[①-⑥]\s*/,''),value:cnt[l.key],unit:'项',icon:stageIcon[l.key]})
     ).join('');
-    document.getElementById('totalTag').textContent='共 '+pipeline.length+' 个在制项目';
+    document.getElementById('totalTag').textContent='共 '+pipeline.length+' 项在转成果';
   }
   renderKpis();
 
@@ -173,7 +173,7 @@
         ['当前阶段',laneTitle],
       ])}
       <div class="divider"></div>
-      <div class="panel-h" style="margin-bottom:8px"><div class="t" style="font-size:13px"><span class="bar"></span>项目化阶段进度</div></div>
+      <div class="panel-h" style="margin-bottom:8px"><div class="t" style="font-size:13px"><span class="bar"></span>成果转化阶段进度</div></div>
       <div id="drStepBar" class="chart h220"></div>
       <div class="divider"></div>
       <div class="panel-h" style="margin-bottom:8px"><div class="t" style="font-size:13px"><span class="bar"></span>应用场景</div></div>
@@ -202,10 +202,10 @@
   sel.innerHTML='<option value="">全部学科</option>'+disciplines.map(d=>`<option value="${d.name}">${d.name}</option>`).join('');
   sel.onchange=()=>{ kbDiscFilter=sel.value; buildKanban(); };
 
-  // ---------- 新建项目包弹窗 ----------
+  // ---------- 推进新成果弹窗 ----------
   document.getElementById('btnNew').onclick=()=>{
-    UI.modal('＋ 新建项目包', `
-      <div class="text-dim mb-3" style="font-size:13px">从成果库选取一项成果，发起项目化流水线，由「AI技术经理人」生成成果画像并进行成熟度初评。</div>
+    UI.modal('＋ 推进新成果进入转化', `
+      <div class="text-dim mb-3" style="font-size:13px">从成果库选取一项成果纳入转化看板，由「AI技术经理人」生成成果画像并进行成熟度初评。</div>
       <div style="display:grid;grid-template-columns:auto 1fr;gap:14px 16px;font-size:13px;align-items:center">
         <div class="text-mute">选择成果</div>
         <div class="fb-field" style="width:100%"><select id="npAch" style="width:100%">${DB.achievements.slice(0,20).map(a=>`<option value="${a.id}">${a.title}（${a.disciplineName}·TRL${a.trl}）</option>`).join('')}</select></div>
@@ -216,16 +216,16 @@
         <div class="text-mute">优先级</div>
         <div><div class="seg" id="npPrio"><button class="on">普通</button><button>高</button><button>紧急</button></div></div>
       </div>`,
-      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-primary btn-sm" id="npSubmit">创建并启动流水线</button>`});
+      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-primary btn-sm" id="npSubmit">纳入转化看板</button>`});
     document.getElementById('npPrio').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;[...e.currentTarget.children].forEach(x=>x.classList.remove('on'));b.classList.add('on');});
     document.getElementById('npSubmit').onclick=()=>{
       const a=DB.achievements.find(x=>x.id===document.getElementById('npAch').value);
       UI.closeModal();
-      UI.toast('项目包已创建：《'+(a?a.title.slice(0,12):'')+'…》已进入流水线','ok');
+      UI.toast('成果《'+(a?a.title.slice(0,12):'')+'…》已纳入转化看板','ok');
     };
   };
 
-  document.getElementById('btnReport').onclick=()=>UI.toast('已生成流水线报表，含 '+pipeline.length+' 个在制项目阶段分布','ok');
+  document.getElementById('btnReport').onclick=()=>UI.toast('已生成成果转化报表，含 '+pipeline.length+' 项在转成果阶段分布','ok');
 
   document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','学院与团队','研究院与平台']);
 })();</script>

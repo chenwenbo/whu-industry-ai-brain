@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>企业检索库 · 武汉大学产业创新AI智脑平台</title>
+<title>企业管理 · 武汉大学产业创新AI智脑平台</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
@@ -11,27 +11,50 @@
 <main class="wuda-view">
   <div class="page-head">
     <div>
-      <div class="page-title"><span class="accentbar"></span>企业检索库</div>
-      <div class="page-sub">孵化 / 参股 / 校属 / 校友企业一站式检索 · 一企一档全平台真源</div>
+      <div class="page-title"><span class="accentbar"></span>企业管理 · 参股企业国资监管</div>
+      <div class="page-sub">资产管理公司直系控股 / 参股企业一企一卡 · 领域地域融资估值分析 · 舆情风险预警与5年退出规划</div>
     </div>
     <div style="display:flex;gap:9px">
-      <button class="btn btn-ghost btn-sm" id="btnExport"><i data-lucide="download"></i> 导出清单</button>
-      <button class="btn btn-primary btn-sm" id="btnNew">＋ 新增企业</button>
+      <button class="btn btn-ghost btn-sm" id="btnExport"><i data-lucide="download"></i> 导出监管台账</button>
+      <button class="btn btn-primary btn-sm" id="btnReport">＋ 生成国资监管月报</button>
     </div>
   </div>
 
-  <!-- KPI 分类计数 -->
+  <!-- 国资监管 KPI -->
   <div class="grid cols-5" id="kpis"></div>
+
+  <!-- 风险预警 / 退出提示横幅 -->
+  <div id="alertBanner" class="mt-4"></div>
+
+  <!-- 分析维度图表区 -->
+  <div class="grid cols-4 mt-4">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>领域分布</div><div class="tools"><span class="panel-tag">5大优势学科</span></div></div>
+      <div class="chart h260" id="discPie"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>地域分布</div><div class="tools"><span class="panel-tag">注册城市</span></div></div>
+      <div class="chart h260" id="cityBar"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>估值区间</div><div class="tools"><span class="panel-tag">国资账面</span></div></div>
+      <div class="chart h260" id="valPie"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>退出建议构成</div><div class="tools"><span class="panel-tag">5年退出</span></div></div>
+      <div class="chart h260" id="exitPie"></div>
+    </div>
+  </div>
 
   <!-- 筛选条 -->
   <div id="filter" class="mt-4"></div>
 
   <!-- 视图切换 + 结果计数 -->
   <div class="flex justify-between items-center mt-3 mb-3">
-    <div class="text-mute f13">共 <span class="num text-primary fw7" id="resCount">0</span> 家企业匹配当前筛选条件</div>
+    <div class="text-mute f13">共 <span class="num text-primary fw7" id="resCount">0</span> 家控股/参股企业匹配当前筛选条件 · 国资监管视角</div>
     <div class="seg" id="viewSeg">
-      <button class="on" data-v="card">▦ 卡片视图</button>
-      <button data-v="table">☰ 表格视图</button>
+      <button class="on" data-v="card">▦ 监管卡片</button>
+      <button data-v="table">☰ 监管台账</button>
     </div>
   </div>
 
@@ -39,18 +62,6 @@
   <div id="cardView" class="grid cols-3 stagger"></div>
   <!-- 表格视图 -->
   <div id="tableView" style="display:none"></div>
-
-  <!-- 分析图 -->
-  <div class="grid cols-2 mt-4">
-    <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>企业类型构成</div><div class="tools"><span class="panel-tag">按属性</span></div></div>
-      <div class="chart h300" id="typePie"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>学科领域分布</div><div class="tools"><span class="panel-tag">5大优势学科</span></div></div>
-      <div class="chart h300" id="discBar"></div>
-    </div>
-  </div>
 
   <div id="srcNote"></div>
 </main>
@@ -60,43 +71,103 @@
 <script src="assets/js/components.js"></script>
 <script src="assets/js/shell.js"></script>
 <script>(function(){
-  const ENTS = DB.enterprises;
+  const ri=DB.util.ri;
+  // 国资监管视角：仅纳入资产管理公司直系控股/参股企业(equity>0)
+  const ENTS = DB.enterprises.filter(e=>e.equity>0);
   const fmtW = v => v>=10000 ? (v/10000).toFixed(1)+'亿' : v.toLocaleString()+'万';
-  const riskLight = r => UI.light(r, ({g:'正常',y:'关注',r:'预警'})[r]);
-  const typeColor = {'孵化企业':'blue','参股企业':'purple','校属企业':'green','校友企业':'amber'};
 
-  // ---- KPI ----
-  function cnt(t){ return ENTS.filter(e=>e.type===t).length; }
+  // ---- 为每家参股企业派生：参股时间、持股年限、退出建议、舆情风险 ----
+  // 退出规则：横盘→建议退出；持续向上→择机持有；有风险→加紧干预
+  const raByEnt = DB.riskAlerts.reduce((a,r)=>{ (a[r.entId]=a[r.entId]||[]).push(r); return a; },{});
+  ENTS.forEach(e=>{
+    // 参股时间：成立后1~3年内入股，且不晚于2024
+    e.investYear = Math.min(2024, e.founded + DB.util.ri(0,3));
+    e.holdYears = 2026 - e.investYear;
+    e.exitDeadline = e.investYear + 5; // 5年退出红线
+    e.yearsToExit = e.exitDeadline - 2026;
+    e.bookValue = Math.round(e.valuation*e.equity/100); // 持股账面值(万)
+    e.alerts = raByEnt[e.id]||[];
+    // 发展态势：基于营收增速判断
+    if(e.risk==='r') e.trend='risk';            // 有风险
+    else if(e.revGrowth>=18) e.trend='up';      // 持续向上
+    else if(e.revGrowth<=5) e.trend='flat';     // 横盘
+    else e.trend='steady';                      // 平稳
+    // 退出建议
+    if(e.trend==='risk'){ e.exit='intervene'; e.exitText='加紧干预'; }
+    else if(e.trend==='flat'){ e.exit='exit'; e.exitText='建议退出'; }
+    else if(e.yearsToExit<=1){ e.exit='exit'; e.exitText='临期退出'; }
+    else { e.exit='hold'; e.exitText='择机持有'; }
+    // 发展动态(新专利/新项目/新产品)
+    e.dynamics = DB.util.picks([
+      '新增发明专利 '+ri(1,6)+' 件','获批省级新产品 '+ri(1,3)+' 项',
+      '新立项研发项目 '+ri(1,4)+' 个','入选专精特新名录','完成新一轮产线扩建',
+      '发布新一代'+e.disciplineName.slice(0,2)+'产品','中标行业标杆订单'],ri(1,2));
+  });
+
+  const trendMeta={up:['持续向上','green','trending-up'],flat:['横盘震荡','amber','minus'],steady:['平稳运行','blue','activity'],risk:['存在风险','red','alert-triangle']};
+  const exitMeta={hold:['择机持有','blue'],exit:['建议退出','amber'],intervene:['加紧干预','red']};
+  const exitTagColor={hold:'blue',exit:'amber',intervene:'red'};
+
+  // 估值区间分桶
+  function valBucket(v){ return v>=100000?'>10亿':v>=50000?'5~10亿':v>=20000?'2~5亿':'<2亿'; }
+
+  // ---- 国资监管 KPI ----
+  const totalBook = ENTS.reduce((s,e)=>s+e.bookValue,0);
+  const nRisk = ENTS.filter(e=>e.exit==='intervene').length;
+  const nExit = ENTS.filter(e=>e.exit==='exit').length;
+  const nNearDeadline = ENTS.filter(e=>e.yearsToExit<=1).length;
   document.getElementById('kpis').innerHTML=[
-    UI.kpi({label:'企业总数',value:ENTS.length,unit:'家',delta:DB.topKPI.entGrowth+'%',deltaUp:true,icon:'<i data-lucide="building-2"></i>',spark:[40,44,46,50,52,55,58,60,62,63,64,64]}),
-    UI.kpi({label:'孵化企业',value:cnt('孵化企业'),unit:'家',icon:'<i data-lucide="sprout"></i>',delta:'在孵',deltaUp:true}),
-    UI.kpi({label:'参股企业',value:cnt('参股企业'),unit:'家',icon:'<i data-lucide="briefcase"></i>',delta:'已投',deltaUp:true}),
-    UI.kpi({label:'校属企业',value:cnt('校属企业'),unit:'家',icon:'<i data-lucide="landmark"></i>',delta:'控股',deltaUp:true}),
-    UI.kpi({label:'校友企业',value:cnt('校友企业'),unit:'家',icon:'<i data-lucide="graduation-cap"></i>',delta:'生态',deltaUp:true}),
+    UI.kpi({label:'控股/参股企业',value:ENTS.length,unit:'家',delta:'国资监管',deltaUp:true,icon:'<i data-lucide="briefcase"></i>'}),
+    UI.kpi({label:'持股账面总值',value:(totalBook/10000).toFixed(2),unit:'亿元',delta:'资产保值',deltaUp:true,icon:'<i data-lucide="landmark"></i>'}),
+    UI.kpi({label:'建议退出',value:nExit,unit:'家',delta:'横盘/临期',deltaUp:false,icon:'<i data-lucide="log-out"></i>'}),
+    UI.kpi({label:'需加紧干预',value:nRisk,unit:'家',delta:DB.riskAlerts.length+' 条舆情',deltaUp:false,icon:'<i data-lucide="alert-triangle"></i>'}),
+    UI.kpi({label:'5年退出临期',value:nNearDeadline,unit:'家',delta:'≤1年到期',deltaUp:false,icon:'<i data-lucide="timer"></i>'}),
   ].join('');
+
+  // ---- 风险/退出预警横幅 ----
+  const banner=document.getElementById('alertBanner');
+  const warnEnts = ENTS.filter(e=>e.exit==='intervene'||e.exit==='exit').sort((a,b)=>({intervene:0,exit:1})[a.exit]-({intervene:0,exit:1})[b.exit]);
+  if(warnEnts.length){
+    banner.innerHTML=`<div class="panel" style="border-left:3px solid var(--danger)">
+      <div class="panel-h"><div class="t"><span class="bar"></span><i data-lucide="siren"></i> 风险预警与退出建议 · 来自新闻舆情与经营态势</div>
+        <div class="tools"><span class="panel-tag">${warnEnts.length} 家待处置</span></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${warnEnts.slice(0,5).map(e=>{
+          const isInt=e.exit==='intervene';
+          const reason = isInt ? (e.alerts[0]?.desc||'舆情监测到经营风险信号') : (e.trend==='flat'?'经营横盘、增速放缓':'参股已满'+e.holdYears+'年，临近5年退出红线');
+          return `<a href="enterprise-detail.html?id=${e.id}" style="text-decoration:none" class="ecard flex justify-between items-center" style="cursor:pointer">
+            <div style="flex:1;min-width:0">
+              <div class="fw6 f13" style="color:var(--text)">${UI.tag(e.exitText,exitTagColor[e.exit])} ${UI.esc(e.name)}</div>
+              <div class="f12 text-mute mt-1">${UI.esc(reason)} · 持股 ${e.equity}% · 参股 ${e.investYear} 年（已 ${e.holdYears} 年）</div>
+            </div>
+            <span class="f12 text-primary" style="white-space:nowrap">查看画像 →</span>
+          </a>`;
+        }).join('')}
+      </div></div>`;
+  }
 
   // ---- 筛选条 ----
   const fb = UI.filterBar('#filter',{
     fields:[
-      {key:'type',label:'全部类型',options:DB.enterprises.reduce((a,e)=>a.includes(e.type)?a:a.concat(e.type),[])},
-      {key:'disc',label:'全部学科',options:DB.disciplines.map(d=>d.name)},
-      {key:'stage',label:'全部阶段',options:['初创期','成长期','扩张期','成熟期']},
-      {key:'city',label:'全部城市',options:DB.enterprises.reduce((a,e)=>a.includes(e.city)?a:a.concat(e.city),[])},
-      {key:'risk',label:'全部风险',options:['正常','关注','预警']},
+      {key:'type',label:'全部属性',options:[...new Set(ENTS.map(e=>e.type))]},
+      {key:'disc',label:'全部领域',options:DB.disciplines.map(d=>d.name)},
+      {key:'city',label:'全部地域',options:[...new Set(ENTS.map(e=>e.city))]},
+      {key:'val',label:'全部估值区间',options:['>10亿','5~10亿','2~5亿','<2亿']},
+      {key:'exit',label:'全部退出建议',options:['择机持有','建议退出','加紧干预']},
     ],
     search:true, searchPh:'搜索企业名称 / 创始人 / 标签...',
     onChange:apply,
   });
-  const riskMap={'正常':'g','关注':'y','预警':'r'};
+  const exitInvMap={'择机持有':'hold','建议退出':'exit','加紧干预':'intervene'};
 
   function filtered(){
     const v=fb.read(); const q=(v._q||'').trim();
     return ENTS.filter(e=>{
       if(v.type && e.type!==v.type) return false;
       if(v.disc && e.disciplineName!==v.disc) return false;
-      if(v.stage && e.stage!==v.stage) return false;
       if(v.city && e.city!==v.city) return false;
-      if(v.risk && e.risk!==riskMap[v.risk]) return false;
+      if(v.val && valBucket(e.valuation)!==v.val) return false;
+      if(v.exit && e.exit!==exitInvMap[v.exit]) return false;
       if(q && !(e.name.includes(q)||e.founder.includes(q)||e.tags.some(t=>t.includes(q)))) return false;
       return true;
     });
@@ -108,42 +179,60 @@
 
   function renderCards(rows){
     const cv=document.getElementById('cardView');
-    if(!rows.length){ cv.innerHTML=UI.empty('未找到匹配企业，请调整筛选条件'); return; }
+    if(!rows.length){ cv.innerHTML=UI.empty('未找到匹配的参股企业，请调整筛选条件'); return; }
     cv.innerHTML = rows.slice(0,30).map(e=>{
+      const tm=trendMeta[e.trend], em=exitMeta[e.exit];
+      const exitColor = e.exit==='intervene'?'var(--danger)':e.exit==='exit'?'var(--warning)':'var(--primary)';
       const meta = `<div class="flex items-center gap-2 mb-3" style="flex-wrap:wrap">
-          ${UI.tag(e.type,typeColor[e.type])}${UI.tag(e.disciplineName,'gray')}<span class="text-mute f12">${e.stage}</span></div>
+          ${UI.tag(e.type,e.type==='校属企业'?'green':'purple')}${UI.tag(e.disciplineName,'gray')}
+          <span class="text-mute f12"><i data-lucide="map-pin"></i> ${e.city}</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;font-size:12px">
+          <div><span class="text-mute">学校持股</span> <span class="num fw7 text-primary">${e.equity}%</span></div>
+          <div><span class="text-mute">账面值</span> <span class="num fw6">${fmtW(e.bookValue)}</span></div>
+          <div><span class="text-mute">估值</span> <span class="num fw6">${fmtW(e.valuation)}</span> <span class="f12 text-mute">${valBucket(e.valuation)}</span></div>
           <div><span class="text-mute">营收</span> <span class="num fw6">${fmtW(e.revenue)}</span></div>
-          <div><span class="text-mute">估值</span> <span class="num fw6">${fmtW(e.valuation)}</span></div>
-          <div><span class="text-mute">城市</span> <span class="fw6">${e.city}</span></div>
-          <div><span class="text-mute">创始</span> <span class="fw6">${e.founder}</span></div>
+          <div><span class="text-mute">参股</span> <span class="fw6">${e.investYear}年</span> <span class="f12 text-mute">已${e.holdYears}年</span></div>
+          <div><span class="text-mute">融资</span> <span class="fw6">${e.financingRound}</span></div>
         </div>
-        <div class="flex justify-between items-center mt-3">${riskLight(e.risk)}<span class="f12 text-mute">评分 <span class="num fw7 text-primary">${e.score}</span></span></div>`;
+        <div class="mt-3" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${UI.tag('<i data-lucide="'+tm[2]+'"></i> '+tm[0],tm[1])}
+          <span class="f12 text-mute">舆情</span>${UI.light(e.risk)}
+        </div>
+        <div class="mt-2" style="font-size:11.5px;color:var(--text-mute);line-height:1.6">
+          <i data-lucide="sparkles" style="width:12px;height:12px"></i> ${e.dynamics.join(' · ')}</div>
+        <div class="mt-3" style="background:color-mix(in srgb,${exitColor} 9%,transparent);border:1px solid color-mix(in srgb,${exitColor} 26%,transparent);border-radius:9px;padding:7px 10px">
+          <div class="flex justify-between items-center">
+            <span class="f12 fw7" style="color:${exitColor}"><i data-lucide="log-out" style="width:13px;height:13px"></i> 退出建议：${em[0]}</span>
+            <span class="f12 text-mute">5年期 ${e.exitDeadline} 到期</span>
+          </div>
+          ${UI.bar(Math.max(4,Math.min(100,Math.round(e.holdYears/5*100))), exitColor)}
+          <div class="f12 text-mute mt-1">参股 ${e.holdYears} / 5 年 · ${e.yearsToExit>0?'距退出红线 '+e.yearsToExit+' 年':'已达/超退出红线'}</div>
+        </div>`;
       return UI.entityCard({
         title:e.name, meta,
-        badge:`<span class="num fw7" style="font-size:13px;color:${e.equity>0?'var(--accent)':'var(--text-mute)'}">${e.equity>0?'持股 '+e.equity+'%':e.financingRound}</span>`,
+        badge:`<span class="num fw7" style="font-size:13px;color:var(--accent)">持股 ${e.equity}%</span>`,
         tags:e.tags,
         onclick:`location.href='enterprise-detail.html?id=${e.id}'`,
       });
     }).join('');
     if(rows.length>30){
-      cv.innerHTML += `<div class="panel" style="grid-column:1/-1;text-align:center;color:var(--text-mute)">仅展示前 30 家，切换表格视图查看全部 ${rows.length} 家 · 或使用筛选缩小范围</div>`;
+      cv.innerHTML += `<div class="panel" style="grid-column:1/-1;text-align:center;color:var(--text-mute)">仅展示前 30 家，切换监管台账查看全部 ${rows.length} 家 · 或使用筛选缩小范围</div>`;
     }
+    if(window.lucide) lucide.createIcons();
   }
 
   function buildTable(rows){
     tableApi = UI.table('#tableView',{
       columns:[
-        {key:'name',title:'企业名称',render:r=>`<div class="fw6">${UI.esc(r.name)}</div><div class="f12 text-mute">${r.id} · ${r.founder}</div>`},
-        {key:'type',title:'类型',render:r=>UI.tag(r.type,typeColor[r.type]),sortVal:r=>r.type},
-        {key:'disciplineName',title:'学科',render:r=>r.disciplineName},
-        {key:'stage',title:'阶段',render:r=>`<span class="f12">${r.stage}</span>`},
-        {key:'city',title:'城市',render:r=>r.city},
-        {key:'revenue',title:'营收',render:r=>`<span class="num">${fmtW(r.revenue)}</span>`,sortVal:r=>r.revenue},
-        {key:'valuation',title:'估值',render:r=>`<span class="num">${fmtW(r.valuation)}</span>`,sortVal:r=>r.valuation},
-        {key:'equity',title:'持股',render:r=>r.equity>0?`<span class="num text-primary fw6">${r.equity}%</span>`:'<span class="text-mute">—</span>',sortVal:r=>r.equity},
-        {key:'risk',title:'风险',render:r=>riskLight(r.risk),sortVal:r=>({g:0,y:1,r:2})[r.risk]},
-        {key:'score',title:'评分',render:r=>`<span class="num fw7">${r.score}</span>`,sortVal:r=>r.score},
+        {key:'name',title:'企业名称',render:r=>`<div class="fw6">${UI.esc(r.name)}</div><div class="f12 text-mute">${r.id} · ${r.founder} · ${r.city}</div>`},
+        {key:'type',title:'属性',render:r=>UI.tag(r.type,r.type==='校属企业'?'green':'purple'),sortVal:r=>r.type},
+        {key:'disciplineName',title:'领域',render:r=>r.disciplineName},
+        {key:'equity',title:'持股',render:r=>`<span class="num text-primary fw7">${r.equity}%</span>`,sortVal:r=>r.equity},
+        {key:'valuation',title:'估值',render:r=>`<span class="num">${fmtW(r.valuation)}</span><div class="f12 text-mute">${valBucket(r.valuation)}</div>`,sortVal:r=>r.valuation},
+        {key:'bookValue',title:'账面值',render:r=>`<span class="num">${fmtW(r.bookValue)}</span>`,sortVal:r=>r.bookValue},
+        {key:'investYear',title:'参股/退出',render:r=>`<span class="num">${r.investYear}</span><div class="f12 ${r.yearsToExit<=1?'text-danger':'text-mute'}">5年期 ${r.exitDeadline} 到期</div>`,sortVal:r=>r.investYear},
+        {key:'risk',title:'舆情',render:r=>UI.light(r.risk),sortVal:r=>({g:0,y:1,r:2})[r.risk]},
+        {key:'exit',title:'退出建议',render:r=>UI.tag(r.exitText,exitTagColor[r.exit]),sortVal:r=>({intervene:0,exit:1,hold:2})[r.exit]},
         {key:'op',title:'操作',sortable:false,render:r=>`<a class="btn btn-sm btn-ghost" href="enterprise-detail.html?id=${r.id}">画像 →</a>`},
       ],
       rows, pageSize:12,
@@ -170,17 +259,32 @@
     apply();
   });
 
-  document.getElementById('btnNew').onclick=()=>UI.toast('演示环境：新增企业流程将引导工商信息录入','warn');
-  document.getElementById('btnExport').onclick=()=>UI.toast('已导出当前 '+filtered().length+' 家企业清单（演示）','ok');
+  document.getElementById('btnReport').onclick=()=>UI.modal('生成国资监管月报',
+    '<div class="f13 text-dim mb-3">将汇总 '+ENTS.length+' 家控股/参股企业的领域地域分布、估值区间、舆情风险预警与 5 年退出规划，生成可下载的国资监管月报。</div>'+
+    UI.descList([['报告期','2026 年 5 月'],['在管参股企业',ENTS.length+' 家'],['持股账面总值',(totalBook/10000).toFixed(2)+' 亿元'],['建议退出',nExit+' 家'],['需加紧干预',nRisk+' 家'],['5年退出临期',nNearDeadline+' 家']]),
+    {footer:'<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-sm btn-primary" onclick="UI.closeModal();UI.toast(\'国资监管月报已生成\',\'ok\')">生成报告</button>'});
+  document.getElementById('btnExport').onclick=()=>UI.toast('已导出当前 '+filtered().length+' 家参股企业监管台账（演示）','ok');
 
-  // ---- 图表 ----
-  const typeData = ENTS.reduce((a,e)=>{ const f=a.find(x=>x.name===e.type); if(f)f.value++; else a.push({name:e.type,value:1}); return a; },[]);
-  Charts.pie('typePie',{data:typeData, ring:true, legend:true, center:['40%','52%']});
+  // ---- 分析维度图表 ----
+  // 领域分布
+  const discData = DB.disciplines.map(d=>({name:d.name, value:ENTS.filter(e=>e.discipline===d.id).length})).filter(x=>x.value>0);
+  Charts.pie('discPie',{data:discData, ring:true, legend:true, center:['40%','50%']});
+  // 地域分布
+  const cityData = ENTS.reduce((a,e)=>{ const f=a.find(x=>x.name===e.city); if(f)f.value++; else a.push({name:e.city,value:1}); return a; },[]).sort((a,b)=>b.value-a.value).slice(0,8);
+  Charts.bar('cityBar',{horizontal:true, x:cityData.map(c=>c.name), series:[{name:'企业数',data:cityData.map(c=>c.value)}]});
+  // 估值区间
+  const buckets=['>10亿','5~10亿','2~5亿','<2亿'];
+  const valData = buckets.map(b=>({name:b,value:ENTS.filter(e=>valBucket(e.valuation)===b).length})).filter(x=>x.value>0);
+  Charts.pie('valPie',{data:valData, ring:true, legend:true, center:['40%','50%']});
+  // 退出建议构成
+  const exitData=[
+    {name:'择机持有',value:ENTS.filter(e=>e.exit==='hold').length,itemStyle:{color:Charts.color('--primary')}},
+    {name:'建议退出',value:ENTS.filter(e=>e.exit==='exit').length,itemStyle:{color:Charts.color('--warning')}},
+    {name:'加紧干预',value:ENTS.filter(e=>e.exit==='intervene').length,itemStyle:{color:Charts.color('--danger')}},
+  ].filter(x=>x.value>0);
+  Charts.pie('exitPie',{data:exitData, ring:true, legend:true, center:['40%','50%']});
 
-  const discData = DB.disciplines.map(d=>({name:d.name, value:ENTS.filter(e=>e.discipline===d.id).length}));
-  Charts.bar('discBar',{x:discData.map(d=>d.name), series:[{name:'企业数',data:discData.map(d=>d.value)}]});
-
-  document.getElementById('srcNote').innerHTML = UI.srcNote(['参股/校属企业','校友企业','产业企业与园区']);
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['参股/校属企业','成果与专利','产业企业与园区']);
 
   apply();
 })();</script>

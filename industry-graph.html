@@ -1,0 +1,569 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>产业图谱 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+</head>
+<body data-theme="dark" data-page="industry-graph">
+<main class="wuda-view">
+  <div class="page-head">
+    <div>
+      <div class="page-title"><span class="accentbar"></span>产业图谱</div>
+      <div class="page-sub">基于五大优势学科构建产业链 · 按链上节点拉出关联企业 · 帮老师查企业 / 找企业 / 做合作</div>
+    </div>
+    <div style="display:flex;gap:9px;align-items:center">
+      <div class="seg" id="viewSwitch" title="地方研究院定制视角">
+        <button class="on" data-view="all"><i data-lucide="globe"></i> 武大总部视角</button>
+        <button data-view="wenzhou"><i data-lucide="map-pin"></i> 武大温州研究院</button>
+        <button data-view="shenzhen"><i data-lucide="map-pin"></i> 深圳研究院</button>
+      </div>
+      <button class="btn btn-sm btn-primary" id="btnExport"><i data-lucide="download"></i> 导出企业清单</button>
+    </div>
+  </div>
+
+  <!-- 五大产业链切换 -->
+  <div id="chainTabs" class="mt-3"></div>
+
+  <!-- KPI -->
+  <div class="grid cols-4 mt-3" id="kpis"></div>
+
+  <!-- 主区：产业链树图 + 产业动态侧栏 -->
+  <div class="grid mt-4" style="grid-template-columns:1.7fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span><span id="chainName">产业链节点图</span></div>
+        <div class="tools">
+          <span class="seg seg-sm" id="graphMode">
+            <button class="on" data-m="tree">树图</button>
+            <button data-m="graph">节点图</button>
+          </span>
+          <span class="panel-tag">点击环节节点 → 拉出关联企业</span>
+        </div></div>
+      <div class="chart h480" id="chainChart"></div>
+      <div class="f12 text-mute mt-2"><i data-lucide="info"></i> 上游(原材料/核心器件) → 中游(系统/装备制造) → 下游(场景应用)，点击任一环节查看该环节关联企业（参股 / 园区 / 校属 / 校友 / 目标）</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>赛道热度</div>
+          <div class="tools"><span class="panel-tag">挂钩产业动态</span></div></div>
+        <div class="chart h220" id="heatSpark"></div>
+        <div id="heatRank" class="mt-2"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>最新融资动态</div>
+          <div class="tools"><span class="panel-tag" id="financeCity">全国</span></div></div>
+        <div id="financeList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 环节企业清单（默认展开下游/或选中节点） -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span><span id="nodeTitle">关联企业清单</span></div>
+      <div class="tools">
+        <span id="entFilter"></span>
+        <span class="panel-tag" id="entCount">—</span>
+      </div></div>
+    <div id="entGrid" class="grid cols-3 stagger"></div>
+  </div>
+
+  <div id="srcNote"></div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  /* ============================================================
+     本页 mock 数据内联（不改 data.js）
+     五条产业链对应五大优势学科：人工智能/机器人/生物医药/半导体/空间
+     每条链：上中下游环节(stages) + 每环节关联企业(五类)
+     ============================================================ */
+  const DISC = DB.disciplines; // [ai,robot,bio,chip,geo]
+  const discColor = id => (DISC.find(d=>d.id===id)||{}).color || 'var(--primary)';
+  const discName  = id => (DISC.find(d=>d.id===id)||{}).name || id;
+
+  // 五类企业及配色（与企业库口径一致 + 目标企业）
+  const ENT_TYPES = [
+    {k:'参股', tag:'purple', icon:'briefcase'},
+    {k:'园区', tag:'blue',   icon:'building-2'},
+    {k:'校属', tag:'green',  icon:'landmark'},
+    {k:'校友', tag:'amber',  icon:'graduation-cap'},
+    {k:'目标', tag:'red',    icon:'crosshair'},
+  ];
+  const typeTag = k => (ENT_TYPES.find(t=>t.k===k)||{}).tag || 'gray';
+
+  // 企业工厂：name 行业前缀 + 类型 + 城市 + 关键指标
+  let _id=0;
+  function E(name, type, city, opt){ opt=opt||{};
+    return Object.assign({
+      id:'IG-'+String(++_id).padStart(3,'0'), name, type, city,
+      round: opt.round||'A轮', revenue: opt.revenue||(800+(_id*137)%9000), // 万
+      equity: type==='参股'||type==='校属' ? (opt.equity||(8+(_id*7)%28)) : 0,
+      match: opt.match||(70+(_id*13)%29), // 匹配度（找企业用）
+      contact: opt.contact||['校友牵线','产业基金已对接','研究院推荐','待破冰','已合作'][(_id)%5],
+      reason: opt.reason||'', local: opt.local||null, // 'wenzhou'/'shenzhen'/null=总部
+    });
+  }
+
+  // —— 每条链：stages 上中下游环节，每个环节挂企业 ——
+  // local 字段：标注该企业归属地方研究院（用于定制视角筛选）
+  const CHAINS = {
+    ai: {
+      name:'人工智能产业链', disc:'ai',
+      stages:[
+        {seg:'上游', node:'算力·芯片基座', ents:[
+          E('珞珈算芯科技','校属','武汉市',{equity:30,reason:'校属算力底座，AI芯片IP授权'}),
+          E('光谷智算中心','园区','武汉市',{round:'B轮',reason:'东湖高新区智算枢纽'}),
+          E('寒武智能（武汉）','目标','武汉市',{match:91,reason:'端侧推理芯片，可对接武大视觉团队'}),
+        ]},
+        {seg:'上游', node:'数据与标注', ents:[
+          E('星河数据服务','校友','武汉市',{reason:'武大计院校友创办，多模态数据标注'}),
+          E('珞珈语料','参股','武汉市',{equity:18,reason:'政务语料库，资产公司参股'}),
+        ]},
+        {seg:'中游', node:'大模型与算法', ents:[
+          E('武大智言大模型','校属','武汉市',{equity:34,round:'A+轮',reason:'依托人工智能学院，政务问答大模型'}),
+          E('卓越多模态AI','参股','武汉市',{equity:22,round:'B轮',reason:'遥感解译智能体，资产公司参股'}),
+          E('深算视觉（深圳）','目标','深圳市',{match:88,local:'shenzhen',reason:'工业质检视觉，深圳研究院重点跟进'}),
+          E('瓯江智能','校友','温州市',{local:'wenzhou',round:'Pre-A',reason:'温州校友企业，制造业AI质检'}),
+        ]},
+        {seg:'中游', node:'智能体与中间件', ents:[
+          E('慧芯智能体平台','园区','武汉市',{round:'A轮',reason:'光谷智能体开发平台'}),
+          E('远景AI中台','参股','武汉市',{equity:15,reason:'企业级AI中台'}),
+        ]},
+        {seg:'下游', node:'智能制造应用', ents:[
+          E('格物工业大脑','校友','武汉市',{reason:'工业知识图谱，校友团队'}),
+          E('瓯海智造AI','目标','温州市',{match:84,local:'wenzhou',reason:'温州鞋服产业AI升级，研究院撮合'}),
+          E('创远质检','园区','武汉市',{round:'A轮'}),
+        ]},
+        {seg:'下游', node:'智慧城市/政务', ents:[
+          E('北斗智城','参股','武汉市',{equity:20,round:'B轮',reason:'城市治理大模型'}),
+          E('启明政务AI','校属','武汉市',{equity:28,reason:'校属政务智能体'}),
+          E('鹏城数智（深圳）','目标','深圳市',{match:86,local:'shenzhen',reason:'深圳城市数据运营，研究院对接'}),
+        ]},
+      ],
+    },
+    robot: {
+      name:'机器人产业链', disc:'robot',
+      stages:[
+        {seg:'上游', node:'核心零部件（减速器/电机）', ents:[
+          E('珞珈精密传动','参股','武汉市',{equity:25,reason:'谐波减速器，资产公司参股'}),
+          E('瓯江精密电机','目标','温州市',{match:89,local:'wenzhou',reason:'温州电机产业带，研究院重点对接'}),
+          E('星河伺服','园区','武汉市',{round:'A轮'}),
+        ]},
+        {seg:'上游', node:'感知与控制器', ents:[
+          E('智测传感','校属','武汉市',{equity:30,reason:'校属力觉/视觉传感'}),
+          E('慧芯运动控制','校友','武汉市',{reason:'运动控制器，机械学院校友'}),
+        ]},
+        {seg:'中游', node:'整机制造（人形/特种）', ents:[
+          E('武大寰宇人形机器人','校属','武汉市',{equity:35,round:'B轮',reason:'工业科学研究院孵化，人形机器人'}),
+          E('东湖特种机器人','参股','武汉市',{equity:22,round:'A+轮',reason:'电力巡检四足机器人'}),
+          E('深穹机器人（深圳）','目标','深圳市',{match:87,local:'shenzhen',reason:'人形整机，深圳研究院产业链补位'}),
+        ]},
+        {seg:'中游', node:'协作机械臂', ents:[
+          E('卓越协作臂','参股','武汉市',{equity:16,round:'A轮',reason:'柔性力控机械臂'}),
+          E('瓯海智能装备','目标','温州市',{match:82,local:'wenzhou',reason:'温州产线上下料机械臂'}),
+        ]},
+        {seg:'下游', node:'智能制造集成', ents:[
+          E('格物智能产线','园区','武汉市',{round:'A轮'}),
+          E('创远仓储机器人','校友','武汉市',{reason:'仓储分拣集群，校友团队'}),
+        ]},
+        {seg:'下游', node:'特种作业应用', ents:[
+          E('北斗水下机器人','校属','武汉市',{equity:26,reason:'水下管道检测，校属'}),
+          E('启明巡检机器人','参股','武汉市',{equity:14,round:'B轮'}),
+        ]},
+      ],
+    },
+    bio: {
+      name:'生物医药产业链', disc:'bio',
+      stages:[
+        {seg:'上游', node:'创新药发现/合成生物', ents:[
+          E('珞珈合成生物','校属','武汉市',{equity:33,round:'B轮',reason:'生命科学学院孵化，高值化合物'}),
+          E('星河靶向药物','参股','武汉市',{equity:20,reason:'抗肿瘤小分子，资产公司参股'}),
+          E('瓯越生物（温州）','目标','温州市',{match:85,local:'wenzhou',reason:'温州生命健康产业园，研究院对接'}),
+        ]},
+        {seg:'上游', node:'基因与递送载体', ents:[
+          E('武大基因递送','校属','武汉市',{equity:28,reason:'基因编辑递送载体'}),
+          E('卓越核酸','校友','武汉市',{reason:'核酸原料，药学院校友'}),
+        ]},
+        {seg:'中游', node:'医疗器械制造', ents:[
+          E('东湖医疗器械','参股','武汉市',{equity:18,round:'A+轮',reason:'可降解血管支架'}),
+          E('慧芯POCT','园区','武汉市',{round:'A轮',reason:'便携分子诊断POCT'}),
+          E('深湾医械（深圳）','目标','深圳市',{match:83,local:'shenzhen',reason:'高端影像器械，深圳研究院'}),
+        ]},
+        {seg:'中游', node:'诊断试剂与POCT', ents:[
+          E('启明诊断','参股','武汉市',{equity:15,round:'B轮'}),
+          E('远景检测','校友','武汉市',{reason:'分子诊断试剂'}),
+        ]},
+        {seg:'下游', node:'临床与医疗服务', ents:[
+          E('武大人民医院转化中心','校属','武汉市',{equity:40,reason:'临床转化平台'}),
+          E('北斗智慧医疗','园区','武汉市',{round:'A轮'}),
+        ]},
+        {seg:'下游', node:'大健康消费', ents:[
+          E('瓯海大健康','目标','温州市',{match:80,local:'wenzhou',reason:'温州大健康消费品'}),
+          E('创远营养','校友','武汉市',{reason:'功能性营养，校友'}),
+        ]},
+      ],
+    },
+    chip: {
+      name:'半导体·光芯片产业链', disc:'chip',
+      stages:[
+        {seg:'上游', node:'材料与衬底', ents:[
+          E('珞珈宽禁带材料','校属','武汉市',{equity:30,reason:'物理学院孵化，碳化硅衬底'}),
+          E('星河化合物半导体','参股','武汉市',{equity:22,round:'B轮'}),
+        ]},
+        {seg:'上游', node:'核心器件/IP', ents:[
+          E('武大硅光集成','校属','武汉市',{equity:34,round:'A+轮',reason:'硅基光电子集成芯片'}),
+          E('慧芯存算一体','校友','武汉市',{reason:'存算一体芯片，微电子学院校友'}),
+          E('深芯光电（深圳）','目标','深圳市',{match:90,local:'shenzhen',reason:'光芯片设计，深圳研究院重点'}),
+        ]},
+        {seg:'中游', node:'芯片设计与制造', ents:[
+          E('卓越功率半导体','参股','武汉市',{equity:18,round:'B轮',reason:'宽禁带功率器件'}),
+          E('东湖MEMS','园区','武汉市',{round:'A轮',reason:'MEMS气体传感芯片'}),
+          E('瓯江微电子','目标','温州市',{match:81,local:'wenzhou',reason:'温州激光产业配套芯片'}),
+        ]},
+        {seg:'中游', node:'封装测试', ents:[
+          E('启明先进封装','参股','武汉市',{equity:14,round:'A轮'}),
+          E('远景测试','校友','武汉市',{reason:'芯片可靠性测试'}),
+        ]},
+        {seg:'下游', node:'光电模块/激光雷达', ents:[
+          E('北斗激光雷达','校属','武汉市',{equity:26,round:'B轮',reason:'激光雷达光电探测'}),
+          E('格物光模块','园区','武汉市',{round:'A轮'}),
+        ]},
+        {seg:'下游', node:'传感与终端应用', ents:[
+          E('创远传感终端','校友','武汉市',{reason:'智能传感终端'}),
+          E('深感科技（深圳）','目标','深圳市',{match:84,local:'shenzhen',reason:'消费电子传感，深圳研究院'}),
+        ]},
+      ],
+    },
+    geo: {
+      name:'空间信息·测绘遥感产业链', disc:'geo',
+      stages:[
+        {seg:'上游', node:'卫星/载荷/北斗', ents:[
+          E('珞珈北斗','校属','武汉市',{equity:35,round:'B轮',reason:'国重实验室孵化，高精度定位'}),
+          E('星河遥感载荷','参股','武汉市',{equity:20,reason:'高分辨率成像载荷'}),
+        ]},
+        {seg:'上游', node:'地理信息数据', ents:[
+          E('武大时空大数据','校属','武汉市',{equity:30,reason:'时空数据引擎'}),
+          E('慧芯地信','校友','武汉市',{reason:'地理信息数据服务，遥感学院校友'}),
+        ]},
+        {seg:'中游', node:'遥感解译/三维建模', ents:[
+          E('卓越实景三维','参股','武汉市',{equity:22,round:'A+轮',reason:'城市级实景三维建模'}),
+          E('东湖遥感解译','园区','武汉市',{round:'A轮',reason:'卫星影像智能解译'}),
+          E('瓯江空间信息','目标','温州市',{match:83,local:'wenzhou',reason:'温州自然资源监测，研究院对接'}),
+        ]},
+        {seg:'中游', node:'低空遥感/无人机', ents:[
+          E('启明低空遥感','参股','武汉市',{equity:16,round:'B轮'}),
+          E('远景无人机','校友','武汉市',{reason:'无人机遥感监测'}),
+        ]},
+        {seg:'下游', node:'智慧城市/自然资源', ents:[
+          E('北斗智慧城市','校属','武汉市',{equity:28,reason:'城市信息模型CIM'}),
+          E('格物国土监测','园区','武汉市',{round:'A轮'}),
+        ]},
+        {seg:'下游', node:'行业应用（农林/交通）', ents:[
+          E('创远智慧农业','校友','武汉市',{reason:'农业遥感监测'}),
+          E('深空科技（深圳）','目标','深圳市',{match:82,local:'shenzhen',reason:'交通时空大数据，深圳研究院'}),
+        ]},
+      ],
+    },
+  };
+
+  // 赛道热度 & 融资动态（内联）
+  const HEAT = {
+    ai:[{name:'大模型与智能体',v:96,d:'+12'},{name:'智能制造AI',v:88,d:'+9'},{name:'政务/城市大模型',v:84,d:'+7'},{name:'端侧推理芯片',v:79,d:'+15'}],
+    robot:[{name:'人形机器人',v:95,d:'+18'},{name:'特种机器人',v:86,d:'+8'},{name:'协作机械臂',v:80,d:'+6'},{name:'核心零部件',v:75,d:'+5'}],
+    bio:[{name:'合成生物',v:91,d:'+14'},{name:'创新药',v:85,d:'+6'},{name:'高端器械',v:82,d:'+7'},{name:'POCT诊断',v:77,d:'+5'}],
+    chip:[{name:'硅光集成',v:93,d:'+13'},{name:'光芯片/激光雷达',v:88,d:'+11'},{name:'宽禁带功率器件',v:83,d:'+8'},{name:'存算一体',v:78,d:'+9'}],
+    geo:[{name:'实景三维/CIM',v:90,d:'+10'},{name:'北斗高精定位',v:86,d:'+7'},{name:'低空遥感',v:84,d:'+12'},{name:'时空大数据',v:79,d:'+6'}],
+  };
+  const FINANCE = {
+    ai:[
+      {co:'武大智言大模型',round:'A+轮',amt:'1.2亿',inv:'光谷产业基金 领投',date:'3天前',local:null},
+      {co:'瓯江智能',round:'Pre-A',amt:'3500万',inv:'温州创投',date:'6天前',local:'wenzhou'},
+      {co:'深算视觉',round:'B轮',amt:'2.1亿',inv:'深创投',date:'9天前',local:'shenzhen'},
+    ],
+    robot:[
+      {co:'武大寰宇人形机器人',round:'B轮',amt:'2.6亿',inv:'国家制造业基金',date:'2天前',local:null},
+      {co:'瓯海智能装备',round:'A轮',amt:'4200万',inv:'温州产投',date:'5天前',local:'wenzhou'},
+      {co:'深穹机器人',round:'A+轮',amt:'1.5亿',inv:'深圳天使母基金',date:'8天前',local:'shenzhen'},
+    ],
+    bio:[
+      {co:'珞珈合成生物',round:'B轮',amt:'1.8亿',inv:'高瓴/光谷生物城',date:'4天前',local:null},
+      {co:'瓯越生物',round:'A轮',amt:'6000万',inv:'温州生命健康基金',date:'7天前',local:'wenzhou'},
+      {co:'深湾医械',round:'B轮',amt:'2.3亿',inv:'深圳医疗产业基金',date:'10天前',local:'shenzhen'},
+    ],
+    chip:[
+      {co:'武大硅光集成',round:'A+轮',amt:'2.0亿',inv:'国家大基金二期',date:'3天前',local:null},
+      {co:'瓯江微电子',round:'A轮',amt:'5000万',inv:'温州激光小镇基金',date:'6天前',local:'wenzhou'},
+      {co:'深芯光电',round:'B轮',amt:'3.0亿',inv:'深圳半导体基金',date:'9天前',local:'shenzhen'},
+    ],
+    geo:[
+      {co:'珞珈北斗',round:'B轮',amt:'1.6亿',inv:'湖北空天产业基金',date:'2天前',local:null},
+      {co:'瓯江空间信息',round:'A轮',amt:'4800万',inv:'温州数字经济基金',date:'5天前',local:'wenzhou'},
+      {co:'深空科技',round:'A+轮',amt:'1.3亿',inv:'深圳前海基金',date:'8天前',local:'shenzhen'},
+    ],
+  };
+  const LOCAL_CITY = {wenzhou:'温州市', shenzhen:'深圳市'};
+  const LOCAL_NAME = {all:'武大总部', wenzhou:'武大温州研究院', shenzhen:'武大深圳研究院'};
+
+  /* ============================================================
+     状态
+     ============================================================ */
+  let curChain = 'ai';
+  let curView  = 'all';        // all / wenzhou / shenzhen
+  let curMode  = 'tree';       // tree / graph
+  let curNode  = null;         // 选中环节 {seg,node,ents}
+  let entTypeFilter = '全部';  // 五类企业过滤
+
+  // 视图过滤：地方研究院视角下只保留本地企业 + 武大总部直系（参/校属仍展示，目标按本地）
+  function passView(e){
+    if(curView==='all') return true;
+    // 本地视角：保留 local===curView 的企业；总部直系参股/校属/校友/园区也保留（作为可输出资源），但目标企业仅本地
+    if(e.local===curView) return true;
+    if(e.type==='目标') return false;            // 异地目标企业隐藏
+    return e.city==='武汉市';                     // 总部本部资源仍可对接
+  }
+
+  function chainNodes(){ // 当前链全部环节（含企业，已按视图过滤计数）
+    return CHAINS[curChain].stages.map(s=>({
+      ...s, viewEnts: s.ents.filter(passView),
+    }));
+  }
+
+  /* ============================================================
+     渲染：链 Tabs
+     ============================================================ */
+  function renderTabs(){
+    const box=document.getElementById('chainTabs');
+    box.innerHTML=`<div class="seg seg-chain">${
+      Object.keys(CHAINS).map(k=>{
+        const c=CHAINS[k];
+        return `<button class="${k===curChain?'on':''}" data-chain="${k}" style="--c:${discColor(c.disc)}">${(DISC.find(d=>d.id===c.disc)||{}).icon||''} ${discName(c.disc)}</button>`;
+      }).join('')
+    }</div>`;
+    box.querySelectorAll('[data-chain]').forEach(b=>b.onclick=()=>{
+      curChain=b.dataset.chain; curNode=null; entTypeFilter='全部'; renderAll();
+    });
+    if(window.lucide) lucide.createIcons();
+  }
+
+  /* ============================================================
+     KPI
+     ============================================================ */
+  function renderKPI(){
+    const nodes=chainNodes();
+    const all=nodes.reduce((a,n)=>a.concat(n.viewEnts),[]);
+    const byType=t=>all.filter(e=>e.type===t).length;
+    const targets=byType('目标');
+    const heat=HEAT[curChain][0];
+    document.getElementById('kpis').innerHTML=[
+      UI.kpi({label:'产业链环节',value:nodes.length,unit:'个',icon:'<i data-lucide="git-branch"></i>',delta:'上中下游',deltaUp:true}),
+      UI.kpi({label:'关联企业',value:all.length,unit:'家',icon:'<i data-lucide="building-2"></i>',delta:LOCAL_NAME[curView],deltaUp:true,spark:[12,14,13,16,18,17,20,22,21,24,23,all.length]}),
+      UI.kpi({label:'可对接目标企业',value:targets,unit:'家',icon:'<i data-lucide="crosshair"></i>',delta:'找企业',deltaUp:true}),
+      UI.kpi({label:'头部赛道热度',value:heat.v,unit:'分',icon:'<i data-lucide="flame"></i>',delta:heat.d+'%',deltaUp:true}),
+    ].join('');
+  }
+
+  /* ============================================================
+     主图：树图 / 节点图
+     ============================================================ */
+  let chartInst=null;
+  function renderChart(){
+    const c=CHAINS[curChain];
+    document.getElementById('chainName').textContent=c.name;
+    const col=discColor(c.disc);
+    const nodes=chainNodes();
+    if(chartInst){ chartInst.dispose&&chartInst.dispose(); chartInst=null; }
+
+    if(curMode==='tree'){
+      // 上中下游分组的树
+      const segs=['上游','中游','下游'];
+      const tree={ name:c.name, children: segs.map(seg=>({
+        name:seg, children: nodes.filter(n=>n.seg===seg).map(n=>({
+          name:n.node, value:n.viewEnts.length, _node:n,
+        }))
+      }))};
+      chartInst=Charts.tree('chainChart',{data:tree, horizontal:true});
+      chartInst&&chartInst.on('click',p=>{
+        const nd=p.data&&p.data._node; if(nd) selectNode(nd);
+      });
+    } else {
+      // 节点图：链中心 → 三段 → 各环节
+      const segs=['上游','中游','下游'];
+      const cats=['产业链','环节段','上游','中游','下游'];
+      const gn=[{id:'root',name:c.name,cat:0,sym:54}];
+      const gl=[];
+      segs.forEach(seg=>{
+        gn.push({id:seg,name:seg,cat:1,sym:34});
+        gl.push({source:'root',target:seg});
+        nodes.filter(n=>n.seg===seg).forEach((n,i)=>{
+          const nid=seg+'-'+i;
+          gn.push({id:nid,name:n.node,cat:({上游:2,中游:3,下游:4})[seg],sym:18+Math.min(20,n.viewEnts.length*4),_node:n});
+          gl.push({source:seg,target:nid});
+        });
+      });
+      chartInst=Charts.graph('chainChart',{nodes:gn,links:gl,cats,layout:'force'});
+      chartInst&&chartInst.on('click',p=>{
+        const nd=(p.data&&p.data._node); if(nd) selectNode(nd);
+      });
+    }
+  }
+
+  /* ============================================================
+     赛道热度 & 融资动态
+     ============================================================ */
+  function renderDynamics(){
+    const heat=HEAT[curChain];
+    Charts.spark('heatSpark',{data:[62,68,65,72,70,78,82,80,88,90,heat[0].v-4,heat[0].v], color:discColor(CHAINS[curChain].disc)});
+    document.getElementById('heatRank').innerHTML=UI.rankList(
+      heat.map(h=>({name:h.name, value:h.v, sub:'热度 '+h.d+'%'}))
+    );
+
+    // 融资动态（按视图过滤）
+    const city = curView==='all' ? '全国' : LOCAL_CITY[curView];
+    document.getElementById('financeCity').textContent=city;
+    const fin=FINANCE[curChain].filter(f=> curView==='all' ? true : (f.local===curView || f.local===null));
+    document.getElementById('financeList').innerHTML = fin.length ? fin.map(f=>`
+      <div class="ecard" style="margin-bottom:8px;padding:11px 13px">
+        <div class="flex justify-between items-center">
+          <div class="et" style="font-size:13px">${f.co}</div>
+          ${UI.tag(f.round,'green')}
+        </div>
+        <div class="flex justify-between items-center mt-2 f12">
+          <span class="num text-primary fw7" style="font-size:15px">${f.amt}</span>
+          <span class="text-mute">${f.date}</span>
+        </div>
+        <div class="f12 text-mute mt-1"><i data-lucide="trending-up"></i> ${f.inv}</div>
+      </div>`).join('') : UI.empty('该视角下暂无新融资');
+    if(window.lucide) lucide.createIcons();
+  }
+
+  /* ============================================================
+     环节企业清单
+     ============================================================ */
+  function selectNode(n){ curNode=n; entTypeFilter='全部'; renderEnts();
+    document.getElementById('entGrid').scrollIntoView({behavior:'smooth',block:'center'});
+    UI.toast('已拉出「'+n.node+'」环节关联企业','ok');
+  }
+  function curEnts(){
+    // 未选节点：默认展示全链；选了节点：该环节
+    let list = curNode ? curNode.viewEnts : chainNodes().reduce((a,n)=>a.concat(n.viewEnts),[]);
+    if(entTypeFilter!=='全部') list=list.filter(e=>e.type===entTypeFilter);
+    return list;
+  }
+  function renderEntFilter(){
+    const counts={全部:0}; ENT_TYPES.forEach(t=>counts[t.k]=0);
+    const base = curNode ? curNode.viewEnts : chainNodes().reduce((a,n)=>a.concat(n.viewEnts),[]);
+    base.forEach(e=>{counts['全部']++; counts[e.type]++;});
+    const chips=['全部'].concat(ENT_TYPES.map(t=>t.k)).map(k=>{
+      const on=k===entTypeFilter;
+      const label = k==='全部'?'全部':k+'企业';
+      return `<span class="chip ${on?'sel':''}" data-tf="${k}" style="cursor:pointer">${label} ${counts[k]||0}</span>`;
+    }).join('');
+    document.getElementById('entFilter').innerHTML=chips;
+    document.querySelectorAll('#entFilter [data-tf]').forEach(c=>c.onclick=()=>{ entTypeFilter=c.dataset.tf; renderEnts(); });
+  }
+  function fmtRev(v){ return v>=10000?(v/10000).toFixed(1)+'亿':v.toLocaleString()+'万'; }
+  function renderEnts(){
+    document.getElementById('nodeTitle').textContent = curNode ? curNode.node+' · 关联企业清单' : CHAINS[curChain].name+' · 全链关联企业';
+    renderEntFilter();
+    const list=curEnts();
+    document.getElementById('entCount').textContent=list.length+' 家';
+    const grid=document.getElementById('entGrid');
+    if(!list.length){ grid.innerHTML=UI.empty('该筛选下暂无企业，可切换企业类型或视角'); return; }
+    grid.innerHTML=list.map(e=>{
+      const meta=`<div class="flex items-center gap-2 mb-2" style="flex-wrap:wrap">
+          ${UI.tag(e.type+'企业',typeTag(e.type))}<span class="text-mute f12">${e.city}</span>
+          ${e.local?UI.tag(LOCAL_NAME[e.local].replace('武大',''),'gray'):''}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:12px">
+          <div><span class="text-mute">营收</span> <span class="num fw6">${fmtRev(e.revenue)}</span></div>
+          <div><span class="text-mute">轮次</span> <span class="fw6">${e.round}</span></div>
+          <div><span class="text-mute">持股</span> <span class="num fw6">${e.equity>0?e.equity+'%':'—'}</span></div>
+          <div><span class="text-mute">匹配度</span> <span class="num fw7 text-primary">${e.match}</span></div>
+        </div>
+        ${e.reason?`<div class="f12 text-mute mt-2" style="line-height:1.5">${e.reason}</div>`:''}
+        <div class="flex justify-between items-center mt-2">
+          <span class="f12">${UI.light(e.contact==='已合作'?'g':e.contact==='待破冰'?'r':'y', e.contact)}</span>
+        </div>`;
+      return UI.entityCard({
+        title:e.name, meta,
+        badge:`<span class="num fw7" style="font-size:12px;color:var(--accent)">匹配 ${e.match}</span>`,
+        tags:[e.round, e.equity>0?('持股'+e.equity+'%'):'生态伙伴'],
+        onclick:`window.__igOpen('${e.id}')`,
+      });
+    }).join('');
+    if(window.lucide) lucide.createIcons();
+  }
+
+  // 企业卡片点击 → 抽屉（对接入口）
+  window.__igOpen=function(id){
+    let e=null, segName='';
+    CHAINS[curChain].stages.forEach(s=>{ const f=s.ents.find(x=>x.id===id); if(f){e=f;segName=s.node;} });
+    if(!e) return;
+    const body=`
+      <div class="flex items-center gap-3 mb-3">
+        <div style="width:46px;height:46px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,${discColor(CHAINS[curChain].disc)} 18%,transparent)"><i data-lucide="building-2"></i></div>
+        <div>${UI.tag(e.type+'企业',typeTag(e.type))} ${UI.tag(CHAINS[curChain].name.replace('产业链',''),'blue')}
+          <div class="text-mute f12 mt-2">所属环节：${segName}${e.local?' · '+LOCAL_NAME[e.local]:''}</div></div>
+      </div>
+      <div class="grid cols-2" style="gap:10px">
+        <div class="kpi" style="padding:12px"><div class="lab">营收(估)</div><div class="val"><span class="num">${fmtRev(e.revenue)}</span></div></div>
+        <div class="kpi" style="padding:12px"><div class="lab">融资轮次</div><div class="val"><span class="num text-primary">${e.round}</span></div></div>
+        <div class="kpi" style="padding:12px"><div class="lab">学校持股</div><div class="val"><span class="num">${e.equity>0?e.equity:'—'}</span>${e.equity>0?'<span class="unit">%</span>':''}</div></div>
+        <div class="kpi" style="padding:12px"><div class="lab">合作匹配度</div><div class="val"><span class="num text-success">${e.match}</span><span class="unit">分</span></div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="f12 text-mute mb-2">合作价值与切入点</div>
+      <div class="f13" style="line-height:1.7">${e.reason||'该企业位于'+CHAINS[curChain].name+'的'+segName+'环节，与武大相关学科团队具备技术协同空间，建议从联合研发 / 成果转化切入。'}</div>
+      <div class="divider"></div>
+      ${UI.descList([
+        ['对接状态', UI.light(e.contact==='已合作'?'g':e.contact==='待破冰'?'r':'y', e.contact)],
+        ['企业类型', e.type+'企业'],
+        ['所在城市', e.city],
+        ['匹配度', UI.bar(e.match,'var(--primary)')],
+      ])}
+      <div class="mt-3" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" id="igMatch"><i data-lucide="handshake"></i> 发起合作对接</button>
+        <button class="btn btn-sm" id="igTech"><i data-lucide="flask-conical"></i> 推荐对口成果/团队</button>
+        <button class="btn btn-sm" id="igAdd">加入合作清单</button>
+      </div>`;
+    UI.drawer(e.name, body, {width:'620px'});
+    if(window.lucide) lucide.createIcons();
+    const m=document.getElementById('igMatch'); if(m) m.onclick=()=>{ UI.closeDrawer(); UI.toast('已为「'+e.name+'」创建对接任务，将推送至技术经理人','ok'); };
+    const t=document.getElementById('igTech'); if(t) t.onclick=()=>{ UI.toast('已匹配 '+discName(CHAINS[curChain].disc)+' 方向对口成果与团队','ok'); };
+    const a=document.getElementById('igAdd'); if(a) a.onclick=()=>{ UI.toast('已加入合作清单','ok'); };
+  };
+
+  /* ============================================================
+     视图切换 / 图模式切换 / 导出
+     ============================================================ */
+  document.getElementById('viewSwitch').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    [...b.parentElement.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    curView=b.dataset.view; curNode=null; entTypeFilter='全部'; renderAll();
+    UI.toast('已切换至「'+LOCAL_NAME[curView]+'」定制视角'+(curView!=='all'?'，已筛选本地企业':''),'ok');
+  });
+  document.getElementById('graphMode').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    [...b.parentElement.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    curMode=b.dataset.m; renderChart();
+  });
+  document.getElementById('btnExport').onclick=()=>{
+    UI.toast('已导出「'+CHAINS[curChain].name+'」'+LOCAL_NAME[curView]+'视角关联企业清单（演示）','ok');
+  };
+
+  /* ============================================================
+     渲染总入口
+     ============================================================ */
+  function renderAll(){
+    renderTabs(); renderKPI(); renderChart(); renderDynamics(); renderEnts();
+    if(window.lucide) lucide.createIcons();
+  }
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['产业企业与园区','参股/校属企业','校友企业','成果与专利']);
+  renderAll();
+})();</script>
+</body></html>

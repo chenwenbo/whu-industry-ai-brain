@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>投后跟踪预警 · 武汉大学产业创新AI智脑平台</title>
+<title>参股企业监管驾驶舱 · 武汉大学产业创新AI智脑平台</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
@@ -11,43 +11,50 @@
 <main class="wuda-view">
   <div class="page-head">
     <div>
-      <div class="page-title"><span class="accentbar"></span>投后跟踪与风险预警</div>
-      <div class="page-sub">参股 / 校属企业投后管理 · 组合健康度监测 · 经营风险闭环处置</div>
+      <div class="page-title"><span class="accentbar"></span>参股企业监管驾驶舱 · 风险预警与5年退出规划</div>
+      <div class="page-sub">企业管理视角下沉 · 控股/参股企业组合健康度 · 舆情风险预警 · 5年退出建议闭环（横盘退出 / 上行持有 / 风险干预）</div>
     </div>
     <div style="display:flex;gap:9px">
       <button class="btn btn-sm" id="btnSync">↻ 拉取最新季报</button>
-      <button class="btn btn-sm btn-primary" id="btnReport">＋ 生成组合月报</button>
+      <button class="btn btn-sm btn-primary" id="btnReport">＋ 生成国资监管月报</button>
     </div>
   </div>
 
   <!-- 核心 KPI -->
   <div class="grid cols-5" id="kpis"></div>
 
-  <!-- 投后状态泳道 -->
+  <!-- 退出建议泳道 -->
   <div class="panel mt-4">
-    <div class="panel-h"><div class="t"><span class="bar"></span>投后状态看板 · 拖拽卡片可调整跟踪策略</div>
-      <div class="tools"><span class="panel-tag">数据来源：投后跟踪表</span></div></div>
+    <div class="panel-h"><div class="t"><span class="bar"></span>5年退出建议看板 · 拖拽卡片可调整退出策略</div>
+      <div class="tools"><span class="panel-tag">横盘退出 / 上行持有 / 风险干预</span></div></div>
     <div id="kanban"></div>
+  </div>
+
+  <!-- 5年退出临期提醒 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>5年退出临期提醒 · 参股满4年起规划退出</div>
+      <div class="tools"><span class="panel-tag" id="exitCntTag"></span></div></div>
+    <div id="exitTimeline"></div>
   </div>
 
   <!-- 两栏：风险等级分布 + 各企业健康度 -->
   <div class="grid cols-2 mt-4">
     <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>风险等级分布</div>
+      <div class="panel-h"><div class="t"><span class="bar"></span>舆情风险等级分布</div>
         <div class="tools"><span class="panel-tag" id="riskTotalTag"></span></div></div>
       <div class="chart h300" id="riskPie"></div>
     </div>
     <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>各企业投后健康度（前 14）</div>
+      <div class="panel-h"><div class="t"><span class="bar"></span>各企业经营健康度（前 14）</div>
         <div class="tools"><span class="panel-tag">健康度 = 经营/财务/团队/合规综合评分</span></div></div>
       <div class="chart h300" id="healthBar"></div>
     </div>
   </div>
 
-  <!-- 投后台账 -->
+  <!-- 参股企业监管台账 -->
   <div class="panel mt-4">
-    <div class="panel-h"><div class="t"><span class="bar"></span>投后跟踪台账</div>
-      <div class="tools"><span class="panel-tag">点击任意行查看投后详情</span></div></div>
+    <div class="panel-h"><div class="t"><span class="bar"></span>参股企业监管台账</div>
+      <div class="tools"><span class="panel-tag">点击任意行查看一企一档与退出建议</span></div></div>
     <div id="piFilter" class="mb-3"></div>
     <div id="piTable"></div>
   </div>
@@ -67,35 +74,64 @@
 <script src="assets/js/shell.js"></script>
 <script>(function(){
   const pi=DB.postInvest, ra=DB.riskAlerts, ents=DB.enterprises;
+  const ri=DB.util.ri;
   const entById=id=>ents.find(e=>e.id===id);
   const cnt=k=>pi.filter(p=>p.risk===k).length;
   const totalBook=pi.reduce((s,p)=>s+p.bookValue,0);
   const avgHealth=Math.round(pi.reduce((s,p)=>s+p.kpi,0)/pi.length);
 
+  // 为每家参股企业派生：参股时间 / 5年退出 / 退出建议(横盘→退出, 上行→持有, 风险→干预)
+  pi.forEach(p=>{
+    const e=entById(p.entId)||{};
+    p.revGrowth = e.revGrowth||0;
+    p.investYear = Math.min(2024,(e.founded||2018)+ri(0,3));
+    p.holdYears = 2026 - p.investYear;
+    p.exitDeadline = p.investYear + 5;
+    p.yearsToExit = p.exitDeadline - 2026;
+    if(p.risk==='r'){ p.exit='intervene'; p.exitText='加紧干预'; }
+    else if(p.revGrowth<=5){ p.exit='exit'; p.exitText='建议退出'; }
+    else if(p.yearsToExit<=1){ p.exit='exit'; p.exitText='临期退出'; }
+    else { p.exit='hold'; p.exitText='择机持有'; }
+  });
+  const exitCnt=k=>pi.filter(p=>p.exit===k).length;
+  const exitColor={hold:'var(--primary)',exit:'var(--warning)',intervene:'var(--danger)'};
+  const exitTag={hold:'blue',exit:'amber',intervene:'red'};
+
   // ---- KPI ----
+  const nNear=pi.filter(p=>p.yearsToExit<=1).length;
   document.getElementById('kpis').innerHTML=[
-    UI.kpi({label:'参股 / 校属企业',value:pi.length,unit:'家',delta:'投后在管',deltaUp:true,icon:'<i data-lucide="building-2"></i>'}),
-    UI.kpi({label:'正常运行',value:cnt('g'),unit:'家',delta:Math.round(cnt('g')/pi.length*100)+'%',deltaUp:true,icon:'<span class="edot edot-g"></span>'}),
-    UI.kpi({label:'重点关注',value:cnt('y'),unit:'家',delta:'需跟进',deltaUp:false,icon:'<span class="edot edot-y"></span>'}),
-    UI.kpi({label:'风险预警',value:cnt('r'),unit:'家',delta:ra.length+' 条预警',deltaUp:false,icon:'<span class="edot edot-r"></span>'}),
-    UI.kpi({label:'组合健康度',value:avgHealth,unit:'分',delta:'账面值 '+(totalBook/10000).toFixed(2)+' 亿',deltaUp:true,icon:'<i data-lucide="heart"></i>',spark:[74,76,78,77,80,79,82,81,83,82,84,avgHealth]}),
+    UI.kpi({label:'控股/参股企业',value:pi.length,unit:'家',delta:'账面值 '+(totalBook/10000).toFixed(2)+' 亿',deltaUp:true,icon:'<i data-lucide="briefcase"></i>'}),
+    UI.kpi({label:'择机持有',value:exitCnt('hold'),unit:'家',delta:'持续向上',deltaUp:true,icon:'<i data-lucide="trending-up"></i>'}),
+    UI.kpi({label:'建议退出',value:exitCnt('exit'),unit:'家',delta:'横盘/临期',deltaUp:false,icon:'<i data-lucide="log-out"></i>'}),
+    UI.kpi({label:'加紧干预',value:exitCnt('intervene'),unit:'家',delta:ra.length+' 条舆情',deltaUp:false,icon:'<i data-lucide="alert-triangle"></i>'}),
+    UI.kpi({label:'5年退出临期',value:nNear,unit:'家',delta:'≤1年到期',deltaUp:false,icon:'<i data-lucide="timer"></i>',spark:[74,76,78,77,80,79,82,81,83,82,84,avgHealth]}),
   ].join('');
 
-  // ---- 投后状态泳道 ----
-  const lanes=['投后稳定','重点跟踪','拟退出','增资扩股'];
-  const laneCols=lanes.map(s=>({key:s,title:s,cards:pi.filter(p=>p.stage===s)}));
+  // ---- 退出建议泳道 ----
+  const lanes=[['hold','择机持有'],['exit','建议退出'],['intervene','加紧干预']];
+  const laneCols=lanes.map(([k,t])=>({key:t,title:t+'（'+exitCnt(k)+'）',cards:pi.filter(p=>p.exit===k)}));
   const riskLight=p=>UI.light(p.risk, p.riskText);
   UI.kanban('#kanban',{
     columns:laneCols,
     cardRender:p=>{
       const e=entById(p.entId)||{};
       return `<div class="flex justify-between items-center"><div class="fw6 f13" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${UI.esc(p.ent)}</div>${riskLight(p)}</div>
-        <div class="f12 text-mute mt-2">${UI.esc(e.disciplineName||'')} · 持股 ${p.equity}% · ${UI.esc(e.stage||'')}</div>
-        <div class="mt-2 flex items-center gap-2"><span class="f12 text-mute" style="width:50px">健康度</span>${UI.bar(p.kpi, p.kpi>=80?'var(--success)':p.kpi>=65?'var(--warning)':'var(--danger)')}<span class="num f12 fw7" style="width:28px;text-align:right">${p.kpi}</span></div>
-        <div class="mt-2 flex justify-between items-center"><span class="f12 text-mute">账面值 ${(p.bookValue/10000).toFixed(2)}亿</span><span class="f12 text-mute">报告 ${UI.esc(p.lastReport)}</span></div>`;
+        <div class="f12 text-mute mt-2">${UI.esc(e.disciplineName||'')} · 持股 ${p.equity}% · 营收增速 ${p.revGrowth>=0?'+':''}${p.revGrowth}%</div>
+        <div class="mt-2 flex items-center gap-2"><span class="f12 text-mute" style="width:50px">参股期</span>${UI.bar(Math.min(100,Math.round(p.holdYears/5*100)), exitColor[p.exit])}<span class="num f12 fw7" style="width:42px;text-align:right">${p.holdYears}/5年</span></div>
+        <div class="mt-2 flex justify-between items-center"><span class="f12 text-mute">账面值 ${(p.bookValue/10000).toFixed(2)}亿</span><span class="f12 ${p.yearsToExit<=1?'text-danger':'text-mute'}">退出 ${p.exitDeadline}</span></div>`;
     },
-    onMove:(i,from,to)=>{ if(from!==to) UI.toast('已将企业跟踪策略调整为「'+to+'」','ok'); }
+    onMove:(i,from,to)=>{ if(from!==to) UI.toast('已将企业退出策略调整为「'+to.replace(/（.*/,'')+'」','ok'); }
   });
+
+  // ---- 5年退出临期提醒 ----
+  const nearExit = pi.filter(p=>p.holdYears>=2).sort((a,b)=>a.yearsToExit-b.yearsToExit).slice(0,8);
+  document.getElementById('exitCntTag').textContent = pi.filter(p=>p.yearsToExit<=1).length+' 家临期 · 共 '+pi.length+' 家纳入5年退出规划';
+  document.getElementById('exitTimeline').innerHTML = nearExit.length ? UI.timeline(nearExit.map(p=>({
+    time:p.exitDeadline+' 到期', type:'投资',
+    txt:`<b>${UI.esc(p.ent)}</b> · 参股 ${p.investYear} 年（已 ${p.holdYears} 年）· 持股 ${p.equity}% · `+
+        `<span class="tag tag-${exitTag[p.exit]}">${p.exitText}</span>`+
+        (p.yearsToExit<=1?' <span class="text-danger f12">⚠ 距退出红线 '+(p.yearsToExit>0?p.yearsToExit+' 年':'已达红线')+'</span>':' <span class="f12 text-mute">距退出红线 '+p.yearsToExit+' 年</span>')
+  }))) : UI.empty('暂无临期退出企业');
 
   // ---- 风险等级分布 饼 ----
   document.getElementById('riskTotalTag').textContent='共 '+pi.length+' 家';
@@ -116,32 +152,41 @@
     const e=entById(p.entId)||{};
     const fins=DB.financings.filter(f=>f.entId===p.entId);
     const myAlerts=ra.filter(a=>a.entId===p.entId);
+    const advice={
+      hold:'经营持续向上，建议作为优质参股资产<b>择机持有</b>，在5年退出红线（'+p.exitDeadline+'）前选估值高点协议转让/回购退出。',
+      exit:p.revGrowth<=5?'营收<b>横盘震荡</b>、增值空间有限，建议本年度内启动<b>退出预案</b>，回收国有资金。':'参股已满'+p.holdYears+'年，<b>临近5年退出红线</b>，须加紧规划退出路径。',
+      intervene:'舆情监测到经营/合规风险，建议<b>加紧干预</b>核实整改；风险不可控时提请投委会评估提前退出止损。'
+    }[p.exit];
     const body=`
-      <div class="flex items-center gap-3 mb-3">${riskLight(p)}${UI.tag(p.stage,'blue')}${UI.tag(e.financingRound||'—','purple')}</div>
+      <div class="flex items-center gap-3 mb-3">${riskLight(p)}${UI.tag(p.exitText,exitTag[p.exit])}${UI.tag(e.financingRound||'—','purple')}</div>
       ${UI.descList([
         ['企业名称', UI.esc(p.ent)],
-        ['所属学科', UI.esc(e.disciplineName||'—')],
+        ['所属领域', UI.esc(e.disciplineName||'—')],
         ['企业类型', UI.esc(e.type||'—')+' · '+UI.esc(e.stage||'')],
         ['学校持股', '<span class="num text-primary fw7">'+p.equity+'%</span>'],
-        ['投后账面值', '<span class="num fw7">'+p.bookValue.toLocaleString()+'</span> 万元'],
+        ['持股账面值', '<span class="num fw7">'+p.bookValue.toLocaleString()+'</span> 万元'],
         ['企业估值', '<span class="num">'+(e.valuation||0).toLocaleString()+'</span> 万元'],
-        ['投后健康度', '<span class="num fw7 '+(p.kpi>=80?'text-success':p.kpi>=65?'text-warning':'text-danger')+'">'+p.kpi+'</span> 分'],
-        ['最近报告', UI.esc(p.lastReport)],
+        ['营收增速', '<span class="num '+(p.revGrowth>=0?'text-success':'text-danger')+'">'+(p.revGrowth>=0?'+':'')+p.revGrowth+'%</span>'],
+        ['参股时间', '<span class="num">'+p.investYear+'</span> 年（已持 '+p.holdYears+' 年）'],
+        ['5年退出红线', '<span class="num '+(p.yearsToExit<=1?'text-danger fw7':'')+'">'+p.exitDeadline+'</span>（距 '+(p.yearsToExit>0?p.yearsToExit+' 年':'已达红线')+'）'],
+        ['经营健康度', '<span class="num fw7 '+(p.kpi>=80?'text-success':p.kpi>=65?'text-warning':'text-danger')+'">'+p.kpi+'</span> 分'],
         ['所在园区', UI.esc(e.park||'—')],
-        ['创始人', UI.esc(e.founder||'—')],
       ])}
       <div class="divider"></div>
-      <div class="fw6 mb-2">投后健康度趋势</div>
+      <div class="fw6 mb-2"><i data-lucide="log-out" style="width:15px;height:15px"></i> 5年退出建议</div>
+      <div class="ecard f13 text-dim" style="line-height:1.8;border-left:3px solid ${exitColor[p.exit]}">${advice}</div>
+      <div class="divider"></div>
+      <div class="fw6 mb-2">经营健康度趋势</div>
       <div class="chart h220" id="drHealth"></div>
       <div class="divider"></div>
-      <div class="fw6 mb-2">预警事项 ${myAlerts.length?'<span class="tag tag-red">'+myAlerts.length+'</span>':'<span class="tag tag-green">无</span>'}</div>
-      ${myAlerts.length?UI.timeline(myAlerts.map(a=>({time:a.date,type:'预警',txt:'['+a.type+'] '+a.desc+' · '+a.status}))):UI.empty('该企业暂无风险预警，投后运行平稳')}
+      <div class="fw6 mb-2">风险预警 · 来自新闻舆情 ${myAlerts.length?'<span class="tag tag-red">'+myAlerts.length+'</span>':'<span class="tag tag-green">无</span>'}</div>
+      ${myAlerts.length?UI.timeline(myAlerts.map(a=>({time:a.date,type:'预警',txt:'['+a.type+'] '+a.desc+' · '+a.status}))):UI.empty('该企业暂无风险预警，经营平稳')}
       <div class="divider"></div>
       <div class="fw6 mb-2">融资历史</div>
       ${fins.length?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>轮次</th><th>金额(万)</th><th>日期</th><th>领投方</th></tr></thead><tbody>'+fins.map(f=>`<tr><td>${UI.esc(f.round)}</td><td class="num">${f.amount.toLocaleString()}</td><td>${UI.esc(f.date)}</td><td>${UI.esc(f.investor)}</td></tr>`).join('')+'</tbody></table></div>':UI.empty('暂无融资记录')}
       <div class="mt-4 flex gap-2">
-        <button class="btn btn-sm btn-primary" onclick="UI.toast('已向技术经理人派发投后辅导工单','ok')">派发投后辅导</button>
-        <button class="btn btn-sm" onclick="UI.toast('已生成该企业投后简报','ok')">生成投后简报</button>
+        <button class="btn btn-sm btn-primary" onclick="UI.toast('已生成《'+'${UI.esc(p.ent)}'+'》退出方案建议书','ok')">生成退出方案</button>
+        <button class="btn btn-sm" onclick="UI.toast('已派技术经理人跟进','ok')">派单干预</button>
       </div>`;
     UI.drawer(p.ent, body, {width:'640px'});
     const trend=[p.kpi-9,p.kpi-6,p.kpi-7,p.kpi-3,p.kpi-4,p.kpi-1,p.kpi].map(v=>Math.max(40,Math.min(99,v)));
@@ -153,26 +198,27 @@
     {key:'ent',title:'企业',render:p=>'<div class="fw6">'+UI.esc(p.ent)+'</div><div class="f12 text-mute">'+UI.esc((entById(p.entId)||{}).disciplineName||'')+'</div>'},
     {key:'equity',title:'持股%',sortable:true,render:p=>'<span class="num text-primary fw7">'+p.equity+'%</span>'},
     {key:'bookValue',title:'账面值(万)',sortable:true,render:p=>'<span class="num">'+p.bookValue.toLocaleString()+'</span>'},
-    {key:'stage',title:'投后阶段',render:p=>UI.tag(p.stage, p.stage==='拟退出'?'red':p.stage==='重点跟踪'?'amber':p.stage==='增资扩股'?'purple':'green')},
+    {key:'investYear',title:'参股/退出',sortable:true,sortVal:p=>p.investYear,render:p=>'<span class="num">'+p.investYear+'</span><div class="f12 '+(p.yearsToExit<=1?'text-danger':'text-mute')+'">5年期 '+p.exitDeadline+'</div>'},
     {key:'kpi',title:'健康度',sortable:true,sortVal:p=>p.kpi,render:p=>'<div class="flex items-center gap-2" style="min-width:120px">'+UI.bar(p.kpi,p.kpi>=80?'var(--success)':p.kpi>=65?'var(--warning)':'var(--danger)')+'<span class="num f12 fw7">'+p.kpi+'</span></div>'},
-    {key:'risk',title:'风险',sortable:true,sortVal:p=>({r:0,y:1,g:2}[p.risk]),render:p=>riskLight(p)},
-    {key:'lastReport',title:'最近报告',render:p=>'<span class="f12 text-mute">'+UI.esc(p.lastReport)+'</span>'},
+    {key:'risk',title:'舆情',sortable:true,sortVal:p=>({r:0,y:1,g:2}[p.risk]),render:p=>riskLight(p)},
+    {key:'exit',title:'退出建议',sortable:true,sortVal:p=>({intervene:0,exit:1,hold:2}[p.exit]),render:p=>UI.tag(p.exitText,exitTag[p.exit])},
     {key:'op',title:'操作',sortable:false,render:p=>'<button class="btn btn-sm btn-ghost">详情</button>'},
   ];
   let piData=pi.slice();
   const piTbl=UI.table('#piTable',{columns:piCols,rows:piData,pageSize:8,onRow:openPi});
   const piFb=UI.filterBar('#piFilter',{
     fields:[
-      {key:'stage',label:'全部阶段',options:lanes},
-      {key:'risk',label:'全部风险',options:['正常','关注','预警']},
-      {key:'disc',label:'全部学科',options:DB.disciplines.map(d=>d.name)},
+      {key:'exit',label:'全部退出建议',options:['择机持有','建议退出','加紧干预']},
+      {key:'risk',label:'全部舆情',options:['正常','关注','预警']},
+      {key:'disc',label:'全部领域',options:DB.disciplines.map(d=>d.name)},
     ],
     search:true, searchPh:'搜索企业名称...',
     onChange:v=>{
       const m={正常:'g',关注:'y',预警:'r'};
+      const em={'择机持有':'hold','建议退出':'exit','加紧干预':'intervene'};
       piTbl.update(pi.filter(p=>{
         const e=entById(p.entId)||{};
-        return (!v.stage||p.stage===v.stage)
+        return (!v.exit||p.exit===em[v.exit])
           &&(!v.risk||p.risk===m[v.risk])
           &&(!v.disc||e.disciplineName===v.disc)
           &&(!v._q||p.ent.includes(v._q));
@@ -234,10 +280,12 @@
 
   // ---- 顶部按钮 ----
   document.getElementById('btnSync').onclick=()=>UI.toast('正在从国资监管系统拉取最新季报...','ok');
-  document.getElementById('btnReport').onclick=()=>UI.modal('生成投后组合月报',
-    '<div class="f13 text-dim mb-3">将汇总 '+pi.length+' 家参股/校属企业的投后健康度、账面值变动与 '+ra.length+' 条风险预警，自动生成可下载的组合月报。</div>'+
-    UI.descList([['报告期','2026 年 5 月'],['在管企业',pi.length+' 家'],['组合健康度',avgHealth+' 分'],['组合账面值',(totalBook/10000).toFixed(2)+' 亿元'],['新增/未结预警',ra.filter(a=>a.status!=='已处理').length+' 条']]),
-    {footer:'<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-sm btn-primary" onclick="UI.closeModal();UI.toast(\'投后组合月报已生成\',\'ok\')">生成报告</button>'});
+  document.getElementById('btnReport').onclick=()=>UI.modal('生成国资监管月报',
+    '<div class="f13 text-dim mb-3">将汇总 '+pi.length+' 家控股/参股企业的持股账面值、舆情风险预警与5年退出建议，自动生成可下载的国资监管月报。</div>'+
+    UI.descList([['报告期','2026 年 5 月'],['在管参股企业',pi.length+' 家'],['组合健康度',avgHealth+' 分'],['持股账面总值',(totalBook/10000).toFixed(2)+' 亿元'],['择机持有 / 建议退出 / 干预',exitCnt('hold')+' / '+exitCnt('exit')+' / '+exitCnt('intervene')+' 家'],['5年退出临期',pi.filter(p=>p.yearsToExit<=1).length+' 家']]),
+    {footer:'<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-sm btn-primary" onclick="UI.closeModal();UI.toast(\'国资监管月报已生成\',\'ok\')">生成报告</button>'});
+
+  if(window.lucide) lucide.createIcons();
 
   // ---- 数据来源脚注 ----
   document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['参股/校属企业','成果与专利']));

@@ -11,12 +11,12 @@
 <main class="wuda-view">
   <div class="page-head">
     <div>
-      <div class="page-title"><span class="accentbar"></span>成果库 · 成果项目化遴选</div>
-      <div class="page-sub">汇聚五大优势学科科技成果，按学科 / 学院 / TRL成熟度 / 转化状态多维筛选，支撑成果遴选与项目化</div>
+      <div class="page-title"><span class="accentbar"></span>成果库 · 我的可转化成果</div>
+      <div class="page-sub">老师上传与汇聚五大优势学科科技成果，按学科 / 学院 / TRL成熟度 / 对接状态多维筛选，开启成果转化对接</div>
     </div>
     <div style="display:flex;gap:9px">
       <button class="btn btn-sm" id="btnExport">⤓ 导出清单</button>
-      <button class="btn btn-primary btn-sm" id="btnAI"><i data-lucide="bot"></i> AI批量成熟度评估</button>
+      <button class="btn btn-primary btn-sm" id="btnUpload"><i data-lucide="upload-cloud"></i> 上传成果</button>
     </div>
   </div>
 
@@ -64,8 +64,8 @@
   const avgTrl = (ach.reduce((s,a)=>s+a.trl,0)/total).toFixed(1);
   document.getElementById('kpis').innerHTML=[
     UI.kpi({label:'成果总数',value:total,unit:'项',delta:'3.2%',deltaUp:true,icon:'<i data-lucide="microscope"></i>',spark:[28,34,31,40,38,46,52,49,58,61,66,72]}),
-    UI.kpi({label:'已转化 / 已签约',value:converted,unit:'项',delta:'12.7%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[3,5,4,7,9,8,12,14,13,16,18,21]}),
-    UI.kpi({label:'概念验证 / 中试中',value:poc,unit:'项',delta:'8.4%',deltaUp:true,icon:'<i data-lucide="flask-conical"></i>',spark:[6,8,7,10,9,12,11,14,16,15,18,20]}),
+    UI.kpi({label:'已对接 / 已合作',value:converted,unit:'项',delta:'12.7%',deltaUp:true,icon:'<i data-lucide="handshake"></i>',spark:[3,5,4,7,9,8,12,14,13,16,18,21]}),
+    UI.kpi({label:'对接推进中',value:poc,unit:'项',delta:'8.4%',deltaUp:true,icon:'<i data-lucide="flask-conical"></i>',spark:[6,8,7,10,9,12,11,14,16,15,18,20]}),
     UI.kpi({label:'平均技术成熟度',value:avgTrl,unit:'TRL',delta:'0.6',deltaUp:true,icon:'<i data-lucide="trending-up"></i>',spark:[51,52,54,53,55,57,56,58,60,59,61,63]}),
   ].join('');
 
@@ -102,7 +102,7 @@
       {key:'disc',label:'全部学科',options:disciplines.map(d=>d.name)},
       {key:'college',label:'全部学院',options:[...new Set(ach.map(a=>a.college))]},
       {key:'trl',label:'全部成熟度',options:['TRL 3-4 (基础)','TRL 5-6 (中试)','TRL 7-8 (产业化)']},
-      {key:'status',label:'全部状态',options:DB.util.picks?['待评估','已立项','概念验证','中试放大','已签约','已转化']:[]},
+      {key:'status',label:'全部对接状态',options:['待评估','已立项','概念验证','中试放大','已签约','已转化']},
     ],
     search:true, searchPh:'搜索成果标题 / 负责人 / 关键词...',
     extra:segHtml,
@@ -191,14 +191,30 @@
 
   // ---------- 操作按钮 ----------
   document.getElementById('btnExport').onclick=()=>UI.toast('已生成成果清单，共 '+cur.length+' 项，导出至下载列表','ok');
-  document.getElementById('btnAI').onclick=()=>{
-    UI.modal('AI 批量成熟度评估', `
-      <div class="text-dim mb-3">将对当前筛选的 <b class="text-primary">${cur.length}</b> 项成果调用「AI技术经理人」执行 TRL 评估与转化路径建议，预计耗时约 ${Math.ceil(cur.length/6)} 分钟。</div>
-      <div class="grid cols-2" style="gap:10px">
-        <div class="ecard" style="cursor:default"><div class="et f13">评估维度</div><div class="em mt-2">技术 · 市场 · 团队 · 工艺 · 知识产权</div></div>
-        <div class="ecard" style="cursor:default"><div class="et f13">数据来源</div><div class="em mt-2">成果与专利 · 研究院与平台</div></div>
+  document.getElementById('btnUpload').onclick=()=>{
+    const discOpts=disciplines.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    UI.modal('<i data-lucide="upload-cloud"></i> 上传我的成果', `
+      <div class="text-dim mb-3" style="font-size:13px">由老师本人登记可转化成果，上传后「AI技术经理人」将自动生成成果画像与五维评价，并匹配潜在合作企业。</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:13px 16px;font-size:13px;align-items:center">
+        <div class="text-mute">成果名称</div>
+        <div><input class="fb-field w-full" id="upTitle" placeholder="如：硅基光电子集成芯片"></div>
+        <div class="text-mute">所属学科</div>
+        <div class="fb-field" style="width:100%"><select id="upDisc" style="width:100%">${discOpts}</select></div>
+        <div class="text-mute">技术成熟度</div>
+        <div class="fb-field" style="width:100%"><select id="upTrl" style="width:100%">${[3,4,5,6,7,8].map(t=>`<option>TRL ${t}</option>`).join('')}</select></div>
+        <div class="text-mute">核心专利数</div>
+        <div><input class="fb-field w-full" id="upPat" type="number" value="6"></div>
+        <div class="text-mute">成果简介</div>
+        <div><textarea class="fb-field w-full" id="upDesc" rows="3" placeholder="技术原理、创新点与可落地应用场景..."></textarea></div>
+        <div class="text-mute">附件材料</div>
+        <div><div class="ecard" style="cursor:pointer;text-align:center;border-style:dashed"><i data-lucide="file-up"></i> 点击上传专利证书 / 论文 / 检测报告（可选）</div></div>
       </div>`,
-      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-primary btn-sm" onclick="UI.closeModal();UI.toast('已提交 AI 评估任务，可在 AI 工作台查看进度','ok')">提交评估任务</button>`});
+      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-primary btn-sm" id="upSubmit"><i data-lucide="sparkles"></i> 提交并生成画像</button>`});
+    document.getElementById('upSubmit').onclick=()=>{
+      const t=document.getElementById('upTitle').value||'未命名成果';
+      UI.closeModal();
+      UI.toast('成果《'+t.slice(0,14)+'》已登记，AI技术经理人正在生成画像与五维评价','ok');
+    };
   };
 
   // 初次渲染

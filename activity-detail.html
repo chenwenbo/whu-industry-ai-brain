@@ -9,7 +9,7 @@
 </head>
 <body data-theme="light" data-page="activity-calendar">
 <main class="wuda-view">
-  <div class="crumb"><a href="activity-calendar.html">← 返回活动台账</a> <span>/</span> <span id="crumbName"></span></div>
+  <div class="crumb"><a href="activity-calendar.html">← 返回活动与培训</a> <span>/</span> <span id="crumbName"></span></div>
 
   <!-- 头部 -->
   <div class="panel" id="header"></div>
@@ -77,6 +77,7 @@
     '科学家—企业家交流会':'var(--violet)','大咖直播':'var(--gold)','政策宣讲':'var(--cyan)'
   };
   const c = typeColor[a.type]||'var(--primary)';
+  const groupOf = t => ({'创新赛事':'大赛','训练营':'培训','投融资对接会':'活动动态','科学家—企业家交流会':'科技转化讲座','大咖直播':'科技转化讲座','政策宣讲':'政策宣讲'})[t]||'活动动态';
   const statusTag = s => UI.tag(s,{'已结束':'gray','报名中':'green','筹备中':'amber'}[s]||'blue');
 
   // ---------- 头部 ----------
@@ -85,6 +86,7 @@
     <div class="flex justify-between" style="align-items:flex-start;gap:20px;flex-wrap:wrap">
       <div style="flex:1;min-width:320px">
         <div class="flex items-center gap-3" style="flex-wrap:wrap">
+          ${UI.tag(groupOf(a.type),'purple')}
           <span style="font-size:11px;border:1px solid ${c};color:${c};border-radius:6px;padding:2px 9px;font-weight:600">${a.type}</span>
           ${statusTag(a.status)} ${UI.tag(a.discipline,'gray')}
           ${a.leads>=30?UI.tag('高转化活动','green'):''}

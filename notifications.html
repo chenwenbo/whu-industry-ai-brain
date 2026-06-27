@@ -61,7 +61,7 @@
 (function(){
   // 通知数据(本地副本，可改读态)
   const NOTI = DB.notifications.map((n,i)=>({...n, id:'N'+(i+1)}));
-  const TYPE_LINK = {预警:'post-investment.html',任务:'ai-tasks.html',工单:'park-list.html',入驻:'park-list.html',活动:'activity-calendar.html',数据:'data-foundation.html'};
+  const TYPE_LINK = {预警:'post-investment.html',任务:'ai-workbench.html',工单:'park-list.html',入驻:'park-list.html',活动:'activity-calendar.html',数据:'data-foundation.html'};
   const TYPE_ICON = {预警:'<i data-lucide="alert-triangle"></i>',任务:'<i data-lucide="clipboard-list"></i>',工单:'<i data-lucide="wrench"></i>',入驻:'<i data-lucide="building"></i>',活动:'<i data-lucide="calendar"></i>',数据:'<i data-lucide="database"></i>'};
 
   let curFilter='all';
@@ -181,7 +181,7 @@
       txt:t.type+' · '+t.ent.slice(0,8), sub:t.park, badge:t.sla<=0?UI.tag('已超期','red'):t.sla<=6?UI.tag('剩'+t.sla+'h','amber'):UI.tag('剩'+t.sla+'h','blue'), link:'park-list.html'
     }));
     DB.aiTasks.filter(t=>t.status==='待生成').slice(0,2).forEach(t=>todos.push({
-      txt:'AI任务 · '+t.title, sub:t.role, badge:UI.tag('待生成','purple'), link:'ai-tasks.html'
+      txt:'AI任务 · '+t.title, sub:t.role, badge:UI.tag('待生成','purple'), link:'ai-workbench.html'
     }));
     DB.onboarding.filter(o=>o.step!=='已入驻').slice(0,2).forEach(o=>todos.push({
       txt:'入驻审核 · '+o.ent.slice(0,8), sub:o.park, badge:UI.tag(o.step,'amber'), link:'park-list.html'
@@ -191,14 +191,14 @@
         <span style="width:8px;height:8px;border-radius:50%;background:var(--primary);flex-shrink:0"></span>
         <div style="flex:1;min-width:0"><div class="fw6" style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.txt}</div><div class="f12 text-mute">${t.sub}</div></div>
         ${t.badge}
-      </a>`).join('')+'<div class="mt-3" style="text-align:center"><a href="ai-tasks.html" class="f12 text-primary">查看全部待办 →</a></div>';
+      </a>`).join('')+'<div class="mt-3" style="text-align:center"><a href="ai-workbench.html" class="f12 text-primary">查看全部待办 →</a></div>';
   }
 
   // 快捷入口
   function renderQuick(){
     const links=[
       {i:'<i data-lucide="alert-triangle"></i>',t:'投后跟踪预警',d:'参股企业风险处置',u:'post-investment.html'},
-      {i:'<i data-lucide="clipboard-list"></i>',t:'AI任务中心',d:'生成/复用任务包',u:'ai-tasks.html'},
+      {i:'<i data-lucide="clipboard-list"></i>',t:'AI智能体工作台',d:'三大智能体/任务产出',u:'ai-workbench.html'},
       {i:'<i data-lucide="building"></i>',t:'园区载体管理',d:'工单/入驻受理',u:'park-list.html'},
       {i:'<i data-lucide="calendar"></i>',t:'活动归口台账',d:'报名/签到/线索',u:'activity-calendar.html'},
     ];

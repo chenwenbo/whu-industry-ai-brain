@@ -12,7 +12,7 @@
   <div class="crumb"><a href="data-foundation.html">← 返回数据底座总览</a></div>
   <div class="page-head">
     <div><div class="page-title"><span class="accentbar"></span>数据资产目录</div>
-      <div class="page-sub">全量数据资产可检索、可追溯 · 字段明细 · 血缘关系 · 质量监测</div></div>
+      <div class="page-sub">7 类高校产业数据资产 · 成果与专利打通 · 统计概览 + 逐层钻取明细（年份/签约方/合同/金额）</div></div>
     <div style="display:flex;gap:9px">
       <button class="btn btn-sm" id="btnExport"><i data-lucide="download"></i> 导出目录</button>
       <button class="btn btn-sm btn-primary" id="btnReg">+ 登记数据资产</button>
@@ -35,6 +35,15 @@
       <div class="tools"><span class="panel-tag" id="resultCnt"></span></div></div>
     <div id="filter" class="mb-4"></div>
     <div id="catTbl"></div>
+  </div>
+
+  <!-- 新增：成果数据集（成果↔专利打通） -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>成果数据集 · 成果 ↔ 专利打通</div>
+      <div class="tools"><span class="panel-tag">成果＝老师团队可转化项目</span><span class="panel-tag" id="achCnt"></span></div></div>
+    <div class="text-dim f13 mb-4" style="padding:0 2px">每项成果由老师团队自研、可对外转化，并已与其归属的发明 / 实用新型 / PCT 专利关联。点击任一成果可逐层钻取查看代表性专利明细。</div>
+    <div id="achFilter" class="mb-4"></div>
+    <div id="achTbl"></div>
   </div>
 
   <div id="srcNote"></div>
@@ -124,10 +133,12 @@
       ['domain_code','VARCHAR(16)','维度','是','所属数据域编码'],
     ];
     const byDomain={
-      '成果与专利':[['patent_no','VARCHAR(32)','维度','否','专利号'],['trl','TINYINT','指标','否','技术成熟度等级'],['leader','VARCHAR(64)','维度','否','成果负责人']],
-      '参股/校属企业':[['equity_ratio','DECIMAL(5,2)','指标','否','学校持股比例(%)'],['valuation','BIGINT','指标','否','企业估值(万元)'],['risk_level','ENUM','维度','否','风险等级 g/y/r']],
-      '产业企业与园区':[['credit_code','VARCHAR(18)','维度','是','统一社会信用代码'],['revenue','BIGINT','指标','否','营业收入(万元)'],['city','VARCHAR(32)','维度','否','所在城市']],
-      '活动与赛事':[['enroll_cnt','INT','指标','否','报名人数'],['leads_cnt','INT','指标','否','沉淀线索数'],['venue','VARCHAR(64)','维度','否','活动场地']],
+      '成果与专利':[['ach_id','VARCHAR(32)','维度','否','归属成果编号'],['patent_no','VARCHAR(32)','维度','否','专利号'],['patent_type','ENUM','维度','否','发明/实用新型/PCT'],['trl','TINYINT','指标','否','技术成熟度等级'],['leader','VARCHAR(64)','维度','否','成果负责人']],
+      '学院与团队':[['college','VARCHAR(64)','维度','否','所属学院'],['talent_tag','VARCHAR(32)','维度','否','人才标签(长江/杰青)'],['discipline','VARCHAR(32)','维度','否','所属学科']],
+      '研究院平台/科研院':[['platform_level','ENUM','维度','否','国家级/省级'],['lab_type','VARCHAR(32)','维度','否','重点实验室类型'],['city','VARCHAR(32)','维度','否','所在城市']],
+      '创业园/园区':[['area','DECIMAL(8,2)','指标','否','管理面积(㎡)'],['occupancy','DECIMAL(5,2)','指标','否','出租率(%)'],['ent_cnt','INT','指标','否','入驻企业数']],
+      '参股企业和校属企业':[['equity_ratio','DECIMAL(5,2)','指标','否','学校持股比例(%)'],['valuation','BIGINT','指标','否','企业估值(万元)'],['exit_year','SMALLINT','维度','否','拟退出年度'],['risk_level','ENUM','维度','否','风险等级 g/y/r']],
+      '活动赛事':[['enroll_cnt','INT','指标','否','报名人数'],['leads_cnt','INT','指标','否','沉淀线索数'],['venue','VARCHAR(64)','维度','否','活动场地']],
       '校友企业':[['alumni_id','VARCHAR(32)','维度','否','校友编号'],['grad_year','SMALLINT','维度','否','毕业年份'],['founded','SMALLINT','维度','否','成立年份']],
     };
     const extra=byDomain[a.domain]||[['attr_value','VARCHAR(256)','维度','否','业务属性值'],['amount','BIGINT','指标','否','金额/数量'],['region','VARCHAR(32)','维度','否','所属区域']];
@@ -152,6 +163,10 @@
       <div class="flex items-center gap-3 mt-3"><span class="f12 text-mute">责任方</span><span class="fw6">${a.owner}</span>
         <span style="margin-left:14px" class="f12 text-mute">敏感级</span>${sensTag(a.sensitive)}
         <span style="margin-left:14px" class="f12 text-mute">最近更新</span><span class="fw6">${a.updated}</span></div>
+
+      ${a.domain==='校友企业'?`<div style="background:var(--warning)18;border:1px solid var(--warning);border-radius:10px;padding:10px 13px;color:var(--warning);margin-top:14px"><i data-lucide="info"></i> 该域数据<b>待校友会统筹</b>：出思路、数据落地难，明细治理中。</div>`:''}
+
+      ${a.domain==='成果与专利'?achPatentBlock():''}
 
       <div class="divider"></div>
       <div class="fw6 mb-3"><i data-lucide="microscope"></i> 字段明细（示例）</div>
@@ -178,8 +193,80 @@
     UI.drawer(a.name,body,{width:'680px'});
   }
 
+  // ---- 成果↔专利打通：抽样块（在"成果与专利"域资产 drawer 中展示）----
+  function achPatentBlock(){
+    const sample=DB.achievementPatents.slice(0,4);
+    return `<div class="divider"></div>
+      <div class="fw6 mb-3"><i data-lucide="git-merge"></i> 成果 ↔ 专利 打通（抽样）</div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        ${sample.map(ap=>`<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 13px">
+          <div class="flex items-center justify-between"><div class="fw6 f13">${ap.achTitle}</div><span class="f12 text-mute">${ap.disciplineName} · TRL ${ap.trl}</span></div>
+          <div class="f12 text-mute mt-2">负责人 ${ap.leader} · 专利共 <span class="text-primary fw7">${ap.patentTotal}</span> 项，代表专利：</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+            ${ap.patents.map(p=>`<span class="chip" title="${p.no}">${UI.tag(p.type,p.type==='发明专利'?'purple':p.type==='PCT国际专利'?'blue':'gray')} ${p.no}</span>`).join('')}
+          </div>
+        </div>`).join('')}
+      </div>`;
+  }
+
+  // =====================================================================
+  // 成果数据集（新增）：成果＝老师团队可转化项目，与专利打通，支持逐层钻取
+  // =====================================================================
+  const ACH=DB.achievementPatents;
+  document.getElementById('achCnt').textContent='共 '+ACH.length+' 项成果 · '+DB.patents.length+' 件代表专利';
+  const achCols=[
+    {key:'achId',title:'成果编号',sortable:true,render:r=>`<span class="num f12 text-mute">${r.achId}</span>`},
+    {key:'achTitle',title:'成果名称',sortable:true,render:r=>`<div class="fw6">${r.achTitle}</div>`},
+    {key:'disciplineName',title:'学科',sortable:true,render:r=>`<span>${r.disciplineName}</span>`},
+    {key:'leader',title:'团队负责人',sortable:false,render:r=>`<span class="f12">${r.leader}</span>`},
+    {key:'trl',title:'TRL',sortable:true,sortVal:r=>r.trl,render:r=>`<span class="num">${r.trl}</span>`},
+    {key:'patentTotal',title:'专利数',sortable:true,sortVal:r=>r.patentTotal,render:r=>`<span class="num text-primary fw6">${r.patentTotal}</span>`},
+    {key:'_ptype',title:'专利构成',sortable:false,render:r=>{
+      const inv=r.patents.filter(p=>p.type==='发明专利').length,uti=r.patents.filter(p=>p.type==='实用新型').length,pct=r.patents.filter(p=>p.type==='PCT国际专利').length;
+      return `<span class="f12">${UI.tag('发明'+inv,'purple')} ${uti?UI.tag('实用'+uti,'gray'):''} ${pct?UI.tag('PCT'+pct,'blue'):''}</span>`;}},
+    {key:'value',title:'估值(万)',sortable:true,sortVal:r=>r.value,render:r=>`<span class="num">${r.value.toLocaleString()}</span>`},
+    {key:'status',title:'转化状态',sortable:true,render:r=>UI.tag(r.status,'blue')},
+    {key:'_op',title:'操作',sortable:false,render:r=>`<span class="text-primary pointer f12">钻取专利 →</span>`},
+  ];
+  const achFb=UI.filterBar('#achFilter',{
+    fields:[
+      {key:'disciplineName',label:'全部学科',options:[...new Set(ACH.map(a=>a.disciplineName))]},
+      {key:'status',label:'全部转化状态',options:[...new Set(ACH.map(a=>a.status))]},
+    ],
+    search:true, searchPh:'搜索成果名称 / 编号...',
+    onChange:v=>{
+      const q=(v._q||'').toLowerCase();
+      const rows=ACH.filter(a=>(!v.disciplineName||a.disciplineName===v.disciplineName)&&(!v.status||a.status===v.status)&&(!q||a.achTitle.toLowerCase().includes(q)||a.achId.toLowerCase().includes(q)));
+      achTbl.update(rows);
+    },
+  });
+  const achTbl=UI.table('#achTbl',{columns:achCols,rows:ACH,pageSize:8,onRow:r=>openAch(r),empty:'未匹配到成果'});
+
+  function openAch(ap){
+    const body=`
+      <div class="flex items-center gap-3 mb-3">
+        <span style="width:11px;height:38px;border-radius:5px;background:var(--dom-1)"></span>
+        <div><div class="fw7 f18">${ap.achTitle}</div><div class="text-mute f13">${ap.achId} · ${ap.disciplineName} · ${ap.college}</div></div>
+        <div style="margin-left:auto">${UI.tag(ap.status,'blue')}</div>
+      </div>
+      <div class="grid cols-4" style="gap:9px">
+        ${[['团队负责人',ap.leader],['技术成熟度','TRL '+ap.trl],['专利总数',ap.patentTotal+' 项'],['成果估值',ap.value.toLocaleString()+' 万']].map(([k,v])=>
+          `<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px"><div class="f12 text-mute">${k}</div><div class="fw7 mt-2">${v}</div></div>`).join('')}
+      </div>
+      <div class="divider"></div>
+      <div class="fw6 mb-3"><i data-lucide="file-badge"></i> 关联专利明细（代表性 ${ap.patents.length} / 共 ${ap.patentTotal} 项）</div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>专利号</th><th>名称</th><th>类型</th><th>状态</th><th>申请/授权</th><th>权利要求</th><th>可转化</th></tr></thead><tbody>
+        ${ap.patents.map(p=>`<tr><td class="num f12">${p.no}</td><td class="fw6">${p.title}</td>
+          <td>${UI.tag(p.type,p.type==='发明专利'?'purple':p.type==='PCT国际专利'?'blue':'gray')}</td>
+          <td>${UI.tag(p.status,p.status==='已授权'?'green':'amber')}</td>
+          <td class="num f12">${p.applyYear}/${p.grantYear}</td><td class="num">${p.claims}</td>
+          <td>${p.transferable?'<span class="text-success fw7">●</span>':'<span class="text-mute">—</span>'}</td></tr>`).join('')}
+      </tbody></table></div>`;
+    UI.drawer(ap.achTitle+' · 成果↔专利',body,{width:'720px'});
+  }
+
   // ---- 交互 ----
-  document.getElementById('btnExport').onclick=()=>UI.toast('数据资产目录已导出为 Excel（'+A.length+' 项）','ok');
+  document.getElementById('btnExport').onclick=()=>UI.toast('数据资产目录已导出为 Excel（'+A.length+' 项 + '+ACH.length+' 项成果）','ok');
   document.getElementById('btnReg').onclick=()=>UI.modal('登记数据资产',
     `<div class="text-dim f13 mb-4">将新数据表纳入资产目录统一治理，需填写元数据并指定责任方。</div>
      <div style="display:grid;gap:12px">
@@ -191,6 +278,6 @@
      </div>`,
     {footer:`<button class="btn btn-sm btn-ghost" onclick="UI.closeModal()">取消</button><button class="btn btn-sm btn-primary" onclick="UI.closeModal();UI.toast('数据资产登记成功，已纳入目录治理','ok')">确认登记</button>`});
 
-  document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','活动与赛事','校友企业']);
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','学院与团队','研究院平台/科研院','创业园/园区','参股企业和校属企业','活动赛事','校友企业']);
 })();</script>
 </body></html>

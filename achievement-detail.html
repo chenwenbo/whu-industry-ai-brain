@@ -14,13 +14,19 @@
   <!-- 成果概况头部 -->
   <div class="panel" id="header"></div>
 
-  <!-- 主体两栏 -->
-  <div class="grid mt-4" style="grid-template-columns:1.05fr .95fr">
-    <!-- 左 -->
+  <!-- 主体三栏：左=画像/评价  中=转化对接  右=固定AI对话 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1.05fr .82fr;align-items:start;gap:18px">
+
+    <!-- 左：成果画像 + 五维评价 -->
     <div style="display:flex;flex-direction:column;gap:18px">
       <div class="panel">
         <div class="panel-h"><div class="t"><span class="bar"></span>基本信息</div></div>
         <div id="baseInfo"></div>
+      </div>
+      <div class="panel glow">
+        <div class="panel-h"><div class="t"><span class="bar"></span>成果五维评价</div><div class="tools"><span class="panel-tag">AI技术经理人评分</span></div></div>
+        <div class="chart h260" id="radar"></div>
+        <div class="grid cols-2 mt-3" id="ppKpi"></div>
       </div>
       <div class="panel">
         <div class="panel-h"><div class="t"><span class="bar"></span>应用场景</div><div class="tools"><span class="panel-tag">可落地领域</span></div></div>
@@ -30,25 +36,59 @@
         <div id="market" class="text-dim" style="font-size:13px;line-height:1.85"></div>
       </div>
       <div class="panel">
-        <div class="panel-h"><div class="t"><span class="bar"></span>团队成员</div><div class="tools"><span class="panel-tag" id="teamCnt"></span></div></div>
-        <div id="members"></div>
+        <div class="panel-h"><div class="t"><span class="bar"></span>相关核心专利</div><div class="tools"><span class="panel-tag" id="patCnt"></span></div></div>
+        <div id="patents"></div>
       </div>
     </div>
 
-    <!-- 右 -->
+    <!-- 中：成果转化对接闭环 -->
     <div style="display:flex;flex-direction:column;gap:18px">
+      <!-- 一键生成推荐书/推介卡 -->
       <div class="panel glow">
-        <div class="panel-h"><div class="t"><span class="bar"></span>TRL 多维成熟度评估</div><div class="tools"><span class="panel-tag">AI技术经理人生成</span></div></div>
-        <div class="chart h300" id="radar"></div>
-        <div class="grid cols-2 mt-3" id="ppKpi"></div>
+        <div class="panel-h"><div class="t"><span class="bar"></span>成果推荐书 / 对外推介卡</div><div class="tools"><span class="panel-tag">AI流式生成</span></div></div>
+        <div class="text-dim mb-3" style="font-size:12.5px;line-height:1.7">一键生成可直接对外发送的成果推荐书，含技术亮点、应用价值、合作方式与产权说明，用于向目标企业推介。</div>
+        <div style="display:flex;gap:9px;margin-bottom:12px">
+          <button class="btn btn-primary btn-sm" id="btnCard"><i data-lucide="sparkles"></i> 一键生成推介卡</button>
+          <button class="btn btn-sm" id="btnCopy"><i data-lucide="copy"></i> 复制文本</button>
+          <button class="btn btn-sm" id="btnSend"><i data-lucide="send"></i> 推送目标企业</button>
+        </div>
+        <div id="cardOut" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:15px;font-size:12.8px;line-height:1.9;min-height:120px;white-space:pre-wrap" class="text-dim">点击「一键生成推介卡」，AI将基于成果画像与产权信息生成对外推介内容…</div>
       </div>
+
+      <!-- 关联潜在合作企业推荐 -->
       <div class="panel">
-        <div class="panel-h"><div class="t"><span class="bar"></span>应用场景匹配推荐</div><div class="tools"><span class="panel-tag">契合度排序</span></div></div>
-        <div class="chart h260" id="sceneBar"></div>
+        <div class="panel-h"><div class="t"><span class="bar"></span>潜在合作企业推荐</div><div class="tools"><span class="panel-tag">基于产业图谱匹配</span></div></div>
+        <div class="text-dim mb-3" style="font-size:12.5px">从参股 / 园区 / 校友 / 产业链企业中匹配与本成果方向契合的潜在合作方。</div>
+        <div id="partnerList"></div>
       </div>
+
+      <!-- 目标企业发现 -->
       <div class="panel">
-        <div class="panel-h"><div class="t"><span class="bar"></span>相关核心专利</div><div class="tools"><span class="panel-tag" id="patCnt"></span></div></div>
-        <div id="patents"></div>
+        <div class="panel-h"><div class="t"><span class="bar"></span>目标企业发现</div><div class="tools"><span class="panel-tag">挖掘可突破企业 + 联系方式</span></div></div>
+        <div class="text-dim mb-3" style="font-size:12.5px">AI挖掘行业内可突破的目标企业，给出突破理由与联系入口，支持直接发起对接。</div>
+        <div id="targetList"></div>
+      </div>
+
+      <!-- 对接状态记录 -->
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>对接状态记录</div><div class="tools"><button class="btn btn-sm" id="btnAddTrack"><i data-lucide="plus"></i> 新增记录</button></div></div>
+        <div id="trackTimeline"></div>
+      </div>
+    </div>
+
+    <!-- 右：固定 AI 对话区 -->
+    <div style="position:sticky;top:14px">
+      <div class="panel glow" style="display:flex;flex-direction:column;height:calc(100vh - 40px);min-height:560px">
+        <div class="panel-h"><div class="t"><span class="bar"></span><i data-lucide="bot"></i> 与该成果对话</div><div class="tools"><span class="panel-tag">成果专属AI</span></div></div>
+        <div class="text-mute f12" style="margin-bottom:8px">就该成果的应用场景 / 评价 / 产权归属 / 合作方式向 AI 提问</div>
+        <div id="achChat" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:11px;font-size:13px;padding-right:4px"></div>
+        <div style="margin:11px 0 9px">
+          <div style="display:flex;flex-wrap:wrap;gap:6px" id="chatChips"></div>
+        </div>
+        <div style="display:flex;gap:7px">
+          <input id="achInput" class="fb-field" style="flex:1" placeholder="向该成果提问...">
+          <button class="btn btn-primary" id="achSend"><i data-lucide="send"></i></button>
+        </div>
       </div>
     </div>
   </div>
@@ -61,6 +101,7 @@
 <script src="assets/js/components.js"></script>
 <script src="assets/js/shell.js"></script>
 <script>(function(){
+  const D=DB.util;
   const id = window.qparam('id');
   const a = (id && DB.achievements.find(x=>x.id===id)) || DB.achievements[0];
   const disc = DB.disciplines.find(d=>d.id===a.discipline) || {};
@@ -72,6 +113,7 @@
     const map={'已转化':'green','已签约':'green','中试放大':'blue','概念验证':'purple','已立项':'amber','待评估':'gray'};
     return UI.tag(s, map[s]||'gray');
   }
+  const trackMkt = (DB.tracks.find(t=>t.disc===a.discipline)||{market:2000,growth:35});
 
   // ---------- 头部概况 ----------
   document.getElementById('header').innerHTML = `
@@ -99,8 +141,8 @@
           <div class="num fw7" style="font-size:30px;color:var(--success);font-family:Oswald">¥${(a.value/10000).toFixed(2)}<span style="font-size:15px"> 亿元</span></div>
         </div>
         <div style="display:flex;gap:9px">
-          <button class="btn" id="btnPool">＋ 加入项目池</button>
-          <button class="btn btn-primary" id="btnPack"><i data-lucide="bot"></i> 生成项目包</button>
+          <button class="btn" id="btnPack"><i data-lucide="file-text"></i> 生成推荐书</button>
+          <button class="btn btn-primary" id="btnFindTarget"><i data-lucide="radar"></i> 目标企业发现</button>
         </div>
       </div>
     </div>`;
@@ -109,55 +151,32 @@
   document.getElementById('baseInfo').innerHTML = UI.descList([
     ['学科方向', `<span style="color:${c};font-weight:700">${a.disciplineName}</span>`],
     ['技术成熟度', `<span class="num text-primary fw7">TRL ${a.trl}</span> / 9`],
-    ['综合成熟度', `<span class="num fw7">${a.maturity}</span> 分`],
+    ['综合评分', `<span class="num fw7">${a.maturity}</span> 分`],
     ['场景匹配度', `<span class="num fw7" style="color:${c}">${a.match}%</span>`],
     ['发明专利', `<span class="num fw7">${a.patents}</span> 项`],
     ['学术论文', `<span class="num fw7">${a.papers}</span> 篇`],
-    ['转化状态', statusBadge(a.status)],
-    ['资产估值', `<span class="num fw7" style="color:var(--success)">${a.value.toLocaleString()} 万元</span>`],
+    ['产权归属', `武汉大学 / ${a.college}（职务成果）`],
+    ['对接状态', statusBadge(a.status)],
   ]);
 
   // ---------- 应用场景 chips ----------
   document.getElementById('scenes').innerHTML = a.scenes.map(s=>UI.chip(s,true)).join('');
 
   // ---------- 市场前景 ----------
-  const D=DB.util;
   const mainScene = a.scenes[0];
-  const trackMkt = (DB.tracks.find(t=>t.disc===a.discipline)||{market:2000,growth:35});
   document.getElementById('market').innerHTML =
     `该成果聚焦 <b style="color:${c}">${a.disciplineName}</b> 方向，核心应用场景为 <b>${a.scenes.join('、')}</b>。`+
     `所处赛道当前市场规模约 <b class="num text-primary">${trackMkt.market.toLocaleString()} 亿元</b>，年复合增速约 <b class="num" style="color:var(--success)">${trackMkt.growth}%</b>，处于产业放量上行通道。`+
-    `结合技术成熟度（TRL ${a.trl}）与 ${a.patents} 项核心专利布局，成果在 <b>${mainScene}</b> 场景具备较强的差异化竞争力，`+
-    `建议优先推进概念验证与龙头企业联合中试，6-12 个月内具备项目化与作价入股条件。`;
+    `结合技术成熟度（TRL ${a.trl}）与 ${a.patents} 项核心专利布局，成果在 <b>${mainScene}</b> 场景具备较强差异化竞争力，`+
+    `建议优先向龙头企业推介并联合中试，6-12 个月内具备作价入股 / 转让许可条件。`;
 
-  // ---------- 团队成员(造3-5人) ----------
-  const roles=['项目负责人 / PI','技术骨干','研发工程师','产业化经理','知识产权专员'];
-  const titles=['教授','副教授','研究员','博士后','高级工程师','博士研究生'];
-  const n=D.ri(3,5);
-  const members=[];
-  members.push({name:a.leader.replace(/\s.+$/,''), role:roles[0], title:a.leader.includes('研究员')?'研究员':'教授', yrs:D.ri(12,28), papers:D.ri(20,80), patents:D.ri(8,40)});
-  for(let i=1;i<n;i++) members.push({name:D.person(), role:roles[i], title:D.pick(titles), yrs:D.ri(2,16), papers:D.ri(2,28), patents:D.ri(1,18)});
-  document.getElementById('teamCnt').textContent = members.length+' 人核心团队';
-  document.getElementById('members').innerHTML = members.map(m=>`
-    <div class="flex items-center gap-3" style="padding:11px 0;border-bottom:1px solid var(--border)">
-      <span class="av" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-weight:700;font-size:15px;background:linear-gradient(135deg,${c},color-mix(in srgb,${c} 50%,#fff))">${m.name.slice(0,1)}</span>
-      <div style="flex:1;min-width:0">
-        <div class="fw6">${m.name} <span class="f12 text-mute">${m.title}</span></div>
-        <div class="f12 text-dim">${m.role} · 从业 ${m.yrs} 年</div>
-      </div>
-      <div style="text-align:right" class="f12 text-mute">
-        <span class="num text-primary fw7">${m.patents}</span> 专利 · <span class="num fw7">${m.papers}</span> 论文
-      </div>
-    </div>`).join('');
-
-  // ---------- TRL 雷达(5维) ----------
-  // 由综合指标确定性派生
+  // ---------- 五维评价雷达 ----------
   const base=a.maturity;
   const radarVal=[
-    Math.min(98, a.trl*11+D.ri(-4,6)),            // 技术
-    Math.min(98, a.match-D.ri(0,8)),               // 市场
-    Math.min(98, base+D.ri(-6,8)),                 // 团队
-    Math.min(98, a.trl*9+D.ri(2,14)),              // 工艺
+    Math.min(98, a.trl*11+D.ri(-4,6)),            // 技术成熟
+    Math.min(98, a.match-D.ri(0,8)),               // 市场前景
+    Math.min(98, base+D.ri(-6,8)),                 // 团队实力
+    Math.min(98, a.trl*9+D.ri(2,14)),              // 工艺/工程
     Math.min(98, 40+a.patents*1.8+D.ri(0,10)),     // 知识产权
   ].map(v=>Math.max(35,Math.round(v)));
   Charts.radar('radar',{
@@ -165,25 +184,15 @@
     series:[{name:a.title.slice(0,8), value:radarVal}],
     max:100
   });
-
-  // 专利/论文 KPI
   document.getElementById('ppKpi').innerHTML=[
     UI.kpi({label:'发明专利',value:a.patents,unit:'项',icon:'<i data-lucide="files"></i>'}),
     UI.kpi({label:'学术论文',value:a.papers,unit:'篇',icon:'<i data-lucide="library"></i>'}),
   ].join('');
 
-  // ---------- 场景匹配 horizontal bar ----------
-  // 全场景池打分(主场景=成果匹配度,其余派生)
-  const allScenes=['智能制造','智慧城市','医疗健康','能源电力','现代农业','商业航天','低空经济','智能网联汽车'];
-  const sceneScores = allScenes.map(s=>{
-    if(a.scenes.includes(s)) return {name:s, v: s===a.scenes[0]?a.match:Math.max(60,a.match-D.ri(4,16))};
-    return {name:s, v: D.ri(28,62)};
-  }).sort((x,y)=>y.v-x.v).slice(0,6).reverse();
-  Charts.bar('sceneBar',{
-    x:sceneScores.map(s=>s.name),
-    series:[{name:'匹配度',data:sceneScores.map(s=>s.v)}],
-    horizontal:true
-  });
+  // ---------- 团队成员(造，供推荐书引用) ----------
+  const n=D.ri(3,5);
+  const members=[{name:a.leader.replace(/\s.+$/,'')}];
+  for(let i=1;i<n;i++) members.push({name:D.person()});
 
   // ---------- 相关核心专利 ----------
   const patTypes=['发明专利','发明专利','发明专利','PCT国际专利','实用新型'];
@@ -215,25 +224,154 @@
       </div>
     </div>`).join('');
 
-  // ---------- 操作按钮 ----------
-  document.getElementById('btnPool').onclick=()=>UI.toast('已将《'+a.title.slice(0,12)+'…》加入成果转化项目池','ok');
-  document.getElementById('btnPack').onclick=()=>{
-    UI.drawer('<i data-lucide="bot"></i> AI 生成项目包',
-      `<div class="text-dim mb-3">「AI技术经理人」正基于成果画像生成项目化材料，整合成果与专利、学院与团队、参股/校属企业等数据域。</div>
-       <div class="ecard mb-3" style="cursor:default">
-         <div class="et">${a.title}</div>
-         <div class="em mt-2">学科 ${a.disciplineName} · TRL ${a.trl} · 匹配度 ${a.match}%</div>
-       </div>
-       <div id="genOut" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:13px;line-height:1.85;min-height:200px;white-space:pre-wrap"></div>
-       <div class="mt-3" style="display:flex;gap:9px;justify-content:flex-end">
-         <button class="btn btn-sm" onclick="UI.closeDrawer()">关闭</button>
-         <button class="btn btn-primary btn-sm" onclick="UI.closeDrawer();UI.toast('项目包已生成，含BP要点 / 路演材料 / 转化路径','ok')">采纳并归档</button>
-       </div>`,
-      {width:'560px'});
-    const txt=`【项目化建议】\n\n一、技术定位\n${a.title}面向${a.scenes.join('、')}场景，当前技术成熟度 TRL ${a.trl}，拥有 ${a.patents} 项专利与 ${a.papers} 篇论文支撑。\n\n二、商业价值\n所处赛道市场规模约 ${trackMkt.market} 亿元（增速 ${trackMkt.growth}%），成果资产估值 ${(a.value/10000).toFixed(2)} 亿元，具备作价入股条件。\n\n三、转化路径\n1) 6个月内完成概念验证与龙头企业联合中试；\n2) 启动专利布局加固与商标注册；\n3) 引入产业基金，以技术作价方式设立项目公司。\n\n四、风险提示\n需关注工艺放大稳定性与同赛道竞品迭代速度。`;
-    setTimeout(()=>UI.typewriter('genOut',txt,{speed:12}),300);
+  /* ============== 成果推荐书 / 推介卡 流式生成 ============== */
+  function cardText(){
+    return `【成果推介卡 · 对外推介版】\n\n`+
+      `成果名称：${a.title}\n所属机构：武汉大学 · ${a.college}\n负责人：${a.leader}　技术成熟度：TRL ${a.trl}\n\n`+
+      `一、技术亮点\n本成果面向${a.scenes.join('、')}场景，拥有 ${a.patents} 项核心专利与 ${a.papers} 篇高水平论文支撑，在${mainScene}场景具备差异化竞争力。\n\n`+
+      `二、应用价值\n所处赛道市场规模约 ${trackMkt.market} 亿元（年增速 ${trackMkt.growth}%），可为合作企业带来工艺升级与新产品落地，预估技术资产价值约 ${(a.value/10000).toFixed(2)} 亿元。\n\n`+
+      `三、合作方式\n支持 ① 技术转让许可　② 联合研发中试　③ 作价入股共建项目公司，可灵活组合。\n\n`+
+      `四、产权归属\n成果为职务成果，知识产权归武汉大学所有，依《科技成果转化股权激励办法》可向团队让渡不低于 70% 转化收益。\n\n`+
+      `五、对接联系\n武汉大学技术转移中心 · AI技术经理人　点击「推送目标企业」即可一键触达。`;
+  }
+  let cardGenerated=false;
+  function genCard(){
+    const out=document.getElementById('cardOut');
+    out.classList.remove('text-dim');
+    out.innerHTML='<span class="text-mute">AI技术经理人正在撰写推介卡…</span>';
+    setTimeout(()=>{UI.typewriter(out,cardText(),{speed:11,onDone:()=>{cardGenerated=true;}});},400);
+  }
+  document.getElementById('btnCard').onclick=genCard;
+  document.getElementById('btnPack').onclick=()=>{document.getElementById('cardOut').scrollIntoView({behavior:'smooth',block:'center'});genCard();};
+  document.getElementById('btnCopy').onclick=()=>{ if(!cardGenerated){UI.toast('请先生成推介卡','warn');return;} UI.toast('推介卡文本已复制到剪贴板','ok'); };
+  document.getElementById('btnSend').onclick=()=>{ if(!cardGenerated){UI.toast('请先生成推介卡','warn');return;} UI.toast('推介卡已推送至目标企业清单，并记入对接记录','ok'); addTrack('已联系','已通过推介卡向目标企业发送成果资料'); };
+
+  /* ============== 潜在合作企业推荐 ============== */
+  const sameDiscEnts = DB.enterprises.filter(e=>e.disciplineName===a.disciplineName);
+  const partnerPool = (sameDiscEnts.length?sameDiscEnts:DB.enterprises).slice();
+  const partners = partnerPool.sort((x,y)=>(y.score||0)-(x.score||0)).slice(0,4).map(e=>({
+    name:e.name, type:e.type, city:e.city||'武汉', revenue:e.revenue,
+    match:Math.min(98,(a.match||80)-D.ri(0,12)),
+    reason:`${e.type}，主营方向与本成果${a.disciplineName}高度契合，具备承接${a.scenes[0]}落地的产线与渠道。`
+  })).sort((x,y)=>y.match-x.match);
+  function partnerCard(p){
+    return `<div class="flex justify-between items-center" style="gap:10px;padding:11px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div class="flex items-center gap-2"><span class="fw6">${p.name}</span> ${UI.tag(p.type,'blue')}</div>
+        <div class="f12 text-dim mt-2" style="line-height:1.6">${p.reason}</div>
+        <div class="f12 text-mute mt-2 flex gap-3"><span><i data-lucide="map-pin"></i> ${p.city}</span><span>营收约 ${(p.revenue/10000).toFixed(1)}亿</span></div>
+      </div>
+      <div style="text-align:center;min-width:62px">
+        <div class="num fw7" style="font-size:18px;color:${c}">${p.match}%</div>
+        <div class="f12 text-mute">契合度</div>
+        <button class="btn btn-sm mt-2" data-partner="${UI.esc(p.name)}"><i data-lucide="link"></i> 对接</button>
+      </div>
+    </div>`;
+  }
+  const pl=document.getElementById('partnerList');
+  pl.innerHTML = partners.length?partners.map(partnerCard).join(''):UI.empty('暂无匹配的潜在合作企业');
+  pl.addEventListener('click',e=>{const b=e.target.closest('[data-partner]');if(!b)return;
+    UI.toast('已向 '+b.dataset.partner+' 发起合作意向，记入对接记录','ok');
+    addTrack('已联系','向潜在合作企业「'+b.dataset.partner+'」发起合作意向');});
+
+  /* ============== 目标企业发现 ============== */
+  const targetPool = DB.targetEnterprises.filter(t=>t.disc===a.discipline);
+  const phones=['027-8765','027-6788','021-5288','0755-8632','010-6278'];
+  const targets=(targetPool.length?targetPool:DB.targetEnterprises).slice(0,4).map(t=>({
+    name:t.name.replace('·相关业务',''), city:t.city, match:t.match, type:t.type, revenue:t.revenue,
+    reason:t.reason, contact:D.person()+'（'+D.pick(['技术总监','研发副总','战略合作部','创新中心'])+'）',
+    phone:D.pick(phones)+D.ri(1000,9999)
+  })).sort((x,y)=>y.match-x.match);
+  function targetCard(t){
+    return `<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      <div class="flex justify-between items-center" style="gap:10px">
+        <div class="flex items-center gap-2"><span class="fw6">${t.name}</span> ${UI.tag(t.type,'amber')} <span class="f12 text-mute">${t.city}</span></div>
+        <span class="num fw7" style="color:var(--success)">突破度 ${t.match}%</span>
+      </div>
+      <div class="f12 text-dim mt-2" style="line-height:1.6"><b>可突破理由：</b>${t.reason}，当前营收约 ${(t.revenue/10000).toFixed(1)}亿，存在技术升级与供应链替代窗口。</div>
+      <div class="f12 mt-2 flex gap-3" style="flex-wrap:wrap">
+        <span class="text-mute"><i data-lucide="user-round"></i> 对接人 ${t.contact}</span>
+        <span class="text-mute"><i data-lucide="phone"></i> <span class="num">${t.phone}</span></span>
+        <button class="btn btn-sm" data-target="${UI.esc(t.name)}"><i data-lucide="mail"></i> 发起对接</button>
+      </div>
+    </div>`;
+  }
+  const tl=document.getElementById('targetList');
+  tl.innerHTML = targets.length?targets.map(targetCard).join(''):UI.empty('暂无可挖掘的目标企业');
+  tl.addEventListener('click',e=>{const b=e.target.closest('[data-target]');if(!b)return;
+    UI.toast('已向 '+b.dataset.target+' 发起对接，并附上成果推介卡','ok');
+    addTrack('已联系','向目标企业「'+b.dataset.target+'」发起首次对接');});
+  document.getElementById('btnFindTarget').onclick=()=>{document.getElementById('targetList').scrollIntoView({behavior:'smooth',block:'center'});UI.toast('已刷新目标企业发现结果，挖掘到 '+targets.length+' 家可突破企业','ok');};
+
+  /* ============== 对接状态记录(时间线) ============== */
+  const trackMap={'已联系':'合作','已对接':'合作','已合作':'投资','备注':'数据'};
+  let tracks=[
+    {time:a.updated, txt:'AI技术经理人完成成果画像与五维评价', type:'成果'},
+    {time:D.ri(2,8)+'天前', txt:'生成成果推介卡，纳入对外推介池', type:'成果'},
+  ];
+  // 依据当前状态补一条对接进展
+  if(a.status==='已签约'||a.status==='已转化') tracks.unshift({time:'本周',txt:'已与合作企业完成签约（'+a.status+'）',type:'投资'});
+  else if(a.status==='中试放大'||a.status==='概念验证') tracks.unshift({time:'本周',txt:'已对接企业并启动联合验证',type:'合作'});
+  function renderTracks(){
+    document.getElementById('trackTimeline').innerHTML = UI.timeline(tracks);
+    if(window.lucide)lucide.createIcons();
+  }
+  function addTrack(stage,note){ tracks.unshift({time:'刚刚',txt:'['+stage+'] '+note,type:trackMap[stage]||'合作'}); renderTracks(); }
+  renderTracks();
+  document.getElementById('btnAddTrack').onclick=()=>{
+    UI.modal('<i data-lucide="clipboard-pen"></i> 新增对接记录', `
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:13px 16px;font-size:13px;align-items:center">
+        <div class="text-mute">对接状态</div>
+        <div class="fb-field" style="width:100%"><select id="tkStage" style="width:100%">
+          <option>已联系</option><option>已对接</option><option>已合作</option><option>备注</option></select></div>
+        <div class="text-mute">合作企业</div>
+        <div><input class="fb-field w-full" id="tkEnt" placeholder="企业名称（可选）"></div>
+        <div class="text-mute">备注说明</div>
+        <div><textarea class="fb-field w-full" id="tkNote" rows="3" placeholder="对接进展、反馈意见、下一步计划..."></textarea></div>
+      </div>`,
+      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-primary btn-sm" id="tkSubmit">保存记录</button>`});
+    document.getElementById('tkSubmit').onclick=()=>{
+      const stage=document.getElementById('tkStage').value;
+      const ent=document.getElementById('tkEnt').value;
+      const note=document.getElementById('tkNote').value||'（无备注）';
+      UI.closeModal();
+      addTrack(stage,(ent?ent+'：':'')+note);
+      UI.toast('已新增对接记录：'+stage,'ok');
+    };
   };
 
-  document.getElementById('srcNote').innerHTML = UI.srcNote(['成果与专利','学院与团队','参股/校属企业']);
+  /* ============== 固定 AI 对话区(就该成果) ============== */
+  const chat=document.getElementById('achChat');
+  function bubble(role,html){
+    const d=document.createElement('div');
+    d.style.cssText=role==='u'
+      ?'align-self:flex-end;background:var(--primary);color:var(--on-brand);padding:8px 12px;border-radius:12px 12px 2px 12px;max-width:88%'
+      :'align-self:flex-start;background:var(--panel-2);padding:10px 13px;border-radius:12px 12px 12px 2px;max-width:94%;border:1px solid var(--border);line-height:1.7';
+    d.innerHTML=html;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;
+  }
+  function achAnswer(q){
+    if(/场景|应用|落地/.test(q)) return `本成果在 ${a.scenes.join('、')} 等场景具备落地条件，其中 <b>${mainScene}</b> 最为成熟。`+
+      `建议优先在该场景与龙头企业联合中试，所处赛道规模约 ${trackMkt.market} 亿元、增速 ${trackMkt.growth}%，市场空间充足。`;
+    if(/评价|评分|成熟度|trl/i.test(q)) return `五维评价：技术成熟 ${radarVal[0]} / 市场前景 ${radarVal[1]} / 团队实力 ${radarVal[2]} / 工艺工程 ${radarVal[3]} / 知识产权 ${radarVal[4]}。`+
+      `当前 TRL ${a.trl}，综合评分 ${a.maturity}。短板在${radarVal.indexOf(Math.min(...radarVal))===3?'工艺工程':'工艺与可靠性'}，建议联合企业补强后再大规模推介。`;
+    if(/产权|归属|股权|收益|入股/.test(q)) return `本成果为职务成果，知识产权归 <b>武汉大学</b> 所有。`+
+      `依《科技成果转化股权激励办法》，转化收益中可向团队让渡不低于 70%；若采用作价入股，学校以技术股权代持，团队按贡献分配。建议转让许可 / 作价入股两种方式并行评估。`;
+    if(/企业|合作|对接|推荐/.test(q)) return `已为该成果匹配 ${partners.length} 家潜在合作企业与 ${targets.length} 家可突破目标企业（见中栏）。`+
+      `建议优先对接契合度最高的「${(partners[0]||{}).name||'—'}」，并通过推介卡触达目标企业「${(targets[0]||{}).name||'—'}」。`;
+    return `已基于该成果画像、五维评价与产业图谱完成分析。您可以问我：应用场景、成果评价、产权归属、合作企业推荐等。`;
+  }
+  function ask(q){ if(!q)return; bubble('u',UI.esc(q));
+    const ans=bubble('ai','<span class="text-mute">正在分析该成果…</span>');
+    setTimeout(()=>{ans.innerHTML='';UI.typewriter(ans,achAnswer(q));},420);
+    document.getElementById('achInput').value=''; }
+  document.getElementById('achSend').onclick=()=>ask(document.getElementById('achInput').value);
+  document.getElementById('achInput').onkeydown=e=>{if(e.key==='Enter')ask(e.target.value);};
+  const chips=['这个成果适合哪些应用场景？','帮我评价一下成熟度','产权归属与收益怎么分配？','推荐可以合作的企业'];
+  document.getElementById('chatChips').innerHTML=chips.map(p=>`<span class="chip pointer" data-q="${UI.esc(p)}">${p}</span>`).join('');
+  document.getElementById('chatChips').addEventListener('click',e=>{const ch=e.target.closest('[data-q]');if(ch)ask(ch.dataset.q);});
+  bubble('ai',`您好，我是「${a.title.slice(0,10)}」成果的专属 AI 助手 <i data-lucide="bot"></i>。可就该成果的<b>应用场景 / 评价 / 产权归属 / 合作对接</b>与我对话。`);
+
+  if(window.lucide)lucide.createIcons();
+  document.getElementById('srcNote').innerHTML = UI.srcNote(['成果与专利','学院与团队','参股/校属企业','产业图谱']);
 })();</script>
 </body></html>

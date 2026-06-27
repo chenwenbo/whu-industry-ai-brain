@@ -16,7 +16,7 @@
   <div class="page-head">
     <div>
       <div class="page-title"><span class="accentbar"></span>校级产业创新驾驶舱</div>
-      <div class="page-sub">面向学校领导与资产管理公司 · 把分散科研资源转化为可组织、可运营、可放大的产业创新能力</div>
+      <div class="page-sub">面向学校领导与资产管理公司 · 全国布局（深圳 / 合肥 / 温州 / 杭州…）· 重点产业方向 → 成果转化路径 → 重点项目 / 重点企业</div>
     </div>
     <div style="display:flex;gap:9px">
       <div class="seg" id="rangeSeg"><button class="on" data-r="本年">本年</button><button data-r="近12月">近12月</button><button data-r="累计">累计</button></div>
@@ -50,8 +50,9 @@
   <!-- 主区 第二行: 区域地图 + 合作图谱 -->
   <div class="grid mt-4" style="grid-template-columns:1fr 1fr">
     <div class="panel glow">
-      <div class="panel-h"><div class="t"><span class="bar"></span>湖北区域产业协同地图</div><div class="tools"><span class="panel-tag">点击市州查看详情</span></div></div>
+      <div class="panel-h"><div class="t"><span class="bar"></span>全国产业创新布局地图</div><div class="tools"><span class="panel-tag">点击城市查看详情</span></div></div>
       <div class="chart h420" id="mapChart"></div>
+      <div class="f12 text-mute" style="text-align:center;margin-top:2px">武汉总部 + 异地研究院 / 创新中心：深圳 · 合肥 · 温州 · 杭州 · 北京 · 上海</div>
     </div>
     <div class="panel glow">
       <div class="panel-h"><div class="t"><span class="bar"></span>校企合作网络知识图谱</div><div class="tools"><span class="panel-tag">点击节点查看详情</span></div></div>
@@ -92,7 +93,6 @@
   </div>
 </main>
 
-<script src="assets/geo/hubei.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/components.js"></script>
@@ -111,7 +111,7 @@
   document.getElementById('kpiRow2').innerHTML=[
     UI.kpi({label:'重点项目',value:k.projects,unit:'个',delta:'入池在跟',deltaUp:true,icon:'<i data-lucide="package"></i>',spark:[180,196,210,225,238,246,252,258,262,265,266,268]}),
     UI.kpi({label:'参股 / 校属企业',value:k.equity,unit:'家',delta:'国资穿透',deltaUp:true,icon:'<i data-lucide="trending-up"></i>',spark:[40,44,48,51,54,56,58,60,61,62,63,64]}),
-    UI.kpi({label:'产业园区载体',value:k.parks,unit:'个',delta:'4市州布局',deltaUp:true,icon:'<i data-lucide="building"></i>',spark:[3,3,4,4,5,5,5,6,6,6,6,6]}),
+    UI.kpi({label:'异地研究院 / 创新中心',value:k.parks,unit:'个',delta:'全国布局',deltaUp:true,icon:'<i data-lucide="map-pin"></i>',spark:[3,3,4,4,5,5,5,6,6,6,6,6]}),
     UI.kpi({label:'年度活动场次',value:k.activities,unit:'场',delta:'训练营·赛事·对接',deltaUp:true,icon:'<i data-lucide="calendar"></i>',spark:[60,68,76,84,92,100,108,114,120,124,126,128]}),
   ].join('');
 
@@ -159,22 +159,45 @@
       </div>
       <div class="em mt-2" style="line-height:1.6">${UI.esc(it.txt)}</div>
     </div>`;
-  }).join('') + `<div style="text-align:center;margin-top:6px"><a class="btn btn-sm btn-ghost" href="brain-overview.html">进入产业创新大脑 →</a></div>`;
+  }).join('') + `<div style="text-align:center;margin-top:6px"><a class="btn btn-sm btn-ghost" href="ai-workbench.html?role=research">进入 AI 产业研究院 →</a></div>`;
 
-  // ---------- 区域地图 (湖北) ----------
-  const mapInst=Charts.map('mapChart',{geo:HUBEI_GEOJSON,mapName:'hubei',data:DB.regionData,max:200,visualText:['强','弱']});
-  mapInst.on('click',p=>{
-    const r=DB.regionData.find(x=>p.name&&p.name.indexOf(x.name.replace(/[市州]$/,''))>=0)||DB.regionData.find(x=>x.name===p.name);
-    if(!r){ UI.toast('该区域暂无协同数据','warn'); return; }
-    const ents=DB.enterprises.filter(e=>e.city===r.name).slice(0,6);
-    const acts=DB.activities.filter(a=>a.venue&&a.venue.indexOf(r.name.slice(0,2))>=0);
-    const body=`<div class="grid cols-2 gap-3 mb-3">
-        <div class="kpi" style="margin:0"><div class="lab">产业协同强度</div><div class="val"><span class="num">${r.value}</span></div></div>
-        <div class="kpi" style="margin:0"><div class="lab">区域内企业</div><div class="val"><span class="num">${ents.length||DB.util.ri(2,12)}</span><span class="unit">家</span></div></div>
-      </div>
-      <div class="panel-h" style="margin-top:0"><div class="t"><span class="bar"></span>区域内重点企业</div></div>
-      ${ents.length?UI.rankList(ents.map(e=>({name:e.name,sub:e.disciplineName+' · '+e.stage,value:(e.valuation/10000).toFixed(1)+'亿'}))):UI.empty('该市州暂无在库企业，可作为招商拓展区域')}`;
-    UI.drawer('区域产业协同 · '+r.name,body,{width:'560px'});
+  // ---------- 全国产业创新布局地图 (散点气泡) ----------
+  // 全国重点城市布局：武汉总部 + 异地研究院/创新中心，对接当地优势产业方向
+  // value:[经度,纬度,布局强度]
+  const NATION_NODES=[
+    {name:'武汉总部',value:[114.31,30.59,200],role:'总部',focus:['空间信息','人工智能','生物医药'],note:'校本部 + 资产管理公司 · 产业创新操作系统中枢'},
+    {name:'深圳研究院',value:[114.06,22.55,128],role:'异地研究院',focus:['人工智能','半导体光芯片','机器人'],note:'对接大湾区电子信息 / 半导体 / 智能制造产业带'},
+    {name:'合肥创新中心',value:[117.28,31.86,86],role:'异地创新中心',focus:['半导体光芯片','人工智能','空间信息'],note:'对接综合性国家科学中心 · 光芯片 / 量子 / 集成电路'},
+    {name:'温州研究院',value:[120.69,28.00,72],role:'异地研究院',focus:['生物医药','机器人','人工智能'],note:'对接生命健康 / 智能装备产业集群'},
+    {name:'杭州创新中心',value:[120.15,30.27,80],role:'异地创新中心',focus:['人工智能','机器人','生物医药'],note:'对接数字经济 / 人工智能 / 生物医药高地'},
+    {name:'北京联络处',value:[116.40,39.90,64],role:'异地联络处',focus:['人工智能','空间信息','半导体光芯片'],note:'对接央地资源 / 国家级平台 / 政策与资本对接'},
+    {name:'上海联络处',value:[121.47,31.23,68],role:'异地联络处',focus:['生物医药','半导体光芯片','人工智能'],note:'对接生物医药 / 集成电路 / 国际资本'},
+  ];
+  const roleVar={'总部':'--primary','异地研究院':'--dom-3','异地创新中心':'--dom-5','异地联络处':'--dom-7'};
+  const roleColor=Object.fromEntries(Object.entries(roleVar).map(([k,v])=>[k,Charts.color(v)||Charts.color('--primary')]));
+  const mapInst=Charts.scatter('mapChart',{
+    xName:'经度',yName:'纬度',symbolField:2,
+    data:NATION_NODES.map(n=>({name:n.name,value:n.value,color:roleColor[n.role]})),
+  });
+  // 散点点击 → 城市布局详情（重点产业方向 + 当地重点企业）
+  mapInst&&mapInst.on('click',p=>{
+    const n=NATION_NODES.find(x=>x.name===p.name); if(!n) return;
+    // 按城市优势方向匹配在库重点企业（按估值取前6）
+    const focusDiscIds=DB.disciplines.filter(d=>n.focus.some(f=>d.name.indexOf(f.slice(0,2))>=0)).map(d=>d.id);
+    const ents=[...DB.enterprises].filter(e=>focusDiscIds.includes(e.discipline))
+      .sort((a,b)=>b.valuation-a.valuation).slice(0,6);
+    const projs=[...DB.achievements].filter(a=>focusDiscIds.includes(a.discipline))
+      .sort((a,b)=>b.value-a.value).slice(0,5);
+    const body=`<div class="flex items-center gap-3 mb-3">${UI.tag(n.role,n.role==='总部'?'purple':'blue')}
+        <span class="text-mute f12">布局强度 ${n.value[2]}</span></div>
+      <div class="text-dim mb-3">${UI.esc(n.note)}</div>
+      <div class="panel-h" style="margin-top:0"><div class="t"><span class="bar"></span>重点产业方向</div></div>
+      <div class="flex" style="flex-wrap:wrap;gap:6px;margin-bottom:12px">${n.focus.map(f=>UI.tag(f,'green')).join('')}</div>
+      <div class="panel-h" style="margin-top:0"><div class="t"><span class="bar"></span>对接重点项目 TOP</div></div>
+      ${projs.length?UI.rankList(projs.map(a=>({name:a.title,sub:a.disciplineName+' · TRL'+a.trl,value:a.value+'万'}))):UI.empty('暂无匹配成果')}
+      <div class="panel-h" style="margin-top:12px"><div class="t"><span class="bar"></span>对接重点企业 TOP</div></div>
+      ${ents.length?UI.rankList(ents.map(e=>({name:e.name,sub:e.disciplineName+' · '+e.stage,value:(e.valuation/10000).toFixed(1)+'亿'}))):UI.empty('该城市暂无在库企业，可作为招商拓展区域')}`;
+    UI.drawer('全国布局 · '+n.name,body,{width:'580px'});
   });
 
   // ---------- 合作图谱 ----------

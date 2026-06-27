@@ -1,0 +1,380 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>创新图谱 · 武汉大学产业创新AI智脑平台</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/js/lucide.min.js"></script>
+<style>
+  .ig-disc{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  @media(max-width:1100px){.ig-disc{grid-template-columns:repeat(2,1fr)}}
+  .ig-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-card);padding:14px 15px;cursor:pointer;
+    transition:transform .18s,border-color .18s,box-shadow .18s;position:relative;overflow:hidden}
+  .ig-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--primary));opacity:.85}
+  .ig-card:hover{transform:translateY(-3px);border-color:var(--border-strong);box-shadow:var(--glow),var(--shadow)}
+  .ig-card.on{border-color:var(--c,var(--primary));box-shadow:0 0 0 1.5px var(--c,var(--primary)),var(--shadow)}
+  .ig-card .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;margin-bottom:9px;
+    background:color-mix(in srgb,var(--c,var(--primary)) 16%,transparent);color:var(--c,var(--primary))}
+  .ig-card .nm{font-size:14.5px;font-weight:700}
+  .ig-card .ds{font-size:11px;color:var(--text-mute);margin-top:3px;line-height:1.5}
+  .ig-card .st{display:flex;gap:12px;margin-top:9px;font-size:11px;color:var(--text-dim)}
+  .ig-card .st b{font-family:var(--font-num);color:var(--text);font-weight:700;font-size:13px}
+  .ig-stat{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .ig-stat .s{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px;text-align:center}
+  .ig-stat .s .v{font-family:var(--font-num);font-size:23px;font-weight:700;color:var(--primary)}
+  .ig-stat .s .l{font-size:11px;color:var(--text-dim);margin-top:2px}
+  .rep-sec{margin-bottom:16px}
+  .rep-sec h4{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;margin:0 0 9px;color:var(--text)}
+  .rep-sec h4 .n{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:11px;
+    background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--on-brand);font-family:var(--font-num);flex-shrink:0}
+  .rep-head{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 16px;font-size:12px;padding:12px 14px;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:10px}
+  .rep-head .k{color:var(--text-mute)}.rep-head .v{color:var(--text);font-weight:600;font-family:var(--font-num)}
+  .legend-row{display:flex;justify-content:center;gap:16px;font-size:11.5px;color:var(--text-dim);margin-top:4px;flex-wrap:wrap}
+</style>
+</head>
+<body data-theme="dark" data-page="innovation-graph">
+<main class="wuda-view">
+  <div class="page-head">
+    <div><div class="page-title"><span class="accentbar"></span>创新图谱 · 科研能力图谱</div>
+      <div class="page-sub">输入任意领域，一键生成该领域的研究团队 / 国家级平台 / 纵向项目 / 专利知识图谱与创新能力报告</div></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-sm" id="btnReset"><i data-lucide="rotate-ccw"></i> 重置</button>
+      <button class="btn btn-sm btn-primary" id="btnReport"><i data-lucide="file-text"></i> 生成创新能力报告</button>
+    </div>
+  </div>
+
+  <!-- 重点学科预置卡 + 搜索框 -->
+  <div class="panel">
+    <div class="panel-h"><div class="t"><span class="bar"></span>五大重点学科 · 科研能力图谱</div>
+      <div class="tools"><span class="panel-tag">点击学科卡或在右侧输入领域生成图谱</span></div></div>
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:stretch">
+      <div class="ig-disc" id="discCards"></div>
+      <div style="display:flex;flex-direction:column;gap:10px;background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:15px">
+        <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px"><i data-lucide="search" style="color:var(--primary)"></i> 领域搜索生成</div>
+        <div style="font-size:11.5px;color:var(--text-mute);line-height:1.6">输入任意领域，AI 实时检索学校产业数据资产底座，秒级生成该领域科研能力图谱。</div>
+        <div class="tb-search" style="position:relative">
+          <i data-lucide="sparkles" class="si"></i>
+          <input id="domInput" placeholder="输入领域如『合成生物学』生成图谱" style="padding-left:34px">
+        </div>
+        <button class="btn btn-primary btn-sm" id="btnGen" style="width:100%"><i data-lucide="git-fork"></i> 生成创新图谱</button>
+        <div style="font-size:11px;color:var(--text-mute)">热门：
+          <span class="chip ig-chip" data-q="合成生物学">合成生物学</span>
+          <span class="chip ig-chip" data-q="低空经济">低空经济</span>
+          <span class="chip ig-chip" data-q="量子信息">量子信息</span>
+          <span class="chip ig-chip" data-q="智能网联汽车">智能网联汽车</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主体:知识图谱 + 当前领域统计 -->
+  <div class="grid mt-4" style="grid-template-columns:1.55fr 1fr">
+    <div class="panel glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span><span id="graphTitle">知识图谱网络</span></div>
+        <div class="tools"><span class="panel-tag">领域→子方向→团队/平台/项目/专利 · 可拖拽缩放</span></div></div>
+      <div class="chart h480" id="igGraph"></div>
+      <div class="legend-row">
+        <span><span class="edot" style="color:var(--primary)"></span> 领域</span>
+        <span><span class="edot" style="color:var(--accent)"></span> 子方向</span>
+        <span><span class="edot edot-g"></span> 研究团队</span>
+        <span><span class="edot edot-b"></span> 创新平台</span>
+        <span><span class="edot edot-y"></span> 纵向项目</span>
+        <span><span class="edot edot-r"></span> 专利</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>领域科研能力概览</div></div>
+        <div class="ig-stat" id="igStat"></div>
+      </div>
+      <div class="panel" style="flex:1">
+        <div class="panel-h"><div class="t"><span class="bar"></span>专利申请趋势 · 技术生命力</div></div>
+        <div class="chart h220" id="igPatTrend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 子方向覆盖 + 重点团队 -->
+  <div class="grid mt-4" style="grid-template-columns:1fr 1fr">
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>细分领域覆盖 · 优势区高亮</div>
+        <div class="tools"><span class="panel-tag">柱越高=能力越强</span></div></div>
+      <div class="chart h300" id="igCover"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><div class="t"><span class="bar"></span>重点研究团队</div>
+        <div class="tools"><span class="panel-tag" id="teamTag"></span></div></div>
+      <div id="igTeams" style="max-height:300px;overflow-y:auto"></div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/components.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>(function(){
+  // ============ 本页内联 MOCK 数据 ============
+  const IG={
+    // 五大重点学科预置图谱
+    disciplines:[
+      {id:'ai',  name:'人工智能',     icon:'brain',     color:'var(--dom-1)', desc:'大模型 / 智能体 / 计算机视觉 / 智能感知',
+        teams:46, platforms:8, projects:132, patents:1860, talents:520, drRatio:62, incub:18, smeServed:340, standards:14,
+        subs:[
+          {name:'大模型与智能体',team:12,plat:3,proj:38,pat:560,strong:true},
+          {name:'计算机视觉',team:10,plat:2,proj:28,pat:420,strong:true},
+          {name:'语音与自然语言',team:8,plat:1,proj:22,pat:300},
+          {name:'AI芯片与算力',team:7,plat:1,proj:24,pat:340},
+          {name:'可信与安全AI',team:9,plat:1,proj:20,pat:240},
+        ],
+        topTeams:[
+          {name:'珞珈大模型团队',pi:'王立群 教授',col:'计算机学院',pat:142,proj:9,hi:'国家杰青·长江学者',cite:'高被引×6'},
+          {name:'智能视觉感知团队',pi:'陈思远 教授',col:'人工智能学院',pat:118,proj:7,hi:'国家优青',cite:'高被引×4'},
+          {name:'可信AI与安全团队',pi:'刘宇航 教授',col:'国家网络安全学院',pat:96,proj:6,hi:'青年长江',cite:'高被引×3'},
+          {name:'多模态认知团队',pi:'赵明哲 研究员',col:'工业科学研究院',pat:84,proj:5,hi:'楚天学者',cite:'高被引×2'},
+        ]},
+      {id:'robot',name:'机器人',       icon:'bot',       color:'var(--dom-2)', desc:'特种机器人 / 人形机器人 / 智能装备 / 运动控制',
+        teams:32, platforms:5, projects:88, patents:1240, talents:360, drRatio:58, incub:12, smeServed:220, standards:9,
+        subs:[
+          {name:'人形机器人',team:8,plat:2,proj:24,pat:360,strong:true},
+          {name:'特种作业机器人',team:7,plat:1,proj:20,pat:300,strong:true},
+          {name:'运动控制与驱动',team:6,plat:1,proj:16,pat:240},
+          {name:'智能装备集成',team:6,plat:1,proj:18,pat:200},
+          {name:'人机协作',team:5,plat:0,proj:10,pat:140},
+        ],
+        topTeams:[
+          {name:'人形机器人本体团队',pi:'孙建国 教授',col:'动力与机械学院',pat:106,proj:8,hi:'国家杰青',cite:'高被引×4'},
+          {name:'特种机器人团队',pi:'周文涛 教授',col:'工业科学研究院',pat:92,proj:6,hi:'长江学者',cite:'高被引×3'},
+          {name:'运动控制团队',pi:'吴雅婷 研究员',col:'动力与机械学院',pat:74,proj:5,hi:'国家优青',cite:'高被引×2'},
+          {name:'智能装备团队',pi:'郑海峰 教授',col:'工业科学研究院',pat:68,proj:4,hi:'楚天学者',cite:'高被引×2'},
+        ]},
+      {id:'bio', name:'生物医药',     icon:'dna',       color:'var(--dom-6)', desc:'创新药 / 医疗器械 / 合成生物 / 基因治疗',
+        teams:54, platforms:9, projects:156, patents:2120, talents:640, drRatio:66, incub:22, smeServed:280, standards:17,
+        subs:[
+          {name:'创新药研发',team:14,plat:3,proj:44,pat:620,strong:true},
+          {name:'合成生物',team:11,plat:2,proj:34,pat:480,strong:true},
+          {name:'基因与细胞治疗',team:10,plat:2,proj:30,pat:420,strong:true},
+          {name:'高端医疗器械',team:9,plat:1,proj:26,pat:360},
+          {name:'诊断与生物材料',team:10,plat:1,proj:22,pat:240},
+        ],
+        topTeams:[
+          {name:'创新药发现团队',pi:'李蕴秋 教授',col:'药学院',pat:168,proj:11,hi:'国家杰青·长江',cite:'高被引×7'},
+          {name:'合成生物团队',pi:'黄启明 教授',col:'生命科学学院',pat:134,proj:9,hi:'长江学者',cite:'高被引×5'},
+          {name:'基因治疗团队',pi:'罗安琪 研究员',col:'医学部',pat:112,proj:7,hi:'国家优青',cite:'高被引×4'},
+          {name:'高端医疗器械团队',pi:'徐振邦 教授',col:'人民医院',pat:98,proj:6,hi:'楚天学者',cite:'高被引×3'},
+        ]},
+      {id:'chip',name:'半导体·光芯片',icon:'cpu',       color:'var(--dom-5)', desc:'硅光集成 / 化合物半导体 / 传感芯片 / 光电器件',
+        teams:28, platforms:6, projects:96, patents:1480, talents:300, drRatio:64, incub:10, smeServed:160, standards:11,
+        subs:[
+          {name:'硅光集成',team:7,plat:2,proj:26,pat:420,strong:true},
+          {name:'化合物半导体',team:6,plat:1,proj:22,pat:340,strong:true},
+          {name:'传感与探测芯片',team:6,plat:1,proj:20,pat:300},
+          {name:'光电器件',team:5,plat:1,proj:16,pat:240},
+          {name:'先进封装',team:4,plat:1,proj:12,pat:180},
+        ],
+        topTeams:[
+          {name:'硅光集成团队',pi:'方鸿儒 教授',col:'物理科学与技术学院',pat:128,proj:9,hi:'国家杰青',cite:'高被引×5'},
+          {name:'化合物半导体团队',pi:'石慕白 教授',col:'微电子学院',pat:104,proj:7,hi:'长江学者',cite:'高被引×4'},
+          {name:'传感芯片团队',pi:'谭逸飞 研究员',col:'电子信息学院',pat:86,proj:5,hi:'国家优青',cite:'高被引×3'},
+          {name:'光电器件团队',pi:'白若雪 教授',col:'物理科学与技术学院',pat:72,proj:4,hi:'楚天学者',cite:'高被引×2'},
+        ]},
+      {id:'geo', name:'空间信息·遥感',icon:'satellite', color:'var(--dom-3)', desc:'北斗导航 / 卫星遥感 / 智慧城市 / 地理信息',
+        teams:60, platforms:11, projects:178, patents:2480, talents:720, drRatio:68, incub:20, smeServed:300, standards:21,
+        subs:[
+          {name:'卫星遥感',team:16,plat:3,proj:50,pat:720,strong:true},
+          {name:'北斗导航与定位',team:13,plat:3,proj:42,pat:600,strong:true},
+          {name:'摄影测量与地理信息',team:12,plat:2,proj:38,pat:520,strong:true},
+          {name:'智慧城市与时空大数据',team:10,plat:2,proj:28,pat:380},
+          {name:'空天感知载荷',team:9,plat:1,proj:20,pat:260},
+        ],
+        topTeams:[
+          {name:'高分遥感解译团队',pi:'龚学礼 院士',col:'遥感信息工程学院',pat:196,proj:13,hi:'两院院士·长江',cite:'高被引×9'},
+          {name:'北斗高精度定位团队',pi:'姜伯约 教授',col:'测绘学院',pat:158,proj:10,hi:'国家杰青',cite:'高被引×6'},
+          {name:'摄影测量团队',pi:'卫清河 教授',col:'测绘遥感国家重点实验室',pat:140,proj:9,hi:'长江学者',cite:'高被引×5'},
+          {name:'时空大数据团队',pi:'蓝怀瑾 研究员',col:'遥感信息工程学院',pat:116,proj:7,hi:'国家优青',cite:'高被引×4'},
+        ]},
+    ],
+    // 搜索领域生成的图谱模板(确定性派生)
+    searchTemplate(q){
+      // 由领域名长度做种子,确定性生成,挂靠最相关学科
+      const map={'合成生物':'bio','合成生物学':'bio','基因':'bio','创新药':'bio','低空经济':'robot','无人机':'robot',
+        '人形':'robot','量子':'chip','光芯片':'chip','硅光':'chip','智能网联':'ai','大模型':'ai','智能体':'ai',
+        '遥感':'geo','北斗':'geo','测绘':'geo','卫星':'geo'};
+      let baseId='ai'; for(const k in map){ if(q.includes(k)){baseId=map[k];break;} }
+      const base=IG.disciplines.find(d=>d.id===baseId);
+      const seed=q.split('').reduce((s,c)=>s+c.charCodeAt(0),0);
+      const r=(min,max)=>min+ (seed%(max-min+1));
+      const teams=r(8,24), platforms=r(2,6), projects=r(18,52), patents=r(220,860);
+      const subNames=['基础理论','关键技术','工程化与装备','应用示范','标准与生态'];
+      const subs=subNames.map((n,i)=>({name:q.slice(0,4)+'·'+n, team:r(2,7)+i%3, plat:(seed+i)%3, proj:r(4,14)+i, pat:r(40,180)+i*10, strong:i<2}));
+      return {id:'search', name:q, icon:'sparkles', color:base.color, desc:'AI 实时检索生成 · 关联主学科：'+base.name,
+        teams, platforms, projects, patents, talents:teams*11, drRatio:r(55,70), incub:r(4,16), smeServed:r(80,260), standards:r(3,15),
+        subs,
+        topTeams:base.topTeams.slice(0,3).map((t,i)=>({...t, name:q.slice(0,4)+'·'+['核心攻关','工程化','应用转化'][i]+'团队'}))};
+    }
+  };
+
+  const ICONS={ai:'brain',robot:'bot',bio:'dna',chip:'cpu',geo:'satellite'};
+  let current=IG.disciplines[0];
+
+  // ============ 顶部学科卡 ============
+  document.getElementById('discCards').innerHTML=IG.disciplines.map(d=>
+    `<div class="ig-card" data-id="${d.id}" style="--c:${d.color}">
+       <div class="ic"><i data-lucide="${d.icon}"></i></div>
+       <div class="nm">${d.name}</div>
+       <div class="ds">${d.desc}</div>
+       <div class="st"><span><b>${d.teams}</b> 团队</span><span><b>${d.platforms}</b> 平台</span><span><b>${d.patents}</b> 专利</span></div>
+     </div>`).join('');
+
+  // ============ 渲染整页 ============
+  function render(dom){
+    current=dom;
+    document.querySelectorAll('.ig-card').forEach(c=>c.classList.toggle('on',c.dataset.id===dom.id));
+    document.getElementById('graphTitle').textContent='知识图谱网络 · '+dom.name;
+
+    // 概览统计
+    document.getElementById('igStat').innerHTML=[
+      ['相关研究团队',dom.teams,'个'],['国家级创新平台',dom.platforms,'个'],
+      ['承担纵向项目',dom.projects,'项'],['相关专利',dom.patents,'件'],
+    ].map(([l,v,u])=>`<div class="s"><div class="v">${v}<span style="font-size:12px;color:var(--text-dim)">${u}</span></div><div class="l">${l}</div></div>`).join('');
+
+    // ---- 知识图谱(分层:领域→子方向→团队/平台/项目/专利) ----
+    buildGraph(dom);
+
+    // ---- 专利申请趋势 ----
+    const yrs=['2018','2019','2020','2021','2022','2023','2024'];
+    const base=Math.round(dom.patents/16);
+    const grow=yrs.map((y,i)=>Math.round(base*(0.6+i*0.18)));
+    const granted=grow.map(v=>Math.round(v*0.62));
+    Charts.line('igPatTrend',{x:yrs,series:[{name:'年度申请',data:grow},{name:'授权(有效)',data:granted}],area:true,smooth:true,legend:true});
+
+    // ---- 细分领域覆盖 ----
+    const subs=[...dom.subs].sort((a,b)=>b.pat-a.pat);
+    Charts.bar('igCover',{x:subs.map(s=>s.name),series:[{name:'专利量',data:subs.map(s=>s.pat)}],horizontal:true});
+
+    // ---- 重点团队 ----
+    document.getElementById('teamTag').textContent='共 '+dom.teams+' 个团队';
+    document.getElementById('igTeams').innerHTML=dom.topTeams.map((t,i)=>
+      `<div class="ecard" style="margin-bottom:9px;padding:12px 13px;cursor:default">
+         <div class="flex justify-between items-center">
+           <div class="flex items-center gap-2">
+             <span class="num" style="width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:700;background:${i<3?'linear-gradient(135deg,var(--primary),var(--accent))':'var(--panel-2)'};color:${i<3?'var(--on-brand)':'var(--text-dim)'}">${i+1}</span>
+             <span class="fw7" style="font-size:13.5px">${t.name}</span>
+           </div>
+           ${UI.tag(t.hi.split('·')[0],'purple')}
+         </div>
+         <div class="flex gap-3 mt-2 f12 text-mute" style="flex-wrap:wrap">
+           <span><i data-lucide="user"></i> ${t.pi}</span><span><i data-lucide="building-2"></i> ${t.col}</span>
+         </div>
+         <div class="flex gap-3 mt-1 f12 text-dim">
+           <span><i data-lucide="scroll"></i> 专利 ${t.pat}</span><span><i data-lucide="flask-conical"></i> 纵向 ${t.proj}</span><span><i data-lucide="award"></i> ${t.cite}</span>
+         </div>
+       </div>`).join('');
+
+    if(window.lucide) lucide.createIcons();
+  }
+
+  function buildGraph(dom){
+    const cats=['领域','子方向','研究团队','创新平台','纵向项目','专利'];
+    const nodes=[{id:'ROOT',name:dom.name,cat:0,sym:58}];
+    const links=[];
+    dom.subs.forEach((s,si)=>{
+      const sid='S'+si;
+      nodes.push({id:sid,name:s.name,cat:1,sym:30});
+      links.push({source:'ROOT',target:sid,rel:'子方向'});
+      // 每子方向挂代表性的 团队/平台/项目/专利 汇总节点
+      nodes.push({id:sid+'-T',name:s.team+'个团队',cat:2,sym:14+s.team});
+      nodes.push({id:sid+'-PL',name:s.plat+'个平台',cat:3,sym:14+s.plat*4});
+      nodes.push({id:sid+'-PJ',name:s.proj+'项纵向',cat:4,sym:14+Math.round(s.proj/2)});
+      nodes.push({id:sid+'-PT',name:s.pat+'件专利',cat:5,sym:12+Math.round(s.pat/40)});
+      links.push({source:sid,target:sid+'-T',rel:'团队'});
+      links.push({source:sid,target:sid+'-PL',rel:'平台'});
+      links.push({source:sid,target:sid+'-PJ',rel:'项目'});
+      links.push({source:sid,target:sid+'-PT',rel:'专利'});
+    });
+    Charts.graph('igGraph',{nodes,links,cats,layout:'force',roam:true});
+  }
+
+  // ============ 交互 ============
+  document.querySelectorAll('.ig-card').forEach(c=>c.onclick=()=>{
+    const d=IG.disciplines.find(x=>x.id===c.dataset.id); if(d){ render(d); UI.toast('已生成「'+d.name+'」科研能力图谱','ok'); }
+  });
+
+  function generate(q){
+    q=(q||'').trim(); if(!q){ UI.toast('请输入要生成图谱的领域','warn'); return; }
+    const dom=IG.searchTemplate(q);
+    document.querySelectorAll('.ig-card').forEach(c=>c.classList.remove('on'));
+    render(dom);
+    document.getElementById('igGraph').scrollIntoView({behavior:'smooth',block:'center'});
+    UI.toast('AI 已为「'+q+'」实时生成创新图谱','ok');
+  }
+  document.getElementById('btnGen').onclick=()=>generate(document.getElementById('domInput').value);
+  document.getElementById('domInput').addEventListener('keydown',e=>{ if(e.key==='Enter')generate(e.target.value); });
+  document.querySelectorAll('.ig-chip').forEach(ch=>ch.onclick=()=>{ document.getElementById('domInput').value=ch.dataset.q; generate(ch.dataset.q); });
+  document.getElementById('btnReset').onclick=()=>{ document.getElementById('domInput').value=''; render(IG.disciplines[0]); UI.toast('已重置为默认学科'); };
+
+  // ============ 一键生成创新能力报告 ============
+  document.getElementById('btnReport').onclick=()=>openReport();
+  function openReport(){
+    const d=current;
+    const yrs=['2020','2021','2022','2023','2024'];
+    const base=Math.round(d.patents/14);
+    const apply=yrs.map((y,i)=>Math.round(base*(0.7+i*0.15)));
+    const subsSorted=[...d.subs].sort((a,b)=>b.pat-a.pat);
+    const body=`
+      <div class="rep-sec">
+        <div class="rep-head">
+          <div><span class="k">机构名称</span><br><span class="v">武汉大学 · ${d.name}领域</span></div>
+          <div><span class="k">专职人员数</span><br><span class="v">${d.talents} 人</span></div>
+          <div><span class="k">高级/博士比例</span><br><span class="v">${d.drRatio}%</span></div>
+          <div><span class="k">近两年孵化企业</span><br><span class="v">${d.incub} 家</span></div>
+          <div><span class="k">服务武汉市中小企业</span><br><span class="v">${d.smeServed} 家</span></div>
+          <div><span class="k">行业标准制定</span><br><span class="v">${d.standards} 项</span></div>
+        </div>
+      </div>
+      <div class="rep-sec"><h4><span class="n">1</span>领域结构图谱</h4>
+        <div class="chart h300" id="repStruct"></div></div>
+      <div class="rep-sec"><h4><span class="n">2</span>创新情况 · 政策与规模</h4>
+        <div class="f13" style="line-height:1.9;color:var(--text-dim)">${d.name}方向已建成 <b class="text-primary">${d.platforms}</b> 个国家级创新平台、汇聚 <b class="text-primary">${d.teams}</b> 个研究团队，承担纵向项目 <b class="text-primary">${d.projects}</b> 项。受国家与湖北省「${d.name}」专项政策驱动，相关产业规模年增速保持双位数，是学校重点布局的产业创新主战场。</div></div>
+      <div class="rep-sec"><h4><span class="n">3</span>技术生命力 · 逐年专利申请与法律状态</h4>
+        <div class="chart h260" id="repPat"></div>
+        <div class="legend-row"><span>累计专利 <b class="text-primary">${d.patents}</b> 件 · 其中发明占比约 62% · 有效维持率约 78%</span></div></div>
+      <div class="rep-sec"><h4><span class="n">4</span>细分领域覆盖 · 优势区高亮</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">${subsSorted.map(s=>
+          `<span class="tag ${s.strong?'tag-green':'tag-gray'}">${s.strong?'★ ':''}${s.name} · ${s.pat}件</span>`).join('')}</div></div>
+      <div class="rep-sec"><h4><span class="n">5</span>技术影响力 · 论文与高被引专利</h4>
+        <div class="chart h260" id="repInfl"></div></div>
+      <div class="rep-sec"><h4><span class="n">6</span>重点团队分析</h4>
+        <div>${d.topTeams.map((t,i)=>`<div class="flex justify-between" style="padding:7px 0;border-bottom:1px solid var(--border)">
+          <div><b>${t.name}</b> <span class="text-mute f12">${t.pi} · ${t.col}</span></div>
+          <div class="f12 text-dim">专利 ${t.pat} · 纵向 ${t.proj} · ${t.cite}</div></div>`).join('')}</div></div>`;
+    UI.drawer('创新能力报告 · '+d.name, body, {width:'720px'});
+    setTimeout(()=>{
+      // ① 结构图谱(树)
+      Charts.tree('repStruct',{horizontal:true,data:{name:d.name,children:d.subs.map(s=>({name:s.name,children:[
+        {name:s.team+'团队',val:s.team},{name:s.pat+'专利',val:s.pat}]}))}});
+      // ③ 专利逐年+授权
+      Charts.bar('repPat',{x:yrs,series:[
+        {name:'申请量',data:apply},
+        {name:'授权有效',data:apply.map(v=>Math.round(v*0.62))},
+        {name:'实质审查中',data:apply.map(v=>Math.round(v*0.22))},
+      ],stack:true,legend:true});
+      // ⑤ 技术影响力雷达
+      Charts.radar('repInfl',{indicators:['发表论文','高被引论文','高被引专利','国际专利PCT','成果转化','标准制定'],
+        series:[{name:d.name,value:[
+          Math.min(98,60+d.teams),Math.min(95,40+Math.round(d.patents/60)),Math.min(92,35+Math.round(d.patents/70)),
+          Math.min(90,30+d.platforms*6),Math.min(94,40+d.incub*2),Math.min(96,50+d.standards*2)]}],max:100});
+    },80);
+  }
+
+  // 初始渲染
+  render(IG.disciplines[0]);
+  document.querySelector('.ig-card').classList.add('on');
+
+  // 脚注
+  document.querySelector('main').insertAdjacentHTML('beforeend', UI.srcNote(['成果与专利','研究院平台','科研院','学院与团队']));
+  if(window.lucide) lucide.createIcons();
+})();</script>
+</body></html>

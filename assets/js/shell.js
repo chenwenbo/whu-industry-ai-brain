@@ -5,61 +5,27 @@
    ========================================================================== */
 (function(){
   const NAV = [
-    {group:'概览', items:[
-      {p:'index', t:'平台首页门户', i:'<i data-lucide="home"></i>'},
-    ]},
-    {group:'数据资产底座', items:[
-      {p:'data-foundation', t:'数据底座总览', i:'<i data-lucide="database"></i>'},
+    {group:'数字底座', items:[
       {p:'data-catalog', t:'数据资产目录', i:'<i data-lucide="files"></i>'},
-      {p:'data-map', t:'数据地图·血缘', i:'<i data-lucide="network"></i>'},
-      {p:'data-governance', t:'数据治理质量', i:'<i data-lucide="shield"></i>'},
-      {p:'discipline-industry-map', t:'学科产业方向图', i:'<i data-lucide="target"></i>'},
+      {p:'data-foundation', t:'数据底座总览', i:'<i data-lucide="database"></i>'},
     ]},
     {group:'决策驾驶舱', items:[
       {p:'cockpit-school', t:'校级产业创新驾驶舱', i:'<i data-lucide="satellite"></i>', badge:'大屏'},
-      {p:'cockpit-asset', t:'资产公司经营驾驶舱', i:'<i data-lucide="bar-chart-3"></i>', badge:'大屏'},
+      {p:'cockpit-asset', t:'资产管理驾驶舱', i:'<i data-lucide="bar-chart-3"></i>', badge:'大屏'},
     ]},
-    {group:'产业创新大脑', items:[
-      {p:'brain-overview', t:'大脑总览·智能问答', i:'<i data-lucide="brain"></i>'},
-      {p:'brain-trend', t:'产业趋势研判', i:'<i data-lucide="trending-up"></i>'},
-      {p:'brain-techroute', t:'技术路线判断', i:'<i data-lucide="compass"></i>'},
-      {p:'brain-track', t:'赛道选择', i:'<i data-lucide="flag"></i>'},
-      {p:'brain-enterprise', t:'企业识别', i:'<i data-lucide="search"></i>'},
-      {p:'brain-project', t:'项目评估', i:'<i data-lucide="ruler"></i>'},
-      {p:'policy-radar', t:'政策雷达', i:'<i data-lucide="radar"></i>'},
+    {group:'三大AI智能体', items:[
+      {p:'ai-workbench', q:'research', t:'AI产业研究院', i:'<i data-lucide="brain"></i>'},
+      {p:'ai-workbench', q:'tech', t:'AI技术经理人', i:'<i data-lucide="briefcase"></i>'},
+      {p:'ai-workbench', q:'invest', t:'AI投资人', i:'<i data-lucide="trending-up"></i>'},
     ]},
-    {group:'AI角色工作台', items:[
-      {p:'ai-workbench', t:'AI角色工作台', i:'<i data-lucide="bot"></i>'},
-      {p:'ai-tasks', t:'AI任务中心', i:'<i data-lucide="clipboard-list"></i>'},
-    ]},
-    {group:'成果与项目化', items:[
-      {p:'achievement-library', t:'成果库', i:'<i data-lucide="microscope"></i>', alias:['achievement-detail']},
-      {p:'project-pipeline', t:'项目化流水线', i:'<i data-lucide="rocket"></i>'},
-      {p:'team-list', t:'团队科研组织', i:'<i data-lucide="users"></i>', alias:['team-detail']},
-    ]},
-    {group:'企业与投后', items:[
-      {p:'enterprise-library', t:'企业检索库', i:'<i data-lucide="building-2"></i>', alias:['enterprise-detail']},
-      {p:'post-investment', t:'投后跟踪预警', i:'<i data-lucide="alert-triangle"></i>'},
-      {p:'capital-fund', t:'基金资本协同', i:'<i data-lucide="banknote"></i>'},
-    ]},
-    {group:'园区与载体', items:[
-      {p:'park-list', t:'园区载体管理', i:'<i data-lucide="building"></i>', alias:['park-detail']},
-    ]},
-    {group:'活动与线索', items:[
-      {p:'activity-calendar', t:'活动归口台账', i:'<i data-lucide="calendar"></i>', alias:['activity-detail']},
-      {p:'leads', t:'线索池·CRM', i:'<i data-lucide="fish"></i>'},
-      {p:'community-board', t:'社群运营看板', i:'<i data-lucide="message-square"></i>'},
-    ]},
-    {group:'线上社区 OPC', items:[
-      {p:'opc-community', t:'线上项目社区', i:'<i data-lucide="globe"></i>'},
-      {p:'opc-services', t:'线上服务菜单', i:'<i data-lucide="shopping-bag"></i>'},
-      {p:'opc-live', t:'直播推广', i:'<i data-lucide="clapperboard"></i>'},
-    ]},
-    {group:'运营与实施', items:[
-      {p:'operations-center', t:'运营中心', i:'<i data-lucide="package"></i>'},
-      {p:'operations-ledger', t:'客户·订单台账', i:'<i data-lucide="receipt"></i>'},
-      {p:'implementation-plan', t:'五个月实施计划', i:'<i data-lucide="calendar-days"></i>'},
-      {p:'competitive-analysis', t:'竞品对标分析', i:'<i data-lucide="scale"></i>'},
+    {group:'七大功能板块', items:[
+      {p:'innovation-graph', t:'创新图谱', i:'<i data-lucide="git-fork"></i>'},
+      {p:'industry-graph', t:'产业图谱', i:'<i data-lucide="network"></i>'},
+      {p:'achievement-library', t:'创新成果', i:'<i data-lucide="microscope"></i>', alias:['achievement-detail','project-pipeline']},
+      {p:'enterprise-library', t:'企业管理', i:'<i data-lucide="building-2"></i>', alias:['enterprise-detail','post-investment']},
+      {p:'park-list', t:'园区管理', i:'<i data-lucide="building"></i>', alias:['park-detail']},
+      {p:'opc-services', t:'服务广场', i:'<i data-lucide="shopping-bag"></i>'},
+      {p:'activity-calendar', t:'活动与培训', i:'<i data-lucide="calendar"></i>', alias:['activity-detail']},
     ]},
     {group:'系统', items:[
       {p:'notifications', t:'通知·待办中心', i:'<i data-lucide="bell"></i>'},
@@ -68,7 +34,12 @@
   ];
 
   const cur = document.body.getAttribute('data-page')||'index';
-  function isActive(it){ return it.p===cur || (it.alias&&it.alias.includes(cur)); }
+  const curRole = new URLSearchParams(location.search).get('role')||'';
+  function isActive(it){
+    // 带 role 参数的智能体三项：需同时匹配页面与 role 才高亮
+    if(it.q){ return it.p===cur && it.q===curRole; }
+    return it.p===cur || (it.alias&&it.alias.includes(cur));
+  }
 
   // ---------- 侧栏 ----------
   const aside=document.createElement('aside');aside.className='wuda-sidebar';
@@ -79,7 +50,7 @@
     </div>
     <div class="side-scroll">
       ${NAV.map(g=>`<div class="nav-group-title">${g.group}</div>`+g.items.map(it=>`
-        <a class="nav-item ${isActive(it)?'active':''}" href="${it.p}.html">
+        <a class="nav-item ${isActive(it)?'active':''}" href="${it.p}.html${it.q?('?role='+it.q):''}">
           <span class="ico">${it.i}</span><span class="lbl">${it.t}</span>${it.badge?`<span class="badge">${it.badge}</span>`:''}
         </a>`).join('')).join('')}
     </div>
@@ -96,7 +67,7 @@
     </div>
     <div class="tb-actions">
       <div class="tb-clock" id="tbClock"></div>
-      <div class="tb-btn" id="aiBtn" title="AI助手"><i data-lucide="bot"></i></div>
+      <div class="tb-btn tb-ai" id="aiBtn" title="AI助手 · 随时唤起对话"><i data-lucide="sparkles"></i><span class="tb-ai-lbl">AI助手</span></div>
       <div class="tb-btn" id="bellBtn" title="通知"><i data-lucide="bell"></i>${unread?`<span class="dot">${unread}</span>`:''}</div>
       <div class="tb-btn" id="themeBtn" title="切换皮肤"><i data-lucide="contrast"></i></div>
       <div class="tb-user" id="userBtn"><span class="av">管</span><div><div class="un">管理员</div><div class="ur">资产管理公司</div></div></div>
@@ -128,7 +99,7 @@
       <div class="av" style="width:54px;height:54px;font-size:22px;border-radius:14px;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;font-weight:800;color:var(--on-brand)">管</div>
       <div><div class="fw7 f18">管理员</div><div class="text-dim">资产管理公司 · 平台运营岗</div></div></div>
       ${UI.descList([['所属机构','武汉大学资产经营投资管理有限责任公司'],['角色权限','超级管理员（全模块）'],['上次登录','2026-06-08 09:12'],['绑定手机','138****6688']])}
-      <div class="mt-4" style="display:flex;gap:9px"><a class="btn" href="ai-tasks.html">我的AI任务</a><a class="btn" href="notifications.html">我的待办</a><a class="btn" href="login.html">退出登录</a></div>`);
+      <div class="mt-4" style="display:flex;gap:9px"><a class="btn" href="ai-workbench.html">我的AI任务</a><a class="btn" href="notifications.html">我的待办</a><a class="btn" href="login.html">退出登录</a></div>`);
   };
 
   // ---------- 通知 ----------
@@ -169,15 +140,50 @@
     return '已基于高校产业数据资产底座完成分析。建议进入「产业创新大脑」或「AI角色工作台」查看结构化产出（产业报告 / 赛道清单 / 企业画像 / 投资研判），并可一键生成任务包交付。';
   }
   document.getElementById('aiBtn').onclick=()=>openAI();
-  // 浮动 AI 按钮(非大屏页显示)
-  const fab=document.createElement('div');fab.className='ai-fab';fab.title='AI助手';fab.innerHTML='<i data-lucide="bot"></i>';fab.onclick=()=>openAI();document.body.appendChild(fab);
+  // 常驻 AI 对话入口(右下角)：更显眼的可达入口，带文字标签 + 呼吸光晕，保留原 openAI 逻辑
+  const fab=document.createElement('button');
+  fab.className='ai-fab ai-fab-dock';
+  fab.type='button';
+  fab.title='AI助手 · 随时唤起对话';
+  fab.setAttribute('aria-label','打开 AI 助手对话');
+  fab.innerHTML='<span class="ai-fab-ico"><i data-lucide="sparkles"></i></span><span class="ai-fab-lbl">AI 助手</span>';
+  fab.onclick=()=>openAI();
+  document.body.appendChild(fab);
+  // 注入常驻入口的视觉增强样式(仅视觉，不影响其他逻辑)
+  if(!document.getElementById('aiDockStyle')){
+    const st=document.createElement('style');st.id='aiDockStyle';
+    st.textContent=`
+    .tb-ai{display:inline-flex;align-items:center;gap:6px;padding:0 12px;width:auto;border-radius:999px;
+      background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--on-brand);font-weight:700;}
+    .tb-ai .tb-ai-lbl{font-size:13px;letter-spacing:.5px;}
+    .tb-ai svg{color:var(--on-brand);}
+    .ai-fab-dock{position:fixed;right:22px;bottom:26px;z-index:60;display:inline-flex;align-items:center;gap:9px;
+      height:52px;padding:0 20px 0 16px;border:none;cursor:pointer;border-radius:999px;color:var(--on-brand);
+      font-size:14px;font-weight:800;letter-spacing:.5px;
+      background:linear-gradient(135deg,var(--primary),var(--accent));
+      box-shadow:0 10px 28px -6px color-mix(in srgb,var(--primary) 60%,transparent),0 0 0 6px color-mix(in srgb,var(--primary) 14%,transparent);
+      transition:transform .18s ease,box-shadow .18s ease;}
+    .ai-fab-dock:hover{transform:translateY(-2px) scale(1.03);
+      box-shadow:0 16px 34px -6px color-mix(in srgb,var(--primary) 70%,transparent),0 0 0 8px color-mix(in srgb,var(--primary) 18%,transparent);}
+    .ai-fab-dock .ai-fab-ico{display:grid;place-items:center;width:26px;height:26px;}
+    .ai-fab-dock .ai-fab-ico svg{width:20px;height:20px;}
+    .ai-fab-dock::before{content:'';position:absolute;inset:-4px;border-radius:999px;
+      box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent);
+      animation:aiDockPulse 2.4s ease-out infinite;pointer-events:none;}
+    @keyframes aiDockPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 45%,transparent);}
+      70%{box-shadow:0 0 0 16px color-mix(in srgb,var(--accent) 0%,transparent);}
+      100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 0%,transparent);}}
+    body.nav-collapsed .ai-fab-dock .ai-fab-lbl{display:inline;}
+    @media (max-width:680px){.ai-fab-dock .ai-fab-lbl{display:none;}.ai-fab-dock{padding:0 14px;}.tb-ai .tb-ai-lbl{display:none;}}
+    `;
+    document.head.appendChild(st);
+  }
   window.openAIAssistant=openAI;
 
   // ---------- 全局搜索(⌘K) ----------
   function buildIndex(){ const idx=[]; if(!window.DB)return idx;
     DB.achievements.forEach(a=>idx.push({cat:'科技成果',name:a.title,meta:a.disciplineName,url:'achievement-detail.html?id='+a.id,i:'<i data-lucide="microscope"></i>'}));
     DB.enterprises.forEach(e=>idx.push({cat:'企业',name:e.name,meta:e.type+' · '+e.disciplineName,url:'enterprise-detail.html?id='+e.id,i:'<i data-lucide="building-2"></i>'}));
-    DB.teams.forEach(t=>idx.push({cat:'团队',name:t.name,meta:t.disciplineName,url:'team-detail.html?id='+t.id,i:'<i data-lucide="users"></i>'}));
     DB.parks.forEach(p=>idx.push({cat:'园区',name:p.name,meta:p.type,url:'park-detail.html?id='+p.id,i:'<i data-lucide="building"></i>'}));
     DB.dataAssets.forEach(d=>idx.push({cat:'数据资产',name:d.name,meta:d.domain,url:'data-catalog.html',i:'<i data-lucide="files"></i>'}));
     return idx; }

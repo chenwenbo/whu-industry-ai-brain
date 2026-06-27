@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>园区载体管理 · 武汉大学产业创新AI智脑平台</title>
+<title>园区管理 · 武汉大学产业创新AI智脑平台</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
@@ -11,8 +11,8 @@
 <main class="wuda-view">
   <div class="page-head">
     <div>
-      <div class="page-title"><span class="accentbar"></span>园区载体管理</div>
-      <div class="page-sub">大学科技园 · 孵化器 · 加速器 · 异地协同载体 全要素空间运营一张图</div>
+      <div class="page-title"><span class="accentbar"></span>园区管理</div>
+      <div class="page-sub">资产管理驾驶舱（出租率/空置率等资产数据）+ 企业运营（园区企业总体与服务商机推荐）双视角</div>
     </div>
     <div style="display:flex;gap:9px">
       <button class="btn" id="btnMap"><i data-lucide="map"></i> 载体分布</button>
@@ -20,29 +20,62 @@
     </div>
   </div>
 
-  <!-- KPI -->
-  <div class="grid cols-4" id="kpis"></div>
+  <!-- 两个子菜单 Tab -->
+  <div id="subTabs" class="mt-1"></div>
 
-  <!-- 园区卡片网格 -->
-  <div class="panel mt-4">
-    <div class="panel-h"><div class="t"><span class="bar"></span>园区载体一览</div>
-      <div class="tools"><span class="panel-tag" id="parkCnt"></span></div></div>
-    <div class="grid cols-3 stagger" id="parkGrid"></div>
-  </div>
+  <!-- ① 资产管理驾驶舱 -->
+  <section id="tabAsset">
+    <div class="grid cols-5 mt-4" id="assetKpis"></div>
 
-  <!-- 对比图表 -->
-  <div class="grid cols-2 mt-4">
-    <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>各园区出租率对比</div>
-        <div class="tools"><span class="panel-tag">含警戒线 70%</span></div></div>
-      <div class="chart h340" id="occBar"></div>
+    <div class="panel mt-4">
+      <div class="panel-h"><div class="t"><span class="bar"></span>园区载体一览 · 资产经营</div>
+        <div class="tools"><span class="panel-tag" id="parkCnt"></span></div></div>
+      <div class="grid cols-3 stagger" id="parkGrid"></div>
     </div>
-    <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>各园区入驻企业数</div>
-        <div class="tools"><span class="panel-tag">在管主体</span></div></div>
-      <div class="chart h340" id="entBar"></div>
+
+    <div class="grid cols-2 mt-4">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>各园区出租率 / 空置率对比</div>
+          <div class="tools"><span class="panel-tag">含警戒线 70%</span></div></div>
+        <div class="chart h340" id="occBar"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>各园区载体年运营收入</div>
+          <div class="tools"><span class="panel-tag">资产收益</span></div></div>
+        <div class="chart h340" id="revBar"></div>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <!-- ② 企业运营 -->
+  <section id="tabOps" style="display:none">
+    <div class="grid cols-5 mt-4" id="opsKpis"></div>
+
+    <div class="grid cols-2 mt-4">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>园区企业成立年限分布</div>
+          <div class="tools"><span class="panel-tag">企业总体</span></div></div>
+        <div class="chart h300" id="ageBar"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>园区企业领域分布</div>
+          <div class="tools"><span class="panel-tag">5大优势学科</span></div></div>
+        <div class="chart h300" id="opsDiscPie"></div>
+      </div>
+    </div>
+
+    <div class="panel mt-4">
+      <div class="panel-h"><div class="t"><span class="bar"></span>各园区企业运营概览</div>
+        <div class="tools"><span class="panel-tag">企业总数 · 在孵 · 平均成立年限</span></div></div>
+      <div class="grid cols-3 stagger" id="opsGrid"></div>
+    </div>
+
+    <div class="panel mt-4">
+      <div class="panel-h"><div class="t"><span class="bar"></span><i data-lucide="lightbulb"></i> 服务商机推荐 · 基于企业画像与舆情动态</div>
+        <div class="tools"><span class="panel-tag">企业梯度培育 · 拉至服务广场</span></div></div>
+      <div id="leadList"></div>
+    </div>
+  </section>
 
   <div id="srcNote"></div>
 </main>
@@ -53,24 +86,39 @@
 <script src="assets/js/shell.js"></script>
 <script>(function(){
   const parks = DB.parks;
+  const ents = DB.enterprises;
+  const ri = DB.util.ri;
 
-  // ---------- KPI ----------
+  const levelTag = lv => UI.tag(lv, {'国家级':'green','省级':'blue','市级':'amber'}[lv]||'gray');
+  const occColor = o => o>=85?'var(--success)':o>=72?'var(--primary)':'var(--warning)';
+  const shortName = p => p.name.replace('武汉大学','武大').replace('（主园区）','').replace('·','');
+
+  // ========================= 子菜单 Tab =========================
+  let opsDone=false;
+  UI.tabs('#subTabs',[
+    {key:'asset',html:'<i data-lucide="layout-dashboard"></i> 资产管理驾驶舱'},
+    {key:'ops',html:'<i data-lucide="building-2"></i> 企业运营'},
+  ], key=>{
+    document.getElementById('tabAsset').style.display = key==='asset'?'':'none';
+    document.getElementById('tabOps').style.display = key==='ops'?'':'none';
+    if(key==='ops') renderOps();
+    if(window.lucide) lucide.createIcons();
+  });
+
+  // ========================= ① 资产管理驾驶舱 =========================
   const totalArea = parks.reduce((s,p)=>s+p.area,0);
   const totalEnts = parks.reduce((s,p)=>s+p.ents,0);
   const avgOcc = Math.round(parks.reduce((s,p)=>s+p.occupancy,0)/parks.length);
-  const totalSvc = parks.reduce((s,p)=>s+p.services,0);
-  document.getElementById('kpis').innerHTML=[
+  const avgVac = 100-avgOcc;
+  const totalRev = parks.reduce((s,p)=>s+p.revenue,0);
+  document.getElementById('assetKpis').innerHTML=[
     UI.kpi({label:'在管园区载体',value:parks.length,unit:'个',icon:'<i data-lucide="building"></i>',delta:'国家级2',deltaUp:true}),
     UI.kpi({label:'在管载体面积',value:totalArea.toFixed(1),unit:'万㎡',icon:'<i data-lucide="ruler"></i>',spark:[18,27,33,41,46,52,58,62]}),
-    UI.kpi({label:'累计入驻企业',value:totalEnts,unit:'家',icon:'<i data-lucide="building-2"></i>',delta:'4.6%',deltaUp:true}),
     UI.kpi({label:'平均出租率',value:avgOcc,unit:'%',icon:'<i data-lucide="bar-chart-3"></i>',delta:'2.1%',deltaUp:true}),
+    UI.kpi({label:'平均空置率',value:avgVac,unit:'%',icon:'<i data-lucide="door-open"></i>',delta:'招商攻坚',deltaUp:false}),
+    UI.kpi({label:'载体年运营收入',value:(totalRev/10000).toFixed(2),unit:'亿',icon:'<i data-lucide="banknote"></i>',delta:'资产收益',deltaUp:true}),
   ].join('');
 
-  // ---------- 级别 / 类型徽章 ----------
-  const levelTag = lv => UI.tag(lv, {'国家级':'green','省级':'blue','市级':'amber'}[lv]||'gray');
-  const occColor = o => o>=85?'var(--success)':o>=72?'var(--primary)':'var(--warning)';
-
-  // ---------- 园区卡片网格 ----------
   document.getElementById('parkCnt').textContent = parks.length+' 个载体';
   document.getElementById('parkGrid').innerHTML = parks.map(p=>`
     <a class="ecard" href="park-detail.html?id=${p.id}" style="text-decoration:none;display:block">
@@ -82,51 +130,125 @@
         ${UI.tag(p.type,'gray')}<span class="text-mute f12"><i data-lucide="map-pin"></i> ${p.addr}</span>
       </div>
       <div class="mt-3 flex justify-between items-center">
-        <span class="f12 text-mute">出租率</span>
-        <span class="num fw7" style="color:${occColor(p.occupancy)}">${p.occupancy}%</span>
+        <span class="f12 text-mute">出租率 / 空置率</span>
+        <span class="num fw7" style="color:${occColor(p.occupancy)}">${p.occupancy}% <span class="f12 text-mute">/ ${100-p.occupancy}%</span></span>
       </div>
       ${UI.bar(p.occupancy, occColor(p.occupancy))}
       <div class="grid cols-3 mt-3" style="gap:8px;text-align:center">
         <div><div class="num fw7 f18">${p.area}</div><div class="f12 text-mute">面积万㎡</div></div>
         <div><div class="num fw7 f18 text-primary">${p.ents}</div><div class="f12 text-mute">入驻企业</div></div>
-        <div><div class="num fw7 f18">${p.services}</div><div class="f12 text-mute">服务事项</div></div>
+        <div><div class="num fw7 f18">${p.buildings}</div><div class="f12 text-mute">楼宇栋数</div></div>
       </div>
       <div class="divider"></div>
       <div class="flex justify-between items-center">
-        <span class="f12 text-mute">楼宇 ${p.buildings} 栋</span>
+        <span class="f12 text-mute">服务事项 ${p.services} 项</span>
         <span class="fw7" style="color:var(--success)">年收入 ${(p.revenue/10000).toFixed(2)} 亿</span>
       </div>
-      <div class="mt-2 text-primary f12" style="text-align:right">进入园区驾驶舱 →</div>
+      <div class="mt-2 text-primary f12" style="text-align:right">进入资产管理驾驶舱 →</div>
     </a>`).join('');
 
-  // ---------- 出租率对比柱状 ----------
-  const shortName = p => p.name.replace('武汉大学','武大').replace('（主园区）','').replace('·','');
+  // 出租率 vs 空置率 对比(堆叠)
   Charts.init('occBar', {
-    grid:{left:8,right:20,top:18,bottom:6,containLabel:true},
-    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:p=>`${p[0].name}<br/>出租率: ${p[0].value}%`},
-    xAxis:{type:'category',data:parks.map(shortName),axisLabel:{interval:0,rotate:18,fontSize:10}},
-    yAxis:{type:'value',max:100,axisLabel:{formatter:'{value}%'}},
-    series:[{
-      type:'bar',barMaxWidth:34,data:parks.map(p=>({value:p.occupancy,
-        itemStyle:{borderRadius:[5,5,0,0],color:Charts.grad(occColor(p.occupancy),'rgba(47,107,255,.12)')}})),
-      markLine:{silent:true,symbol:'none',lineStyle:{color:'var(--warning)',type:'dashed'},
-        data:[{yAxis:70,label:{formatter:'警戒线 70%',color:'var(--warning)',fontSize:11,position:'end'}}]},
-      label:{show:true,position:'top',formatter:'{c}%',fontSize:11,color:'var(--text-dim)'}
-    }]
-  });
-
-  // ---------- 入驻企业数柱状 ----------
-  Charts.init('entBar',{
-    grid:{left:8,right:20,top:18,bottom:6,containLabel:true},
+    grid:{left:8,right:20,top:30,bottom:6,containLabel:true},
+    legend:{top:0,right:0},
     tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
     xAxis:{type:'category',data:parks.map(shortName),axisLabel:{interval:0,rotate:18,fontSize:10}},
-    yAxis:{type:'value'},
-    series:[{type:'bar',barMaxWidth:34,data:parks.map(p=>p.ents),
-      itemStyle:{borderRadius:[5,5,0,0],color:Charts.grad('var(--blue)','rgba(47,107,255,.12)')},
-      label:{show:true,position:'top',fontSize:11,color:'var(--text-dim)'}}]
+    yAxis:{type:'value',max:100,axisLabel:{formatter:'{value}%'}},
+    series:[
+      {name:'出租率',type:'bar',stack:'occ',barMaxWidth:34,data:parks.map(p=>p.occupancy),
+        itemStyle:{borderRadius:[0,0,0,0],color:Charts.color('--primary')}},
+      {name:'空置率',type:'bar',stack:'occ',barMaxWidth:34,data:parks.map(p=>100-p.occupancy),
+        itemStyle:{borderRadius:[5,5,0,0],color:'color-mix(in srgb,var(--warning) 55%,transparent)'},
+        markLine:{silent:true,symbol:'none',lineStyle:{color:'var(--warning)',type:'dashed'},
+          data:[{yAxis:70,label:{formatter:'出租率警戒线 70%',color:'var(--warning)',fontSize:10,position:'end'}}]}},
+    ]
   });
 
-  // ---------- 操作 ----------
+  // 年运营收入柱状
+  Charts.init('revBar',{
+    grid:{left:8,right:20,top:18,bottom:6,containLabel:true},
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:p=>`${p[0].name}<br/>年收入: ${(p[0].value/10000).toFixed(2)} 亿元`},
+    xAxis:{type:'category',data:parks.map(shortName),axisLabel:{interval:0,rotate:18,fontSize:10}},
+    yAxis:{type:'value',axisLabel:{formatter:v=>(v/10000).toFixed(1)+'亿'}},
+    series:[{type:'bar',barMaxWidth:34,data:parks.map(p=>p.revenue),
+      itemStyle:{borderRadius:[5,5,0,0],color:Charts.grad('var(--success)','rgba(15,163,127,.10)')},
+      label:{show:true,position:'top',fontSize:10,color:'var(--text-dim)',formatter:p=>(p.value/10000).toFixed(2)+'亿'}}]
+  });
+
+  // ========================= ② 企业运营 =========================
+  function renderOps(){
+    if(opsDone) return; opsDone=true;
+    const incubated = ents.filter(e=>e.type==='孵化企业').length;
+    const avgAge = (ents.reduce((s,e)=>s+(2026-e.founded),0)/ents.length).toFixed(1);
+    const newEnts = ents.filter(e=>2026-e.founded<=3).length;
+    // KPI
+    document.getElementById('opsKpis').innerHTML=[
+      UI.kpi({label:'园区企业总数',value:ents.length,unit:'家',icon:'<i data-lucide="building-2"></i>',delta:'在管主体',deltaUp:true}),
+      UI.kpi({label:'在孵企业',value:incubated,unit:'家',icon:'<i data-lucide="sprout"></i>',delta:'梯度培育',deltaUp:true}),
+      UI.kpi({label:'3年内新设',value:newEnts,unit:'家',icon:'<i data-lucide="badge-plus"></i>',delta:'初创集聚',deltaUp:true}),
+      UI.kpi({label:'平均成立年限',value:avgAge,unit:'年',icon:'<i data-lucide="calendar"></i>'}),
+      UI.kpi({label:'可推荐服务商机',value:Math.round(ents.length*0.4),unit:'条',icon:'<i data-lucide="lightbulb"></i>',delta:'画像+舆情',deltaUp:true}),
+    ].join('');
+
+    // 成立年限分布
+    const buckets=[['1年内',0,1],['1-3年',1,3],['3-5年',3,5],['5-8年',5,8],['8年以上',8,99]];
+    const ageData=buckets.map(([nm,lo,hi])=>({name:nm,value:ents.filter(e=>{const a=2026-e.founded;return a>lo&&a<=hi;}).length}));
+    Charts.bar('ageBar',{x:ageData.map(a=>a.name), series:[{name:'企业数',data:ageData.map(a=>a.value)}]});
+
+    // 领域分布
+    const discData = DB.disciplines.map(d=>({name:d.name,value:ents.filter(e=>e.discipline===d.id).length})).filter(x=>x.value>0);
+    Charts.pie('opsDiscPie',{data:discData, ring:true, legend:true, center:['40%','50%']});
+
+    // 各园区企业运营概览(浅展示,不做深度分析)
+    document.getElementById('opsGrid').innerHTML = parks.map(p=>{
+      const pe = ents.filter(e=>e.parkId===p.id);
+      const inc = pe.filter(e=>e.type==='孵化企业').length;
+      const avg = pe.length?(pe.reduce((s,e)=>s+(2026-e.founded),0)/pe.length).toFixed(1):'0';
+      return `<a class="ecard" href="park-detail.html?id=${p.id}" style="text-decoration:none;display:block">
+        <div class="flex justify-between items-center" style="gap:10px">
+          <div class="et" style="flex:1;min-width:0;white-space:normal;line-height:1.4">${p.name}</div>${levelTag(p.level)}
+        </div>
+        <div class="grid cols-3 mt-3" style="gap:8px;text-align:center">
+          <div><div class="num fw7 f18 text-primary">${pe.length}</div><div class="f12 text-mute">企业总数</div></div>
+          <div><div class="num fw7 f18">${inc}</div><div class="f12 text-mute">在孵企业</div></div>
+          <div><div class="num fw7 f18">${avg}</div><div class="f12 text-mute">平均年限</div></div>
+        </div>
+        <div class="mt-3 text-primary f12" style="text-align:right">查看企业运营 →</div>
+      </a>`;
+    }).join('');
+
+    // 服务商机推荐(基于企业画像+舆情)
+    const svcReco=[
+      {svc:'企业梯度培育',icon:'trending-up',cat:'梯度培育',reason:e=>`${e.disciplineName}成长期企业，营收增速 ${e.revGrowth>=0?'+':''}${e.revGrowth}%，建议纳入"科技型中小企业→高新→专精特新"梯度培育`},
+      {svc:'政策申报代理',icon:'file-check',cat:'专业服务',reason:e=>`画像匹配${e.disciplineName}方向专项政策，建议代理申报研发费用加计扣除/专精特新认定`},
+      {svc:'知识产权布局',icon:'shield',cat:'专业服务',reason:e=>`累计专利 ${e.patents} 件，建议开展专利导航与海外布局，巩固技术壁垒`},
+      {svc:'投融资对接',icon:'banknote',cat:'资本协同',reason:e=>`${e.financingRound}阶段企业，舆情活跃度上升，建议对接产业基金路演`},
+      {svc:'风险纾困辅导',icon:'life-buoy',cat:'风险预警',reason:e=>`舆情监测到经营关注信号，建议派技术经理人开展纾困辅导`},
+    ];
+    // 为不同企业匹配商机：风险企业→纾困；其余按画像轮配
+    const pool = ents.slice().sort((a,b)=>({r:0,y:1,g:2}[a.risk])-({r:0,y:1,g:2}[b.risk]));
+    const recos = pool.slice(0,12).map((e,i)=>{
+      const r = e.risk==='r'?svcReco[4]:e.risk==='y'?svcReco[3]:svcReco[i%4];
+      return {ent:e, ...r};
+    });
+    document.getElementById('leadList').innerHTML = `<div class="grid cols-2 stagger">`+recos.map(rc=>`
+      <div class="ecard" style="border-left:3px solid var(--primary)">
+        <div class="flex justify-between items-center" style="gap:10px">
+          <div class="fw6 f13" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            <i data-lucide="${rc.icon}" style="width:15px;height:15px;color:var(--primary)"></i> ${UI.tag(rc.svc,'blue')}</div>
+          ${UI.light(rc.ent.risk)}
+        </div>
+        <div class="f13 fw6 mt-2">${UI.esc(rc.ent.name)}</div>
+        <div class="f12 text-mute mt-1" style="line-height:1.6">${UI.esc(rc.reason(rc.ent))}</div>
+        <div class="flex justify-between items-center mt-3">
+          <span class="f12 text-mute">${rc.ent.disciplineName} · ${rc.ent.park.slice(0,10)}</span>
+          <button class="btn btn-sm btn-ghost" onclick="UI.toast('已将服务商机推送至服务广场（演示）','ok')">推送服务广场 →</button>
+        </div>
+      </div>`).join('')+`</div>`;
+    if(window.lucide) lucide.createIcons();
+  }
+
+  // ========================= 操作 =========================
   document.getElementById('btnNew').onclick=()=>{
     UI.modal('＋ 新增入驻申请', `
       <div class="text-dim mb-3 f13">填写企业基本信息，系统将自动派单至对应园区招商团队并进入入驻评审流程。</div>
@@ -150,5 +272,6 @@
   };
 
   document.getElementById('srcNote').innerHTML = UI.srcNote(['科技园与创意园','参股/校属企业','产业企业与园区']);
+  if(window.lucide) lucide.createIcons();
 })();</script>
 </body></html>

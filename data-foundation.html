@@ -10,18 +10,22 @@
 <body data-theme="dark" data-page="data-foundation">
 <main class="wuda-view">
   <div class="page-head">
-    <div><div class="page-title"><span class="accentbar"></span>数据资产底座总览</div>
-      <div class="page-sub">8 类数据域统一汇聚 · 元数据治理 · 血缘与质量监测 · 一切智能的地基</div></div>
+    <div><div class="page-title"><span class="accentbar"></span>数据底座总览</div>
+      <div class="page-sub">高校产业数据资产盘点 · 几类数据资产举证 · 统计概览 + 逐层钻取 · 一切智能的地基</div></div>
     <div style="display:flex;gap:9px">
       <a class="btn btn-sm" href="data-catalog.html"><i data-lucide="library"></i> 数据资产目录</a>
-      <button class="btn btn-sm btn-primary" id="btnSync">⟳ 触发全量同步</button>
+      <button class="btn btn-sm btn-primary" id="btnReport"><i data-lucide="file-down"></i> 导出资产盘点</button>
     </div>
   </div>
 
-  <!-- 5 联 KPI -->
-  <div class="grid cols-5" id="kpis"></div>
+  <!-- 业务向：几类数据资产举证（点卡片逐层钻取） -->
+  <div class="panel mt-2">
+    <div class="panel-h"><div class="t"><span class="bar"></span>数据资产盘点 · 几类数据资产举证</div>
+      <div class="tools"><span class="panel-tag">点击资产卡逐层钻取明细</span></div></div>
+    <div class="grid cols-5 stagger" id="inventoryGrid"></div>
+  </div>
 
-  <!-- 健康度仪表 + 数据域占比 -->
+  <!-- 健康度仪表 + 各域资产构成 + 关键指标 -->
   <div class="grid mt-4" style="grid-template-columns:1fr 1.15fr 1fr">
     <div class="panel glow">
       <div class="panel-h"><div class="t"><span class="bar"></span>综合数据健康度</div><div class="tools"><span class="panel-tag">实时评估</span></div></div>
@@ -29,33 +33,27 @@
       <div class="grid cols-3" style="gap:8px;margin-top:2px" id="healthDims"></div>
     </div>
     <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>各域数据量占比</div><div class="tools"><span class="panel-tag">单位：万条</span></div></div>
+      <div class="panel-h"><div class="t"><span class="bar"></span>七类数据资产构成</div><div class="tools"><span class="panel-tag">按资产规模占比</span></div></div>
       <div class="chart h340" id="pieRecords"></div>
     </div>
     <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>底座关键指标</div></div>
+      <div class="panel-h"><div class="t"><span class="bar"></span>底座资产关键指标</div></div>
       <div id="quickStats"></div>
     </div>
   </div>
 
-  <!-- 8 类数据域资产矩阵 -->
+  <!-- 7 类数据域资产矩阵 -->
   <div class="panel mt-4">
-    <div class="panel-h"><div class="t"><span class="bar"></span>8 类数据域资产矩阵</div>
+    <div class="panel-h"><div class="t"><span class="bar"></span>7 类数据域资产矩阵</div>
       <div class="tools"><span class="panel-tag">点击域卡查看明细</span></div></div>
     <div class="grid cols-4 stagger" id="domainGrid"></div>
   </div>
 
-  <!-- 近12月增长 + 同步任务 -->
-  <div class="grid mt-4" style="grid-template-columns:1.4fr 1fr">
-    <div class="panel glow">
-      <div class="panel-h"><div class="t"><span class="bar"></span>近 12 月数据量增长趋势</div>
-        <div class="tools"><span class="panel-tag">堆叠 · 万条累计入库</span></div></div>
-      <div class="chart h340" id="lineGrowth"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>同步任务监控</div><div class="tools" id="syncStat"></div></div>
-      <div id="syncTbl" style="max-height:340px;overflow-y:auto"></div>
-    </div>
+  <!-- 五大优势学科资产分布 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>五大优势学科资产沉淀</div>
+      <div class="tools"><span class="panel-tag">成果 / 专利 / 团队 横向对比</span></div></div>
+    <div class="chart h340" id="barDisc"></div>
   </div>
 
   <div id="srcNote"></div>
@@ -66,42 +64,107 @@
 <script src="assets/js/components.js"></script>
 <script src="assets/js/shell.js"></script>
 <script>(function(){
-  const D=DB.dataDomains, A=DB.dataAssets;
-  const totalTables=D.reduce((s,d)=>s+d.tables,0);
-  const totalRecords=D.reduce((s,d)=>s+d.records,0);
+  const D=DB.dataDomains, A=DB.dataAssets, INV=DB.assetInventory, DR=DB.inventoryDrill;
   const avgHealth=(D.reduce((s,d)=>s+d.health,0)/D.length).toFixed(1);
 
-  // ---- KPI ----
-  document.getElementById('kpis').innerHTML=[
-    UI.kpi({label:'数据表总数',value:256,unit:'张',delta:'12 张',deltaUp:true,icon:'<i data-lucide="database"></i>',spark:[210,218,224,230,238,242,246,250,252,254,255,256]}),
-    UI.kpi({label:'数据总量',value:'1,860',unit:'万条',delta:'2.1%',deltaUp:true,icon:'<i data-lucide="bar-chart-3"></i>',spark:[1480,1540,1580,1620,1670,1710,1750,1780,1810,1830,1850,1860]}),
-    UI.kpi({label:'数据域',value:8,unit:'类',delta:'全覆盖',deltaUp:true,icon:'<i data-lucide="puzzle"></i>',spark:[5,5,6,6,7,7,7,8,8,8,8,8]}),
-    UI.kpi({label:'平均健康度',value:'92.4',unit:'分',delta:'1.6',deltaUp:true,icon:'<i data-lucide="heart"></i>',spark:[86,87,88,88,89,90,90,91,91,92,92,92.4]}),
-    UI.kpi({label:'今日新增',value:'4,210',unit:'条',delta:'8.4%',deltaUp:true,icon:'<i data-lucide="zap"></i>',spark:[2100,2600,3100,2800,3400,3900,3600,4100,3800,4300,4000,4210]}),
-  ].join('');
+  // ---- 业务向资产盘点卡片（替代原数据表总数/数据总量/同步任务等技术指标）----
+  document.getElementById('inventoryGrid').innerHTML=INV.map(it=>`
+    <div class="ecard" data-key="${it.key}" style="cursor:pointer">
+      <div class="flex items-center gap-3">
+        <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:${it.dom}22;color:${it.dom}"><i data-lucide="${it.icon}"></i></span>
+        <div style="min-width:0">
+          <div class="num fw7" style="font-size:23px;line-height:1.1">${it.value}<span class="f12 text-mute" style="margin-left:3px">${it.unit}</span></div>
+          <div class="f13 fw6">${it.label}</div>
+        </div>
+      </div>
+      <div class="f12 text-mute mt-2" style="line-height:1.45">${it.sub}</div>
+    </div>`).join('');
+  document.querySelectorAll('#inventoryGrid .ecard').forEach(c=>c.onclick=()=>openInventory(c.dataset.key));
+
+  function openInventory(key){
+    const it=INV.find(x=>x.key===key);
+    let body=`<div class="flex items-center gap-3 mb-4">
+      <span style="width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:${it.dom}22;color:${it.dom}"><i data-lucide="${it.icon}"></i></span>
+      <div><div class="fw7 f18">${it.label}</div><div class="text-dim f13">${it.sub}</div></div>
+      <div style="margin-left:auto" class="num fw7 text-primary" style="font-size:22px">${it.value} ${it.unit}</div></div>
+      <div class="divider"></div>`;
+    if(key==='hprojects'){
+      body+=`<div class="fw6 mb-3"><i data-lucide="handshake"></i> 横向项目明细（年份 / 签约方 / 合同 / 金额）</div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>年份</th><th>项目名称</th><th>签约方</th><th>合同类型</th><th>金额(万元)</th><th>承担学院</th></tr></thead><tbody>
+        ${DR.hprojects.map(r=>`<tr><td class="num">${r.year}</td><td class="fw6">${r.name}</td><td>${r.partner}</td><td class="text-dim">${r.contract}</td><td class="num text-primary fw7">${r.amount.toLocaleString()}</td><td class="f12 text-mute">${r.college}</td></tr>`).join('')}
+        </tbody></table></div>`;
+    } else if(key==='vproject'||key==='vprojects'){
+      body+=`<div class="fw6 mb-3"><i data-lucide="flag"></i> 纵向项目明细（年份 / 来源 / 金额 / 负责人）</div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>年份</th><th>项目名称</th><th>项目来源</th><th>经费(万元)</th><th>负责人</th></tr></thead><tbody>
+        ${DR.vprojects.map(r=>`<tr><td class="num">${r.year}</td><td class="fw6">${r.name}</td><td>${UI.tag(r.source,'blue')}</td><td class="num text-primary fw7">${r.amount.toLocaleString()}</td><td>${r.pi}</td></tr>`).join('')}
+        </tbody></table></div>`;
+    } else if(key==='patent'){
+      const byType={};DB.patents.forEach(p=>byType[p.type]=(byType[p.type]||0)+1);
+      body+=`<div class="grid cols-3" style="gap:9px">
+        ${Object.keys(byType).map(t=>`<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px"><div class="f12 text-mute">${t}</div><div class="fw7 num mt-2" style="font-size:20px">${byType[t]} 件</div></div>`).join('')}
+        </div>
+        <div class="divider"></div>
+        <div class="fw6 mb-3"><i data-lucide="file-badge"></i> 专利明细（与成果打通）</div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>专利号</th><th>名称</th><th>类型</th><th>状态</th><th>归属成果</th></tr></thead><tbody>
+        ${DB.patents.slice(0,12).map(p=>`<tr><td class="num f12">${p.no}</td><td class="fw6">${p.title}</td><td>${UI.tag(p.type,p.type==='发明专利'?'purple':p.type==='PCT国际专利'?'blue':'gray')}</td><td>${UI.tag(p.status,p.status==='已授权'?'green':'amber')}</td><td class="f12 text-mute">${p.achTitle.slice(0,14)}</td></tr>`).join('')}
+        </tbody></table></div>`;
+    } else if(key==='paper'){
+      body+=`<div class="fw6 mb-3"><i data-lucide="book-open"></i> 论文资产（存量 / 新增 / 顶刊）</div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>类别</th><th>数量</th><th>范围</th></tr></thead><tbody>
+        ${DR.papers.map(r=>`<tr><td class="fw6">${r.tier}</td><td class="num text-primary fw7">${r.cnt.toLocaleString()}</td><td class="text-dim">${r.disc}</td></tr>`).join('')}
+        </tbody></table></div>`;
+    } else if(key==='talent'){
+      body+=`<div class="fw6 mb-3"><i data-lucide="award"></i> 高层次人才（长江/杰青等）</div>
+        <div class="grid cols-2" style="gap:9px">${DR.talents.map(r=>`<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px" class="flex items-center justify-between"><span class="fw6">${r.type}</span><span class="num text-primary fw7" style="font-size:20px">${r.cnt} 人</span></div>`).join('')}</div>`;
+    } else if(key==='platform'){
+      body+=`<div class="fw6 mb-3"><i data-lucide="beaker"></i> 国家级创新平台（国家重点实验室）</div>
+        <div style="display:flex;flex-direction:column;gap:8px">${DR.platforms.map(r=>`<div class="flex items-center justify-between" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px"><span class="fw6 f13">${r.name}</span>${UI.tag(r.disc,'blue')}</div>`).join('')}</div>`;
+    } else if(key==='institute'){
+      body+=`<div class="fw6 mb-3"><i data-lucide="landmark"></i> 研究院平台（含各地异地研究院）</div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>名称</th><th>类型</th><th>出租率/入驻</th><th>企业数</th></tr></thead><tbody>
+        ${DR.institutes.map(r=>`<tr><td class="fw6">${r.name}</td><td>${UI.tag(r.type||'研究院','gray')}</td><td class="num">${(r.occupancy||'-')}%</td><td class="num text-primary">${r.ents||'-'}</td></tr>`).join('')}
+        </tbody></table></div>`;
+    } else if(key==='discipline'){
+      body+=`<div class="fw6 mb-3"><i data-lucide="layers"></i> 五大优势学科</div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>学科</th><th>支撑学院</th><th>团队数</th><th>可转化成果</th></tr></thead><tbody>
+        ${DR.disciplines.map(r=>`<tr><td class="fw6">${r.name}</td><td class="f12 text-mute">${r.col}</td><td class="num">${r.teams}</td><td class="num text-primary">${r.ach}</td></tr>`).join('')}
+        </tbody></table></div>`;
+    } else if(key==='achievement'){
+      body+=`<div class="fw6 mb-3"><i data-lucide="lightbulb"></i> 可转化成果（老师团队自研项目，已与专利打通）</div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>成果</th><th>学科</th><th>负责人</th><th>TRL</th><th>专利</th><th>估值(万)</th><th>状态</th></tr></thead><tbody>
+        ${DB.achievements.slice(0,12).map(a=>`<tr><td class="fw6">${a.title}</td><td>${a.disciplineName}</td><td>${a.leader}</td><td class="num">${a.trl}</td><td class="num text-primary">${a.patents}</td><td class="num">${a.value.toLocaleString()}</td><td>${UI.tag(a.status,'blue')}</td></tr>`).join('')}
+        </tbody></table></div>`;
+    } else if(key==='alumniEnt'){
+      body+=`<div class="card-note" style="background:var(--warning)18;border:1px solid var(--warning);border-radius:10px;padding:12px 14px;color:var(--warning)">
+        <i data-lucide="info"></i> 校友企业数据<b>待校友会统筹</b>：出思路、数据落地难，当前为统计估值，明细数据治理中。</div>`;
+    } else {
+      body+=`<div class="text-mute f13">该项资产为汇总统计，逐层钻取明细将在对应业务页（如企业管理 / 园区管理 / 创新成果）中展开查看。</div>`;
+    }
+    UI.drawer(it.label+' · 资产明细',body,{width:'700px'});
+  }
 
   // ---- 综合健康度仪表 ----
-  Charts.gauge('gaugeHealth',{value:92.4,name:'综合健康度',max:100,color:'var(--success)'});
+  Charts.gauge('gaugeHealth',{value:+avgHealth,name:'综合健康度',max:100,color:'var(--success)'});
   document.getElementById('healthDims').innerHTML=[
-    ['完整性',96,'var(--primary)'],['准确性',94,'var(--success)'],['时效性',89,'var(--warning)']
+    ['完整性',92,'var(--primary)'],['准确性',94,'var(--success)'],['时效性',89,'var(--warning)']
   ].map(([n,v,c])=>`<div style="text-align:center;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:9px 4px">
     <div class="num fw7" style="font-size:19px;color:${c}">${v}</div><div class="f12 text-dim">${n}</div></div>`).join('');
 
-  // ---- 各域数据量占比 ----
+  // ---- 七类数据资产构成（按资产规模占比，业务向）----
   Charts.pie('pieRecords',{data:D.map(d=>({name:d.name,value:d.records})),ring:true,legend:true,center:['38%','52%']});
 
-  // ---- 底座关键指标 ----
-  const normalCnt=A.filter(a=>a.status==='正常').length, syncCnt=A.filter(a=>a.status==='同步中').length;
+  // ---- 底座资产关键指标（业务向）----
   document.getElementById('quickStats').innerHTML=
     UI.descList([
-      ['登记数据资产', `<span class="num text-primary fw7">${A.length}</span> 项`],
-      ['正常 / 同步中', `<span class="text-success fw7">${normalCnt}</span> / <span class="text-warning fw7">${syncCnt}</span>`],
-      ['日更数据域', `<span class="fw7">${D.filter(d=>d.freq==='日更'||d.freq==='实时').length}</span> 类（含实时）`],
-      ['最高健康度域', `${D.slice().sort((a,b)=>b.health-a.health)[0].name} <span class="text-success fw7">${D.slice().sort((a,b)=>b.health-a.health)[0].health}</span>`],
-      ['最近一次入库', `校友企业域 <span class="text-dim">6天前</span>`],
+      ['优势学科', `<span class="num text-primary fw7">5</span> 个（贯穿全局）`],
+      ['可转化成果', `<span class="num text-primary fw7">${DB.achievements.length}</span> 项`],
+      ['专利合计', `<span class="num fw7">${DB.patents.length}</span> 件（发明/实用新型/PCT）`],
+      ['参股企业', `<span class="num fw7">${DB.enterprises.filter(e=>e.equity>0).length}</span> 家`],
+      ['创新平台', `<span class="fw7">6</span> 个国家重点实验室`],
+      ['校友企业', `<span class="text-warning fw7">待校友会统筹</span>`],
     ])
     + `<div class="divider"></div>`
-    + `<div class="f12 text-mute mb-3">敏感分级分布</div>`
+    + `<div class="f12 text-mute mb-3">各域敏感分级分布</div>`
     + ['公开','内部','受限'].map(lv=>{
         const c=D.filter(d=>d.sensitive===lv).length;
         const col=lv==='受限'?'red':lv==='内部'?'blue':'green';
@@ -109,7 +172,7 @@
           <div style="flex:1;margin:0 12px">${UI.bar(Math.round(c/D.length*100))}</div><span class="num text-dim">${c} 域</span></div>`;
       }).join('');
 
-  // ---- 8 类数据域资产矩阵 ----
+  // ---- 7 类数据域资产矩阵 ----
   function ringHtml(v){ return `<div class="miniring" style="--p:${v};--primary:${v>=92?'var(--success)':v>=88?'var(--primary)':'var(--warning)'}"><span>${v}</span></div>`; }
   function statusTag(s){ return s==='正常'?UI.light('g','正常'):s==='同步中'?`<span class="light y"><span class="o"></span>同步中</span>`:UI.light('r',s); }
   document.getElementById('domainGrid').innerHTML=D.map(d=>`
@@ -121,10 +184,7 @@
         </div>
         ${ringHtml(d.health)}
       </div>
-      <div class="grid cols-2 mt-3" style="gap:8px">
-        <div style="background:var(--panel-2);border-radius:8px;padding:8px 10px"><div class="num fw7" style="font-size:18px">${d.tables}</div><div class="f12 text-mute">数据表</div></div>
-        <div style="background:var(--panel-2);border-radius:8px;padding:8px 10px"><div class="num fw7 text-primary" style="font-size:18px">${d.records}<span class="f12">万</span></div><div class="f12 text-mute">数据量</div></div>
-      </div>
+      <div class="f12 text-mute mt-2" style="line-height:1.4;min-height:32px">${d.note||''}</div>
       <div class="mt-3 flex justify-between items-center">
         <div style="display:flex;gap:5px;align-items:center">${statusTag(d.status)} ${UI.tag(d.freq,'gray')}</div>
         <span class="f12 text-mute">更新 ${d.updated}</span>
@@ -137,16 +197,15 @@
     const assets=A.filter(a=>a.domainId===id);
     const upstream=DB.lineage.filter(l=>l.to===d.name), downstream=DB.lineage.filter(l=>l.from===d.name);
     const sample=assets.slice(0,1)[0];
+    const alumniWarn = d.name==='校友企业'?`<div style="background:var(--warning)18;border:1px solid var(--warning);border-radius:10px;padding:10px 13px;color:var(--warning);margin-bottom:12px"><i data-lucide="info"></i> 待校友会统筹：出思路、数据落地难。</div>`:'';
     const body=`
+      ${alumniWarn}
       <div class="flex items-center gap-3 mb-4">
         <span style="width:12px;height:40px;border-radius:5px;background:${d.color};box-shadow:0 0 14px ${d.color}"></span>
-        <div><div class="fw7 f18">${d.name}域</div><div class="text-dim f13">责任方：${d.owner} · 敏感级：${d.sensitive} · 更新频率：${d.freq}</div></div>
+        <div><div class="fw7 f18">${d.name}</div><div class="text-dim f13">责任方：${d.owner} · 敏感级：${d.sensitive} · 更新频率：${d.freq}</div></div>
         <div style="margin-left:auto">${ringHtml(d.health)}</div>
       </div>
-      <div class="grid cols-3" style="gap:9px">
-        ${[['数据表',d.tables+' 张'],['数据量',d.records+' 万条'],['最近更新',d.updated]].map(([k,v])=>
-          `<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px"><div class="f12 text-mute">${k}</div><div class="fw7 mt-2">${v}</div></div>`).join('')}
-      </div>
+      <div class="text-dim f13 mb-3">${d.note||''}</div>
       <div class="divider"></div>
       <div class="fw6 mb-3"><i data-lucide="clipboard-list"></i> 域内数据表（${assets.length}）</div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -168,39 +227,24 @@
         ${downstream.length?downstream.map(l=>`<div class="f13"><span class="tag tag-green">下游</span> <span class="text-primary fw6">${d.name}</span> <span class="text-mute">— ${l.rel} →</span> ${l.to}</div>`).join(''):''}
         ${!upstream.length&&!downstream.length?'<div class="text-mute f13">该域为独立数据源，暂无血缘关系</div>':''}
       </div>
-      <div class="divider"></div>
-      <div class="fw6 mb-3"><i data-lucide="refresh-cw"></i> 最近同步</div>
-      ${(()=>{const ts=DB.syncTasks.filter(t=>t.domain===d.name).slice(0,3);
-        return ts.length?UI.timeline(ts.map(t=>({time:t.time,type:'数据',txt:`${t.name} · ${t.status} · ${t.records.toLocaleString()}条 · 耗时${t.duration}`}))):'<div class="text-mute f13">暂无近期同步记录</div>';})()}
     `;
     UI.drawer(d.name+' · 数据域明细',body,{width:'640px'});
   }
 
-  // ---- 近12月增长堆叠面积 ----
-  const months=Array.from({length:12},(_,i)=>(i+1)+'月');
-  const topDomains=D.slice().sort((a,b)=>b.records-a.records).slice(0,5);
-  Charts.line('lineGrowth',{x:months,stack:true,area:true,legend:true,smooth:true,
-    series:topDomains.map(d=>{
-      const end=d.records;
-      return {name:d.name,data:months.map((_,i)=>Math.round(end*(0.45+i*0.05)))};
-    })});
-
-  // ---- 同步任务 ----
-  const st=DB.syncTasks;
-  const run=st.filter(t=>t.status==='运行中').length, ok=st.filter(t=>t.status==='成功').length, fail=st.filter(t=>t.status==='失败').length;
-  document.getElementById('syncStat').innerHTML=`<span class="panel-tag" style="color:var(--success)">成功 ${ok}</span><span class="panel-tag" style="color:var(--warning)">运行 ${run}</span><span class="panel-tag" style="color:var(--danger)">失败 ${fail}</span>`;
-  document.getElementById('syncTbl').innerHTML=st.map(t=>{
-    const lc=t.status==='成功'?'g':t.status==='运行中'?'y':'r';
-    return `<div class="flex items-center justify-between" style="padding:11px 4px;border-bottom:1px solid var(--border)">
-      <div style="min-width:0;flex:1"><div class="fw6 f13" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.name}</div>
-        <div class="f12 text-mute">${t.domain} · ${t.records.toLocaleString()}条 · ${t.duration}</div></div>
-      <div style="text-align:right;white-space:nowrap;margin-left:10px">${UI.light(lc,t.status)}<div class="f12 text-mute mt-2">${t.time}</div></div>
-    </div>`;
-  }).join('');
+  // ---- 五大优势学科资产沉淀 ----
+  const discs=DB.disciplines;
+  Charts.bar('barDisc',{
+    x:discs.map(d=>d.name), legend:true,
+    series:[
+      {name:'可转化成果',data:discs.map(d=>DB.achievements.filter(a=>a.discipline===d.id).length)},
+      {name:'专利明细',data:discs.map(d=>DB.patents.filter(p=>p.discipline===d.id).length)},
+      {name:'科研团队',data:discs.map(d=>DB.teams.filter(t=>t.discipline===d.id).length)},
+    ]
+  });
 
   // ---- 交互 ----
-  document.getElementById('btnSync').onclick=()=>UI.toast('已下发全量同步任务，8 个数据域排队执行中','ok');
+  document.getElementById('btnReport').onclick=()=>UI.toast('已生成《高校产业数据资产盘点报告》（'+INV.length+' 类资产）','ok');
 
-  document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','参股/校属企业','产业企业与园区','活动与赛事']);
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','学院与团队','参股企业和校属企业','创业园/园区']);
 })();</script>
 </body></html>

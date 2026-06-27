@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>资产公司经营驾驶舱 · 武汉大学产业创新AI智脑平台</title>
+<title>资产管理驾驶舱 · 武汉大学产业创新AI智脑平台</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
@@ -15,8 +15,8 @@
   <!-- 页头 -->
   <div class="page-head">
     <div>
-      <div class="page-title"><span class="accentbar"></span>资产管理公司经营驾驶舱</div>
-      <div class="page-sub">统一台账 · 股权穿透 · 园区运营 · 收入分析 · 投后风险预警 —— 把分散科研资源沉淀为可经营、可放大的产业创新资产</div>
+      <div class="page-title"><span class="accentbar"></span>资产管理驾驶舱</div>
+      <div class="page-sub">资产总控 · 股权穿透 · 投后风险预警 · 收入监管 —— 国资监管视角统一台账（园区经营明细已下沉至园区管理）</div>
     </div>
     <div style="display:flex;gap:9px">
       <span class="light g">数据已对齐 · 30分钟前</span>
@@ -45,14 +45,10 @@
   <!-- 第二行：园区运营对比 + 现金流瀑布 -->
   <div class="grid mt-4" style="grid-template-columns:1.5fr 1fr">
     <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>六大园区运营对比</div>
-        <div class="tools"><div class="seg" id="parkSeg">
-          <button class="on" data-m="occupancy">出租率 %</button>
-          <button data-m="ents">入驻企业</button>
-          <button data-m="revenue">运营收入 万</button>
-          <button data-m="all">三维对比</button>
-        </div></div></div>
+      <div class="panel-h"><div class="t"><span class="bar"></span>园区资产利用率 · 出租率监管</div>
+        <div class="tools"><a class="btn btn-sm btn-ghost" href="park-list.html">园区经营明细 →</a></div></div>
       <div class="chart h340" id="parkBar"></div>
+      <div class="f12 text-mute" style="text-align:center;margin-top:2px">资产总控仅监管出租率/空置率等资产利用指标，入驻企业与运营收入明细见「园区管理」</div>
     </div>
     <div class="panel">
       <div class="panel-h"><div class="t"><span class="bar"></span>本年经营现金流 · 瀑布</div>
@@ -117,13 +113,17 @@
   const bookSum = PI.reduce((s,p)=>s+p.bookValue,0);          // 万
   const revSum = RT.reduce((s,r)=>s+r.amount,0);              // 万
   const acts = DB.activities.length;
+  const equityEnts = DB.enterprises.filter(e=>e.equity>0).length;
+  const riskCnt = PI.reduce((m,p)=>{m[p.risk]=(m[p.risk]||0)+1;return m;},{});
+  const pendingAlert = DB.riskAlerts.filter(a=>a.status!=='已处理').length;
+  // 资产总控视角 KPI：以股权资产 / 投后风险 / 收入监管为主，园区经营明细已下沉至园区管理
   document.getElementById('kpis').innerHTML=[
-    UI.kpi({label:'管理园区载体',value:PARKS.length,unit:'个',delta:'1 异地',deltaUp:true,icon:'<i data-lucide="building"></i>',spark:[3,3,4,4,5,5,5,6,6,6,6,6]}),
-    UI.kpi({label:'在管运营面积',value:totalArea.toFixed(1),unit:'万㎡',delta:'8.2%',deltaUp:true,icon:'<i data-lucide="ruler"></i>',spark:[31,34,36,38,40,42,43,44,45,46,47,48]}),
-    UI.kpi({label:'入驻企业总数',value:totalEnts,unit:'家',delta:'6.4%',deltaUp:true,icon:'<i data-lucide="building-2"></i>',spark:[280,300,312,322,330,340,348,352,358,362,366,369]}),
-    UI.kpi({label:'综合平均出租率',value:avgOcc,unit:'%',delta:'3.1%',deltaUp:true,icon:'<i data-lucide="key"></i>',spark:[68,70,71,72,74,75,76,76,77,77,78,78]}),
     UI.kpi({label:'股权资产账面总值',value:(bookSum/10000).toFixed(1),unit:'亿元',delta:'11.5%',deltaUp:true,icon:'<i data-lucide="gem"></i>',spark:[32,35,37,39,40,42,43,44,45,46,46,47]}),
-    UI.kpi({label:'年度市场化收入',value:(revSum/10000).toFixed(2),unit:'亿元',delta:'12.7%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[3.2,4.1,3.8,5.2,4.9,6.1,5.8,6.6,6.3,7.0,7.1,7.3]}),
+    UI.kpi({label:'参股 / 校属企业',value:equityEnts,unit:'家',delta:'国资穿透',deltaUp:true,icon:'<i data-lucide="git-fork"></i>',spark:[40,44,48,51,54,56,58,60,61,62,63,64]}),
+    UI.kpi({label:'投后风险预警',value:(riskCnt.r||0),unit:'家',delta:'关注 '+(riskCnt.y||0)+' 家',deltaUp:false,icon:'<i data-lucide="shield-alert"></i>',spark:[5,6,5,7,6,8,7,6,5,6,5,4]}),
+    UI.kpi({label:'待处置事项',value:pendingAlert,unit:'项',delta:'统一穿透',deltaUp:false,icon:'<i data-lucide="list-checks"></i>',spark:[12,14,11,15,13,16,14,12,11,13,12,10]}),
+    UI.kpi({label:'年度收入监管',value:(revSum/10000).toFixed(2),unit:'亿元',delta:'12.7%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[3.2,4.1,3.8,5.2,4.9,6.1,5.8,6.6,6.3,7.0,7.1,7.3]}),
+    UI.kpi({label:'园区资产（详见园区管理）',value:PARKS.length,unit:'个',delta:'出租率 '+avgOcc+'%',deltaUp:true,icon:'<i data-lucide="building"></i>',spark:[3,3,4,4,5,5,5,6,6,6,6,6]}),
   ].join('');
 
   // ====== 股权穿透 treemap ======
@@ -158,23 +158,9 @@
     document.getElementById('sankeyMeta').textContent=eq.length+' 家参股/校属企业 · 单位:百万';
   })();
 
-  // ====== 园区运营对比 bar ======
+  // ====== 园区资产利用率 bar（仅出租率，经营明细已下沉至园区管理） ======
   const parkX=PARKS.map(p=>p.name.replace('武汉大学','').replace('·','').replace('（主园区）','主园区').slice(0,8));
-  const parkChart={
-    occupancy:()=>Charts.bar('parkBar',{x:parkX,series:[{name:'出租率%',data:PARKS.map(p=>p.occupancy)}]}),
-    ents:()=>Charts.bar('parkBar',{x:parkX,series:[{name:'入驻企业',data:PARKS.map(p=>p.ents)}]}),
-    revenue:()=>Charts.bar('parkBar',{x:parkX,series:[{name:'运营收入(万)',data:PARKS.map(p=>p.revenue)}]}),
-    all:()=>Charts.bar('parkBar',{x:parkX,legend:true,series:[
-      {name:'入驻企业(家)',data:PARKS.map(p=>p.ents)},
-      {name:'出租率(%)',data:PARKS.map(p=>p.occupancy)},
-      {name:'运营收入(百万)',data:PARKS.map(p=>Math.round(p.revenue/100))},
-    ]}),
-  };
-  parkChart.occupancy();
-  document.querySelectorAll('#parkSeg button').forEach(b=>b.onclick=()=>{
-    document.querySelectorAll('#parkSeg button').forEach(x=>x.classList.remove('on'));
-    b.classList.add('on'); parkChart[b.dataset.m]();
-  });
+  Charts.bar('parkBar',{x:parkX,series:[{name:'出租率%',data:PARKS.map(p=>p.occupancy)}]});
 
   // ====== 现金流瀑布 ======
   Charts.waterfall('cashWaterfall',{data:DB.cashflow});
@@ -327,7 +313,7 @@
       <div class="text-dim mb-3">系统将基于统一台账自动汇总以下经营维度，生成可下载的董事会月报：</div>
       <div class="grid cols-2" style="gap:9px">
         ${UI.entityCard({title:'股权资产穿透',meta:'账面总值 '+(bookSum/10000).toFixed(1)+' 亿 · '+PI.length+' 家参股企业',tags:['国资监管','穿透到底']})}
-        ${UI.entityCard({title:'园区运营情况',meta:PARKS.length+' 园区 · 在管 '+totalArea.toFixed(1)+'万㎡ · 出租率 '+avgOcc+'%',tags:['载体运营']})}
+        ${UI.entityCard({title:'园区资产监管',meta:PARKS.length+' 园区 · 在管 '+totalArea.toFixed(1)+'万㎡ · 出租率 '+avgOcc+'%',tags:['资产利用','明细见园区管理']})}
         ${UI.entityCard({title:'市场化收入',meta:'年度 '+(revSum/10000).toFixed(2)+' 亿 · 五类业务结构',tags:['收入分析']})}
         ${UI.entityCard({title:'投后风险',meta:'预警 '+(rc.r||0)+' · 关注 '+(rc.y||0)+' · 正常 '+(rc.g||0),tags:['红黄绿灯']})}
       </div>`,

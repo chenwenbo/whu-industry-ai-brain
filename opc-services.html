@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OPC线上服务菜单 · 武汉大学产业创新AI智脑平台</title>
+<title>服务广场 · 武汉大学产业创新AI智脑平台</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
@@ -11,11 +11,11 @@
 <main class="wuda-view">
   <div class="page-head">
     <div>
-      <div class="page-title"><span class="accentbar"></span>OPC 线上服务菜单</div>
-      <div class="page-sub">面向项目方与企业的标准化产业创新服务超市：成果项目化、企业服务、产业分析、专业服务、资本协同一键下单</div>
+      <div class="page-title"><span class="accentbar"></span>服务广场</div>
+      <div class="page-sub">标准化服务专区一键下单 · 基于企业画像与舆情的服务商机推荐 · 服务邮件模板与服务体系，把线下服务现金流沉淀进平台</div>
     </div>
     <div style="display:flex;gap:9px">
-      <a class="btn btn-sm" href="opc-community.html">返回社区</a>
+      <button class="btn btn-sm" id="btnChannel"><i data-lucide="handshake"></i> 园区渠道合作</button>
       <button class="btn btn-primary btn-sm" id="btnOrders"><i data-lucide="clipboard-list"></i> 我的订单</button>
     </div>
   </div>
@@ -23,33 +23,78 @@
   <!-- KPI -->
   <div class="grid cols-4" id="kpis"></div>
 
-  <!-- 服务商品卡 -->
-  <div class="panel mt-4">
-    <div class="panel-h" style="flex-wrap:wrap;gap:12px">
-      <div class="t"><span class="bar"></span>服务商品</div>
-      <div class="tools"><span class="panel-tag" id="catTag"></span></div>
-    </div>
-    <div id="catBar" class="seg mt-2" style="flex-wrap:wrap"></div>
-    <div class="grid cols-4 mt-4" id="svcGrid"></div>
-  </div>
+  <!-- 主选项卡 -->
+  <div class="tabs mt-4" id="mainTabs"></div>
 
-  <!-- 图表 -->
-  <div class="grid cols-2 mt-4">
-    <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>服务类别分布</div><div class="tools"><span class="panel-tag">按SKU收入</span></div></div>
-      <div class="chart h300" id="catPie"></div>
+  <!-- ======== 服务专区 ======== -->
+  <section id="paneZone">
+    <div class="panel mt-3">
+      <div class="panel-h" style="flex-wrap:wrap;gap:12px">
+        <div class="t"><span class="bar"></span>服务专区 · 标准化服务SKU</div>
+        <div class="tools"><span class="panel-tag" id="catTag"></span></div>
+      </div>
+      <div id="catBar" class="seg mt-2" style="flex-wrap:wrap"></div>
+      <div class="grid cols-4 mt-4" id="svcGrid"></div>
     </div>
-    <div class="panel">
-      <div class="panel-h"><div class="t"><span class="bar"></span>服务销量榜</div><div class="tools"><span class="panel-tag">累计销量</span></div></div>
-      <div class="chart h300" id="salesBar"></div>
-    </div>
-  </div>
 
-  <!-- 我的订单 -->
-  <div class="panel mt-4">
-    <div class="panel-h"><div class="t"><span class="bar"></span>已下单订单 <span class="tag tag-gray" id="ordCnt"></span></div><div class="tools"><span class="panel-tag">下单后实时生成</span></div></div>
-    <div id="ordTable" class="mt-3"></div>
-  </div>
+    <div class="grid cols-2 mt-4">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>服务类别收入分布</div><div class="tools"><span class="panel-tag">按SKU沉淀现金流</span></div></div>
+        <div class="chart h300" id="catPie"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>服务销量榜</div><div class="tools"><span class="panel-tag">累计销量</span></div></div>
+        <div class="chart h300" id="salesBar"></div>
+      </div>
+    </div>
+
+    <div class="panel mt-4">
+      <div class="panel-h"><div class="t"><span class="bar"></span>已下单订单 <span class="tag tag-gray" id="ordCnt"></span></div><div class="tools"><span class="panel-tag">线下服务现金流沉淀</span></div></div>
+      <div id="ordTable" class="mt-3"></div>
+    </div>
+  </section>
+
+  <!-- ======== 服务商机推荐 ======== -->
+  <section id="paneLeads" style="display:none">
+    <div class="panel mt-3 glow">
+      <div class="panel-h"><div class="t"><span class="bar"></span>AI 服务商机推荐</div>
+        <div class="tools"><span class="panel-tag">基于企业画像 + 舆情动态</span></div></div>
+      <div class="text-dim f13 mb-3" style="line-height:1.7">系统结合参股/园区/校友企业的经营画像、融资轮次、风险舆情与发展阶段，自动识别可主动触达的服务商机，并推荐匹配的服务SKU与企业梯度培育路径。</div>
+      <div class="grid cols-2" id="leadGrid"></div>
+    </div>
+
+    <div class="panel mt-4">
+      <div class="panel-h"><div class="t"><span class="bar"></span>企业梯度培育</div>
+        <div class="tools"><span class="panel-tag">入库企业 → 雏鹰 → 瞪羚 → 独角兽</span></div></div>
+      <div class="text-dim f13 mb-3" style="line-height:1.7">把园区企业梯度培育界面拉到服务广场：按成长阶梯分层匹配服务包，与 AI 技术经理人「企业梯度培育智能体」共用模块。</div>
+      <div id="ladderKanban"></div>
+    </div>
+  </section>
+
+  <!-- ======== 服务邮件模板 / 服务体系 ======== -->
+  <section id="paneSystem" style="display:none">
+    <div class="grid mt-3" style="grid-template-columns:1.15fr 1fr;gap:18px;align-items:start">
+      <div class="panel">
+        <div class="panel-h"><div class="t"><span class="bar"></span>服务邮件模板库</div>
+          <div class="tools"><span class="panel-tag" id="tplCnt"></span></div></div>
+        <div class="text-dim f13 mb-3" style="line-height:1.7">沉淀线下高频服务话术，一键套用商机企业信息生成触达邮件，把服务过程标准化、可复用。</div>
+        <div id="tplList"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>服务体系 · 全流程</div>
+            <div class="tools"><span class="panel-tag">需求 → 交付 → 沉淀</span></div></div>
+          <div id="sysFlow"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><div class="t"><span class="bar"></span>园区渠道合作（入口）</div>
+            <div class="tools"><span class="panel-tag">本轮仅入口</span></div></div>
+          <div class="text-dim f13 mb-3" style="line-height:1.7">与园区企业形成渠道合作，开放服务分销与转介绍入口（本轮仅占位入口，后续接入分成结算）。</div>
+          <div id="channelGrid" class="grid cols-2" style="gap:12px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <div id="srcNote"></div>
 </main>
@@ -60,6 +105,7 @@
 <script src="assets/js/shell.js"></script>
 <script>(function(){
   const S = DB.opcServices;
+  const D = DB.util;
 
   // ---------- KPI ----------
   const totalSales = S.reduce((s,x)=>s+x.sales,0);
@@ -67,11 +113,24 @@
   document.getElementById('kpis').innerHTML=[
     UI.kpi({label:'服务 SKU',value:S.length,unit:'个',delta:'2 个',deltaUp:true,icon:'<i data-lucide="shopping-cart"></i>',spark:[4,5,5,6,6,7,7,8,8,8,8,8]}),
     UI.kpi({label:'累计订单',value:totalSales,unit:'笔',delta:'15.3%',deltaUp:true,icon:'<i data-lucide="package"></i>',spark:[120,160,150,200,220,260,250,300,320,350,380,393]}),
-    UI.kpi({label:'服务收入',value:revenue.toFixed(0),unit:'万元',delta:'12.8%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[20,28,26,35,33,44,52,49,58,61,70,78]}),
-    UI.kpi({label:'平均客单价',value:(revenue/totalSales).toFixed(2),unit:'万',delta:'3.1%',deltaUp:true,icon:'<i data-lucide="ticket"></i>',spark:[8,9,8,10,11,10,12,11,13,12,14,13]}),
+    UI.kpi({label:'服务收入沉淀',value:revenue.toFixed(0),unit:'万元',delta:'12.8%',deltaUp:true,icon:'<i data-lucide="banknote"></i>',spark:[20,28,26,35,33,44,52,49,58,61,70,78]}),
+    UI.kpi({label:'待触达商机',value:24,unit:'条',delta:'本周新增6条',deltaUp:true,icon:'<i data-lucide="target"></i>',spark:[8,10,9,12,14,13,16,18,17,20,22,24]}),
   ].join('');
 
-  // ---------- 类别 ----------
+  // ---------- 主选项卡 ----------
+  const sections={zone:'paneZone',leads:'paneLeads',system:'paneSystem'};
+  UI.tabs('#mainTabs',[
+    {key:'zone',label:'服务专区'},
+    {key:'leads',label:'服务商机推荐'},
+    {key:'system',label:'服务邮件模板 / 服务体系'},
+  ],key=>{
+    Object.entries(sections).forEach(([k,id])=>document.getElementById(id).style.display = k===key?'':'none');
+    if(key==='leads') renderLeads();
+    if(key==='system') renderSystem();
+    if(window.lucide) lucide.createIcons();
+  });
+
+  // ===================== 服务专区 =====================
   const cats=['全部',...new Set(S.map(s=>s.cat))];
   let curCat='全部';
   document.getElementById('catBar').innerHTML=cats.map((c,i)=>`<button data-cat="${UI.esc(c)}" class="${i===0?'on':''}">${UI.esc(c)}</button>`).join('');
@@ -81,13 +140,11 @@
     b.classList.add('on'); curCat=b.dataset.cat; renderSvc();
   });
 
-  // ---------- 已下单订单(初始来自 DB.taskOrders 取若干，含本地新增) ----------
-  const localOrders = DB.taskOrders.slice(0,6).map((o,i)=>({
+  const localOrders = DB.taskOrders.slice(0,6).map(o=>({
     id:o.id, svc:o.task, cat:'任务包', price:(+o.amount), qty:1, date:o.date, status:o.status, client:o.client
   }));
   let orderSeq = 100;
 
-  // ---------- 服务卡 ----------
   function renderSvc(){
     const list = curCat==='全部'?S:S.filter(s=>s.cat===curCat);
     document.getElementById('catTag').textContent = list.length+' 个服务';
@@ -110,7 +167,6 @@
   }
   renderSvc();
 
-  // ---------- 下单弹窗 ----------
   function orderModal(s){
     UI.modal('确认下单 · '+s.name, `
       <div class="grid cols-2" style="gap:10px;margin-bottom:14px">
@@ -132,14 +188,12 @@
       localOrders.unshift(o);
       s.sales++;
       UI.closeModal();
-      UI.toast('下单成功！订单 '+o.id+' 已生成','ok');
+      UI.toast('下单成功！订单 '+o.id+' 已生成，现金流已沉淀','ok');
       renderSvc(); renderOrders();
-      // 更新收入相关图表数据(销量榜/饼)
       Charts.pie('catPie',catPieData());
     };
   }
 
-  // ---------- 订单表 ----------
   function statusBadge(s){
     const map={'已交付':'green','已结算':'green','交付中':'blue','待交付':'amber'};
     return UI.tag(s,map[s]||'gray');
@@ -158,12 +212,11 @@
         {key:'date',title:'下单日期',render:r=>`<span class="num f12">${r.date}</span>`},
         {key:'status',title:'状态',render:r=>statusBadge(r.status)},
       ],
-      rows:localOrders, pageSize:8, empty:'暂无订单，可在上方服务超市下单'
+      rows:localOrders, pageSize:8, empty:'暂无订单，可在上方服务专区下单'
     });
   }
   renderOrders();
 
-  // ---------- 类别饼 ----------
   function catPieData(){
     const byCat={};
     S.forEach(s=>{ byCat[s.cat]=(byCat[s.cat]||0)+s.price*s.sales; });
@@ -171,7 +224,6 @@
   }
   Charts.pie('catPie',catPieData());
 
-  // ---------- 销量榜 ----------
   const sorted=[...S].sort((a,b)=>b.sales-a.sales);
   Charts.bar('salesBar',{
     x:sorted.map(s=>s.name.length>6?s.name.slice(0,6):s.name),
@@ -179,10 +231,155 @@
     horizontal:true
   });
 
-  // ---------- 我的订单按钮 ----------
+  // ===================== 服务商机推荐 =====================
+  // 取有舆情/经营画像的企业，结合风险与融资生成服务商机
+  function buildLeads(){
+    const pool = DB.enterprises.filter(e=>e.equity>0 || e.type==='孵化企业' || e.type==='参股企业');
+    const reasonByRisk={
+      r:['舆情监测到经营风险，建议尽快介入','风险预警触发，需风险评估与法务支持'],
+      y:['增长放缓需对标诊断','融资窗口临近，需BP打磨'],
+      g:['经营稳健，处于扩张期可承接增值服务','资质认证窗口，可申报政策红利'],
+    };
+    const svcByRisk={
+      r:['企业画像深度报告','知识产权布局服务'],
+      y:['产业赛道分析包','商业计划书生成包'],
+      g:['政策申报代理包','投融资对接服务'],
+    };
+    return pool.slice(0,8).map((e,i)=>{
+      const risk=e.risk||'g';
+      const matchSvc = S.find(s=>s.name===D.pick(svcByRisk[risk]||svcByRisk.g)) || S[i%S.length];
+      return {
+        ent:e, risk,
+        reason: D.pick(reasonByRisk[risk]||reasonByRisk.g),
+        svc: matchSvc,
+        score: 70 + (risk==='r'?20:risk==='y'?12:6) + (i%5),
+      };
+    }).sort((a,b)=>b.score-a.score);
+  }
+  let leadsBuilt=false;
+  function renderLeads(){
+    if(leadsBuilt) return; leadsBuilt=true;
+    const leads=buildLeads();
+    const lightMap={r:'r',y:'y',g:'g'};
+    document.getElementById('leadGrid').innerHTML = leads.map(l=>`
+      <div class="ecard" style="display:flex;flex-direction:column">
+        <div class="flex justify-between items-center">
+          <div class="et" style="min-width:0">${UI.esc(l.ent.name)}</div>
+          <span style="white-space:nowrap">${UI.light(lightMap[l.risk],l.risk==='r'?'风险':l.risk==='y'?'关注':'正常')}</span>
+        </div>
+        <div class="f12 text-mute mt-2 flex gap-2" style="flex-wrap:wrap">
+          ${UI.tag(l.ent.type,'gray')} ${UI.tag(l.ent.disciplineName||'—','blue')}
+          <span>${l.ent.city||''}</span>
+          <span>营收 <b class="num">${l.ent.revenue}</b>万</span>
+        </div>
+        <div class="mt-3 f13" style="flex:1;line-height:1.6"><span class="text-mute">推荐理由：</span>${UI.esc(l.reason)}</div>
+        <div class="flex justify-between items-center mt-3" style="padding-top:10px;border-top:1px solid var(--border)">
+          <div class="f12"><span class="text-mute">匹配服务</span> <b class="text-primary">${UI.esc(l.svc.name)}</b> · 商机指数 <b class="num text-success">${l.score}</b></div>
+          <button class="btn btn-primary btn-sm" data-mail="${l.ent.id}">套用模板触达</button>
+        </div>
+      </div>`).join('');
+    document.querySelectorAll('#leadGrid [data-mail]').forEach(b=>{
+      b.onclick=()=>{
+        const l=leads.find(x=>x.ent.id===b.dataset.mail);
+        mailModal(l);
+      };
+    });
+
+    // 企业梯度培育看板
+    const ladders=[
+      {key:'pool',title:'入库培育',cards:DB.enterprises.filter(e=>e.type==='孵化企业').slice(0,3)},
+      {key:'eagle',title:'雏鹰企业',cards:DB.enterprises.filter(e=>e.score>=60&&e.score<75).slice(0,3)},
+      {key:'gazelle',title:'瞪羚企业',cards:DB.enterprises.filter(e=>e.score>=75&&e.score<88).slice(0,3)},
+      {key:'unicorn',title:'独角兽/标杆',cards:DB.enterprises.filter(e=>e.score>=88).slice(0,3)},
+    ];
+    UI.kanban('#ladderKanban',{
+      columns:ladders,
+      cardRender:c=>`<div class="fw6">${UI.esc(c.name)}</div>
+        <div class="f12 text-mute mt-2 flex gap-2" style="flex-wrap:wrap">${UI.tag(c.disciplineName||'—','gray')}<span>评分 <b class="num text-primary">${c.score}</b></span></div>
+        <div class="f12 text-mute mt-2">建议服务包：${UI.esc((S.find(s=>s.cat==='企业服务')||S[0]).name)}</div>`,
+      onMove:(i,from,to)=>UI.toast('企业梯度阶段已更新，培育服务包同步调整','ok'),
+    });
+    if(window.lucide) lucide.createIcons();
+  }
+
+  function mailModal(l){
+    const tpl=DB._svcMailTpls[l.risk==='r'?0:l.risk==='y'?1:2];
+    const body=tpl.body.replace(/\{企业\}/g,l.ent.name).replace(/\{服务\}/g,l.svc.name).replace(/\{联系人\}/g,'尊敬的负责人');
+    UI.modal('套用邮件模板 · '+l.ent.name, `
+      <div class="f12 text-mute mb-2">模板：${UI.esc(tpl.name)}</div>
+      <div class="mb-2"><span class="text-mute f12">主题：</span><b>${UI.esc(tpl.subject.replace(/\{企业\}/g,l.ent.name))}</b></div>
+      <textarea style="width:100%;min-height:200px;line-height:1.7;font-size:13px">${UI.esc(body)}</textarea>`,
+      {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">取消</button><button class="btn btn-primary btn-sm" onclick="UI.closeModal();UI.toast('触达邮件已生成并加入服务商机跟进队列','ok')">生成并触达</button>`});
+  }
+
+  // ===================== 服务邮件模板 / 服务体系 =====================
+  // 模板库(页面专属补充数据，挂在 DB 上供商机推荐复用)
+  DB._svcMailTpls=[
+    {name:'风险关怀型',subject:'【武大产业创新平台】关于{企业}经营支持的服务建议',body:'{联系人}：\n\n我们在企业舆情与经营监测中关注到贵司近期面临的经营挑战。武汉大学产业创新平台可提供「{服务}」，由专业团队协助梳理风险点、设计应对方案。\n\n期待与您进一步沟通，提供针对性支持。\n\n武汉大学资产管理公司 · 服务广场'},
+    {name:'成长助推型',subject:'【武大产业创新平台】助力{企业}抓住增长窗口',body:'{联系人}：\n\n基于贵司当前发展阶段，我们认为现在是把握增长机会的关键窗口。平台「{服务}」可帮助贵司完善材料、对接资源、放大优势。\n\n欢迎预约一次免费诊断。\n\n武汉大学资产管理公司 · 服务广场'},
+    {name:'政策红利型',subject:'【武大产业创新平台】{企业}可申报的政策红利',body:'{联系人}：\n\n经匹配，贵司符合多项政策申报条件。平台「{服务}」提供政策匹配、材料撰写与全程跟踪服务，助力贵司获取资质与资金支持。\n\n如需协助，请随时联系。\n\n武汉大学资产管理公司 · 服务广场'},
+  ];
+  const moreTpls=[
+    {name:'成果转化邀约',subject:'诚邀{企业}对接武大科技成果',body:'介绍武大可转化成果，邀约企业洽谈技术合作与作价入股。'},
+    {name:'活动邀请函',subject:'邀请{企业}参加产业创新对接活动',body:'邀请企业参加训练营/对接会，沉淀合作线索。'},
+    {name:'投融资撮合',subject:'为{企业}对接投资机构与资本资源',body:'介绍平台投资库与资方资源，提供BP打磨与路演陪练。'},
+  ];
+  let sysBuilt=false;
+  function renderSystem(){
+    if(sysBuilt) return; sysBuilt=true;
+    const tpls=[...DB._svcMailTpls,...moreTpls];
+    document.getElementById('tplCnt').textContent = tpls.length+' 个模板';
+    const tagByName={'风险关怀型':'red','成长助推型':'green','政策红利型':'amber','成果转化邀约':'blue','活动邀请函':'purple','投融资撮合':'gray'};
+    document.getElementById('tplList').innerHTML = tpls.map((t,i)=>`
+      <div style="padding:12px 0;border-bottom:1px solid var(--border)">
+        <div class="flex justify-between items-center" style="gap:10px">
+          <div class="fw6" style="flex:1;min-width:0">${UI.esc(t.name)}</div>
+          ${UI.tag(['触达','邀约','撮合'][i%3]||'通用',tagByName[t.name]||'gray')}
+        </div>
+        <div class="f12 text-mute mt-2">主题：${UI.esc(t.subject)}</div>
+        <div class="f12 text-dim mt-2" style="line-height:1.6">${UI.esc(t.body.split('\n')[0]).slice(0,60)}…</div>
+        <div class="mt-2"><button class="btn btn-sm btn-ghost" data-prev="${i}"><i data-lucide="eye"></i> 预览全文</button></div>
+      </div>`).join('');
+    document.querySelectorAll('#tplList [data-prev]').forEach(b=>{
+      b.onclick=()=>{const t=tpls[+b.dataset.prev];
+        UI.modal('邮件模板 · '+t.name,`<div class="mb-2"><span class="text-mute f12">主题：</span><b>${UI.esc(t.subject)}</b></div>
+          <textarea style="width:100%;min-height:200px;line-height:1.7;font-size:13px">${UI.esc(t.body)}</textarea>`,
+          {footer:`<button class="btn btn-sm" onclick="UI.closeModal()">关闭</button><button class="btn btn-primary btn-sm" onclick="UI.closeModal();UI.toast('已复制模板到服务体系','ok')">复用此模板</button>`});
+      };
+    });
+
+    // 服务体系全流程时间线
+    document.getElementById('sysFlow').innerHTML = UI.timeline([
+      {time:'需求',txt:'商机识别 / 企业主动咨询，沉淀为服务线索',type:'数据'},
+      {time:'匹配',txt:'按企业画像匹配标准化服务SKU与服务团队',type:'合作'},
+      {time:'触达',txt:'套用服务邮件模板，标准化触达与报价',type:'活动'},
+      {time:'交付',txt:'线下/线上交付服务，过程留痕',type:'孵化'},
+      {time:'沉淀',txt:'订单与现金流回流平台，形成服务收入资产',type:'投资'},
+      {time:'复用',txt:'服务成果与话术沉淀进体系，反哺商机推荐',type:'成果'},
+    ]);
+
+    // 园区渠道合作入口(仅入口)
+    document.getElementById('channelGrid').innerHTML = DB.parks.slice(0,4).map(p=>`
+      <div class="ecard" style="cursor:pointer" data-ch="${UI.esc(p.name)}">
+        <div class="fw6">${UI.esc(p.name)}</div>
+        <div class="f12 text-mute mt-2">入驻企业 <b class="num">${p.ents}</b> · 可分销服务SKU <b class="num">${S.length}</b></div>
+        <div class="mt-2"><span class="tag tag-amber">渠道合作入口</span></div>
+      </div>`).join('');
+    document.querySelectorAll('#channelGrid [data-ch]').forEach(c=>{
+      c.onclick=()=>UI.toast(c.dataset.ch+'：渠道合作入口已开放（本轮仅入口，分成结算后续接入）','ok');
+    });
+    if(window.lucide) lucide.createIcons();
+  }
+
+  // ---------- 顶部按钮 ----------
   document.getElementById('btnOrders').onclick=()=>{
-    document.getElementById('ordTable').scrollIntoView({behavior:'smooth',block:'center'});
-    UI.toast('已定位至订单列表，共 '+localOrders.length+' 笔订单','ok');
+    document.querySelector('#mainTabs .tab[data-tab="zone"]').click();
+    setTimeout(()=>{document.getElementById('ordTable').scrollIntoView({behavior:'smooth',block:'center'});
+      UI.toast('已定位至订单列表，共 '+localOrders.length+' 笔订单','ok');},100);
+  };
+  document.getElementById('btnChannel').onclick=()=>{
+    document.querySelector('#mainTabs .tab[data-tab="system"]').click();
+    UI.toast('已切换至服务体系 · 园区渠道合作入口','ok');
   };
 
   document.getElementById('srcNote').innerHTML = UI.srcNote(['成果与专利','参股/校属企业','活动与赛事']);
