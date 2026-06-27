@@ -105,7 +105,7 @@
       <span class="f13 fw7" style="color:${exitColor}"><i data-lucide="landmark"></i> 国资监管</span>
       <span class="f13">学校持股 <b class="num text-primary">${E.equity}%</b> · 账面值 <b class="num">${fmtW(E.bookValue)}</b></span>
       <span class="f13">参股 <b class="num">${E.investYear}</b> 年（已 ${E.holdYears} 年）· 5年退出红线 <b class="num ${E.yearsToExit<=1?'text-danger':''}">${E.exitDeadline}</b></span>
-      <span style="margin-left:auto">${UI.tag('<i data-lucide="'+trendMeta[2]+'"></i> '+trendMeta[0],trendMeta[1])}${UI.tag('退出建议：'+exitText,exitTagColor)}</span>
+      <span style="margin-left:auto">${UI.tag(trendMeta[0],trendMeta[1],trendMeta[2])}${UI.tag('退出建议：'+exitText,exitTagColor)}</span>
     </div>`:''}`;
   document.getElementById('btnTicket').onclick=()=>UI.toast('已为「'+E.name+'」创建服务工单（演示）','ok');
   document.getElementById('btnReport').onclick=()=>UI.toast('AI 正在生成《'+E.name+'》一企一档深度报告…','ok');
@@ -392,7 +392,7 @@
 
       <div class="panel mt-4" style="border-left:3px solid ${exitColor}">
         <div class="panel-h"><div class="t"><span class="bar"></span><i data-lucide="log-out"></i> 5年退出建议</div>
-          <div class="tools">${UI.tag('<i data-lucide="'+trendMeta[2]+'"></i> '+trendMeta[0],trendMeta[1])}${UI.tag(exitText,exitTagColor)}</div></div>
+          <div class="tools">${UI.tag(trendMeta[0],trendMeta[1],trendMeta[2])}${UI.tag(exitText,exitTagColor)}</div></div>
         <div class="grid" style="grid-template-columns:auto 1fr;gap:18px;align-items:center">
           <div style="text-align:center;min-width:130px">
             <div style="font-size:24px;font-weight:800;color:${exitColor};font-family:Oswald">${exitText}</div>

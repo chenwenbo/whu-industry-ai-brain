@@ -22,7 +22,7 @@
       return `<div class="panel ${glow?'glow':''}"><div class="panel-h"><div class="t"><span class="bar"></span>${esc(title)}${tag?` <span class="tag tag-gray">${tag}</span>`:''}</div><div class="tools">${tools}</div></div>${body}</div>`;
     },
     // ---- 标签 ----
-    tag(text,type='gray'){ return `<span class="tag tag-${type}">${esc(text)}</span>`; },
+    tag(text,type='gray',icon=''){ return `<span class="tag tag-${type}">${icon?`<i data-lucide="${esc(icon)}"></i> `:''}${esc(text)}</span>`; },
     light(level,text){ return `<span class="light ${level}"><span class="o"></span>${esc(text||({g:'正常',y:'关注',r:'预警'}[level]))}</span>`; },
     chip(text,sel=false){ return `<span class="chip ${sel?'sel':''}">${esc(text)}</span>`; },
     bar(pct,color){ return `<div class="bar-track"><div class="bar-fill" style="width:${pct}%;${color?`background:${color}`:''}"></div></div>`; },
