@@ -2,7 +2,19 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>数据资产 · 武汉大学产业创新AI智脑平台</title>
 <link rel="stylesheet" href="assets/css/theme.css">
-<style>.ecard.active{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary),var(--glow)}</style>
+<style>
+  .ecard.active{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary),var(--glow)}
+  .cat-group{margin-top:6px}
+  .cat-group-h{font-size:12.5px;font-weight:700;color:var(--text-dim);display:flex;align-items:center;gap:8px;margin:4px 0 12px}
+  .cat-group-h::before{content:"";width:4px;height:13px;border-radius:2px;background:var(--primary)}
+  .cat-group-h .n{font-weight:500;color:var(--text-mute);font-size:11.5px}
+  .hero-break{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:14px;padding-top:13px;border-top:1px dashed var(--border);font-size:12px;color:var(--text-mute)}
+  .hero-break b{color:var(--text);font-weight:600}
+  .hero-break .sep{color:var(--border-strong)}
+  .stat-card{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
+  .stat-card .k{font-size:12px;color:var(--text-mute)}
+  .stat-card .v{font-weight:700;font-size:20px;margin-top:6px}
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
@@ -12,25 +24,35 @@
 <main class="wuda-view">
   <div class="page-head">
     <div><div class="page-title"><span class="accentbar"></span>数据资产</div>
-      <div class="page-sub">高校产业数据资产盘点 · 几类数据资产举证 · 点击资产卡在下方查看明细</div></div>
+      <div class="page-sub">科研实力总览 · 按类别盘点高校产业数据资产 · 点击分类卡查看明细（支持年份 / 学科筛选）</div></div>
     <div style="display:flex;gap:9px">
       <a class="btn btn-sm" href="data-catalog.html"><i data-lucide="library"></i> 数据资产目录</a>
       <button class="btn btn-sm btn-primary" id="btnReport"><i data-lucide="file-down"></i> 导出资产盘点</button>
     </div>
   </div>
 
-  <!-- 业务向：几类数据资产举证（点卡片在下方展示明细） -->
+  <!-- 第一屏：科研实力总览 -->
   <div class="panel mt-2">
-    <div class="panel-h"><div class="t"><span class="bar"></span>数据资产盘点 · 几类数据资产举证</div>
-      <div class="tools"><span class="panel-tag">点击资产卡在下方查看明细</span></div></div>
-    <div class="grid cols-5 stagger" id="inventoryGrid"></div>
+    <div class="panel-h"><div class="t"><span class="bar"></span>科研实力总览</div>
+      <div class="tools"><span class="panel-tag">学校最关心的核心科研指标 · 一眼看整体规模</span></div></div>
+    <div class="grid cols-6 stagger" id="heroKpis"></div>
+    <div class="hero-break" id="heroBreak"></div>
   </div>
 
-  <!-- 资产明细（全宽展示，替代侧边栏抽屉） -->
+  <!-- 分类清单：每类一卡，点击查看明细 -->
+  <div class="panel mt-4">
+    <div class="panel-h"><div class="t"><span class="bar"></span>分类清单 · 点击查看明细</div>
+      <div class="tools"><span class="panel-tag">11 类高校产业数据资产</span></div></div>
+    <div id="cardWrap"></div>
+  </div>
+
+  <!-- 明细面板（页内展开：筛选 + 图表 + 明细表） -->
   <div class="panel mt-4" id="detailPanel">
     <div class="panel-h"><div class="t"><span class="bar"></span><span id="detailTitle">资产明细</span></div>
-      <div class="tools"><span class="panel-tag" id="detailHint">点击上方资产卡查看明细</span></div></div>
-    <div id="detailArea"></div>
+      <div class="tools"><span class="panel-tag" id="detailCount"></span></div></div>
+    <div id="detailFilter" class="mb-4"></div>
+    <div id="detailExtra"></div>
+    <div id="detailTable"></div>
   </div>
 
   <div id="srcNote"></div>
@@ -41,11 +63,56 @@
 <script src="assets/js/components.js"></script>
 <script src="assets/js/shell.js"></script>
 <script>(function(){
-  const INV=DB.assetInventory, DR=DB.inventoryDrill;
+  const DR=DB.inventoryDrill;
+  const fmt=n=>(typeof n==='number'?n.toLocaleString():n);
+  const lc=s=>String(s==null?'':s).toLowerCase();
 
-  // ---- 业务向资产盘点卡片（替代原数据表总数/数据总量/同步任务等技术指标）----
-  document.getElementById('inventoryGrid').innerHTML=INV.map(it=>`
-    <div class="ecard" data-key="${it.key}" style="cursor:pointer">
+  // 专利分型计数（发明 / 实用新型 / PCT）
+  const pInv=DB.patents.filter(p=>p.type==='发明专利').length;
+  const pUti=DB.patents.filter(p=>p.type==='实用新型').length;
+  const pPCT=DB.patents.filter(p=>p.type==='PCT国际专利').length;
+  const talentTotal=DR.talents.reduce((s,t)=>s+t.cnt,0);
+  const highCitedSum=DR.paperTrend.reduce((s,r)=>s+r.highCited,0);
+  const equityEnts=DB.enterprises.filter(e=>e.equity>0);
+
+  // ---------- 第一屏：6 个核心指标 ----------
+  document.getElementById('heroKpis').innerHTML=[
+    UI.kpi({label:'重点学科',value:DB.disciplines.length,unit:'个',icon:'<i data-lucide="layers"></i>'}),
+    UI.kpi({label:'国家级人才 · 长江/杰青等',value:talentTotal,unit:'人',icon:'<i data-lucide="award"></i>',spark:DR.disciplines.map(d=>d.talents)}),
+    UI.kpi({label:'专利总量',value:DB.patents.length,unit:'件',icon:'<i data-lucide="file-badge"></i>',spark:DB.patentYearly.series[0].data}),
+    UI.kpi({label:'论文总量',value:'3.2',unit:'万篇',icon:'<i data-lucide="book-open"></i>',spark:DR.paperTrend.map(r=>r.total)}),
+    UI.kpi({label:'横向项目',value:1240,unit:'项',icon:'<i data-lucide="handshake"></i>'}),
+    UI.kpi({label:'纵向项目',value:2860,unit:'项',icon:'<i data-lucide="flag"></i>'}),
+  ].join('');
+  document.getElementById('heroBreak').innerHTML=`
+    <span><i data-lucide="file-badge"></i> 专利构成：发明 <b>${pInv}</b> · 实用新型 <b>${pUti}</b> · PCT <b>${pPCT}</b></span>
+    <span class="sep">|</span>
+    <span><i data-lucide="book-open"></i> 论文：顶刊 <b>860</b> · 高被引(近6年) <b>${highCitedSum}</b> · 年新增 <b>4,200</b></span>
+    <span class="sep">|</span>
+    <span><i data-lucide="award"></i> 人才：长江 <b>96</b> · 杰青 <b>72</b> · 优青 <b>64</b> · 万人 <b>54</b></span>`;
+
+  // ---------- 分类清单（11 类，分三组） ----------
+  const GROUPS=[
+    {group:'科研产出', cols:'cols-3', items:[
+      {cat:'discipline',label:'学科与团队',value:DB.disciplines.length,unit:'个',icon:'layers',dom:'var(--dom-2)',sub:'重点学科 · 教授/副教授/人才标签'},
+      {cat:'talent',label:'高层次人才',value:talentTotal,unit:'人',icon:'award',dom:'var(--dom-2)',sub:'长江/杰青/优青/万人 · 按学科分类'},
+      {cat:'patent',label:'专利合计',value:DB.patents.length,unit:'件',icon:'file-badge',dom:'var(--dom-1)',sub:`发明${pInv} · 实用${pUti} · PCT${pPCT}`},
+      {cat:'paper',label:'论文存量',value:'3.2万',unit:'篇',icon:'book-open',dom:'var(--dom-1)',sub:'顶刊860 · 高被引 · 年新增4,200'},
+      {cat:'hproject',label:'横向项目',value:1240,unit:'项',icon:'handshake',dom:'var(--dom-1)',sub:'校企合作 · 签约方/合同/金额'},
+      {cat:'vproject',label:'纵向项目',value:2860,unit:'项',icon:'flag',dom:'var(--dom-1)',sub:'国家/省部级财政资金课题'},
+    ]},
+    {group:'平台与载体', cols:'cols-3', items:[
+      {cat:'platform',label:'创新平台',value:6,unit:'个',icon:'beaker',dom:'var(--dom-3)',sub:'国家重点实验室/中心/研究所'},
+      {cat:'institute',label:'研究院',value:14,unit:'个',icon:'landmark',dom:'var(--dom-3)',sub:'含各地异地研究院'},
+      {cat:'park',label:'科技园/园区',value:DB.parks.length,unit:'个',icon:'building',dom:'var(--dom-4)',sub:'面积 / 入驻企业 / 出租率'},
+    ]},
+    {group:'企业生态', cols:'cols-2', items:[
+      {cat:'equityEnt',label:'参股企业',value:equityEnts.length,unit:'家',icon:'briefcase',dom:'var(--dom-5)',sub:'学校/资产公司技术入股'},
+      {cat:'alumniEnt',label:'校友企业',value:'8,600+',unit:'家',icon:'graduation-cap',dom:'var(--dom-7)',sub:'待校友会统筹 · 数据落地中'},
+    ]},
+  ];
+  const card=it=>`
+    <div class="ecard" data-cat="${it.cat}" style="cursor:pointer">
       <div class="flex items-center gap-3">
         <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:${it.dom}22;color:${it.dom}"><i data-lucide="${it.icon}"></i></span>
         <div style="min-width:0">
@@ -54,80 +121,204 @@
         </div>
       </div>
       <div class="f12 text-mute mt-2" style="line-height:1.45">${it.sub}</div>
+    </div>`;
+  document.getElementById('cardWrap').innerHTML=GROUPS.map((g,i)=>`
+    ${i>0?'<div class="divider"></div>':''}
+    <div class="cat-group">
+      <div class="cat-group-h">${g.group}<span class="n">${g.items.length} 类</span></div>
+      <div class="grid ${g.cols} stagger">${g.items.map(card).join('')}</div>
     </div>`).join('');
-  document.querySelectorAll('#inventoryGrid .ecard').forEach(c=>c.onclick=()=>openInventory(c.dataset.key));
+  document.querySelectorAll('#cardWrap .ecard').forEach(c=>c.onclick=()=>openCategory(c.dataset.cat));
 
-  function openInventory(key){
-    const it=INV.find(x=>x.key===key);
-    let body=`<div class="flex items-center gap-3 mb-4">
-      <span style="width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:${it.dom}22;color:${it.dom}"><i data-lucide="${it.icon}"></i></span>
-      <div><div class="fw7 f18">${it.label}</div><div class="text-dim f13">${it.sub}</div></div>
-      <div style="margin-left:auto" class="num fw7 text-primary" style="font-size:22px">${it.value} ${it.unit}</div></div>
-      <div class="divider"></div>`;
-    if(key==='hprojects'){
-      body+=`<div class="fw6 mb-3"><i data-lucide="handshake"></i> 横向项目明细（年份 / 签约方 / 合同 / 金额）</div>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>年份</th><th>项目名称</th><th>签约方</th><th>合同类型</th><th>金额(万元)</th><th>承担学院</th></tr></thead><tbody>
-        ${DR.hprojects.map(r=>`<tr><td class="num">${r.year}</td><td class="fw6">${r.name}</td><td>${r.partner}</td><td class="text-dim">${r.contract}</td><td class="num text-primary fw7">${r.amount.toLocaleString()}</td><td class="f12 text-mute">${r.college}</td></tr>`).join('')}
-        </tbody></table></div>`;
-    } else if(key==='vproject'||key==='vprojects'){
-      body+=`<div class="fw6 mb-3"><i data-lucide="flag"></i> 纵向项目明细（年份 / 来源 / 金额 / 负责人）</div>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>年份</th><th>项目名称</th><th>项目来源</th><th>经费(万元)</th><th>负责人</th></tr></thead><tbody>
-        ${DR.vprojects.map(r=>`<tr><td class="num">${r.year}</td><td class="fw6">${r.name}</td><td>${UI.tag(r.source,'blue')}</td><td class="num text-primary fw7">${r.amount.toLocaleString()}</td><td>${r.pi}</td></tr>`).join('')}
-        </tbody></table></div>`;
-    } else if(key==='patent'){
-      const byType={};DB.patents.forEach(p=>byType[p.type]=(byType[p.type]||0)+1);
-      body+=`<div class="grid cols-3" style="gap:9px">
-        ${Object.keys(byType).map(t=>`<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px"><div class="f12 text-mute">${t}</div><div class="fw7 num mt-2" style="font-size:20px">${byType[t]} 件</div></div>`).join('')}
-        </div>
-        <div class="divider"></div>
-        <div class="fw6 mb-3"><i data-lucide="file-badge"></i> 专利明细（与成果打通）</div>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>专利号</th><th>名称</th><th>类型</th><th>状态</th><th>归属成果</th></tr></thead><tbody>
-        ${DB.patents.slice(0,12).map(p=>`<tr><td class="num f12">${p.no}</td><td class="fw6">${p.title}</td><td>${UI.tag(p.type,p.type==='发明专利'?'purple':p.type==='PCT国际专利'?'blue':'gray')}</td><td>${UI.tag(p.status,p.status==='已授权'?'green':'amber')}</td><td class="f12 text-mute">${p.achTitle.slice(0,14)}</td></tr>`).join('')}
-        </tbody></table></div>`;
-    } else if(key==='paper'){
-      body+=`<div class="fw6 mb-3"><i data-lucide="book-open"></i> 论文资产（存量 / 新增 / 顶刊）</div>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>类别</th><th>数量</th><th>范围</th></tr></thead><tbody>
-        ${DR.papers.map(r=>`<tr><td class="fw6">${r.tier}</td><td class="num text-primary fw7">${r.cnt.toLocaleString()}</td><td class="text-dim">${r.disc}</td></tr>`).join('')}
-        </tbody></table></div>`;
-    } else if(key==='talent'){
-      body+=`<div class="fw6 mb-3"><i data-lucide="award"></i> 高层次人才（长江/杰青等）</div>
-        <div class="grid cols-2" style="gap:9px">${DR.talents.map(r=>`<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px" class="flex items-center justify-between"><span class="fw6">${r.type}</span><span class="num text-primary fw7" style="font-size:20px">${r.cnt} 人</span></div>`).join('')}</div>`;
-    } else if(key==='platform'){
-      body+=`<div class="fw6 mb-3"><i data-lucide="beaker"></i> 国家级创新平台（国家重点实验室）</div>
-        <div style="display:flex;flex-direction:column;gap:8px">${DR.platforms.map(r=>`<div class="flex items-center justify-between" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px"><span class="fw6 f13">${r.name}</span>${UI.tag(r.disc,'blue')}</div>`).join('')}</div>`;
-    } else if(key==='institute'){
-      body+=`<div class="fw6 mb-3"><i data-lucide="landmark"></i> 研究院平台（含各地异地研究院）</div>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>名称</th><th>类型</th><th>出租率/入驻</th><th>企业数</th></tr></thead><tbody>
-        ${DR.institutes.map(r=>`<tr><td class="fw6">${r.name}</td><td>${UI.tag(r.type||'研究院','gray')}</td><td class="num">${(r.occupancy||'-')}%</td><td class="num text-primary">${r.ents||'-'}</td></tr>`).join('')}
-        </tbody></table></div>`;
-    } else if(key==='discipline'){
-      body+=`<div class="fw6 mb-3"><i data-lucide="layers"></i> 五大优势学科</div>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>学科</th><th>支撑学院</th><th>团队数</th><th>可转化成果</th></tr></thead><tbody>
-        ${DR.disciplines.map(r=>`<tr><td class="fw6">${r.name}</td><td class="f12 text-mute">${r.col}</td><td class="num">${r.teams}</td><td class="num text-primary">${r.ach}</td></tr>`).join('')}
-        </tbody></table></div>`;
-    } else if(key==='achievement'){
-      body+=`<div class="fw6 mb-3"><i data-lucide="lightbulb"></i> 可转化成果（老师团队自研项目，已与专利打通）</div>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>成果</th><th>学科</th><th>负责人</th><th>TRL</th><th>专利</th><th>估值(万)</th><th>状态</th></tr></thead><tbody>
-        ${DB.achievements.slice(0,12).map(a=>`<tr><td class="fw6">${a.title}</td><td>${a.disciplineName}</td><td>${a.leader}</td><td class="num">${a.trl}</td><td class="num text-primary">${a.patents}</td><td class="num">${a.value.toLocaleString()}</td><td>${UI.tag(a.status,'blue')}</td></tr>`).join('')}
-        </tbody></table></div>`;
-    } else if(key==='alumniEnt'){
-      body+=`<div class="card-note" style="background:var(--warning)18;border:1px solid var(--warning);border-radius:10px;padding:12px 14px;color:var(--warning)">
-        <i data-lucide="info"></i> 校友企业数据<b>待校友会统筹</b>：出思路、数据落地难，当前为统计估值，明细数据治理中。</div>`;
-    } else {
-      body+=`<div class="text-mute f13">该项资产为汇总统计，逐层钻取明细将在对应业务页（如企业管理 / 园区管理 / 创新成果）中展开查看。</div>`;
+  // ---------- 通用渲染片段 ----------
+  const statCard=(k,v,sub)=>`<div class="stat-card"><div class="k">${k}</div><div class="v num">${v}</div>${sub?`<div class="f12 text-mute mt-1">${sub}</div>`:''}</div>`;
+  const occBar=(v,good)=>v?`<div class="flex items-center gap-2"><div style="width:54px">${UI.bar(v,v>=(good||85)?'var(--success)':'var(--primary)')}</div><span class="num f12">${v}%</span></div>`:'<span class="text-mute">—</span>';
+  const patTypeTag=t=>UI.tag(t, t==='发明专利'?'purple':t==='PCT国际专利'?'blue':'gray');
+  const patStatusTag=s=>UI.tag(s, s==='已授权'?'green':s==='实质审查'?'amber':'blue');
+  const talentTag=t=>UI.tag(t, t==='长江学者'?'purple':t==='国家杰青'?'blue':t==='国家优青'?'green':'amber');
+  function platCat(name){ return /全国重点实验室|国家重点实验室/.test(name)?'国家重点实验室':/协同创新中心|中心/.test(name)?'协同创新中心':'研究所'; }
+  function insLoc(r){ if(r.name&&r.name.includes('·'))return r.name.split('·')[0]; if(r.addr)return r.addr.replace(/(高新区|经开区|新城|街道).*$/,''); return '—'; }
+
+  // ---------- 图表 extra ----------
+  function discExtra(sel){ const el=document.querySelector(sel);
+    el.innerHTML=`<div class="f12 text-mute mb-2">各学科可转化成果数</div><div class="chart h220" id="discAchBar"></div>`;
+    setTimeout(()=>Charts.bar('discAchBar',{x:DR.disciplines.map(d=>d.name),series:[{name:'可转化成果',data:DR.disciplines.map(d=>d.ach)}]}),40);
+  }
+  function talentExtra(sel){ const el=document.querySelector(sel);
+    el.innerHTML=`<div class="grid cols-4 mb-2">${DR.talents.map(t=>statCard(t.type,t.cnt+' 人')).join('')}</div>`;
+  }
+  function patentExtra(sel){ const el=document.querySelector(sel);
+    el.innerHTML=`<div class="grid cols-2" style="gap:16px"><div><div class="f12 text-mute mb-2">法律状态分布</div><div class="chart h260" id="patStatusPie"></div></div>
+      <div><div class="f12 text-mute mb-2">每年新增授权</div><div class="chart h260" id="patYearBar"></div></div></div>`;
+    setTimeout(()=>{Charts.pie('patStatusPie',{data:DB.patentStatus});Charts.bar('patYearBar',DB.patentYearly);},40);
+  }
+  function paperExtra(sel){ const el=document.querySelector(sel);
+    el.innerHTML=`<div class="grid cols-3 mb-4">${[['论文存量','3.2 万','累计'],['顶刊(累计)','860','Nature/Science/CNS子刊'],['高被引(近6年)',highCitedSum,'ESI高被引']].map(([k,v,s])=>statCard(k,v,s)).join('')}</div>
+      <div class="f12 text-mute mb-2">论文年度趋势（总量 / 顶刊 / 高被引）</div><div class="chart h260" id="paperTrendLine"></div>`;
+    setTimeout(()=>Charts.line('paperTrendLine',{x:DR.paperTrend.map(r=>r.year+''),legend:true,series:[
+      {name:'总量',data:DR.paperTrend.map(r=>r.total)},{name:'顶刊',data:DR.paperTrend.map(r=>r.top)},{name:'高被引',data:DR.paperTrend.map(r=>r.highCited)}]}),40);
+  }
+  function amountByYearExtra(rows,title,sel){ const el=document.querySelector(sel);
+    const m={};rows.forEach(r=>m[r.year]=(m[r.year]||0)+r.amount);const ys=Object.keys(m).sort();
+    el.innerHTML=`<div class="f12 text-mute mb-2">${title}</div><div class="chart h220" id="amtYearBar"></div>`;
+    setTimeout(()=>Charts.bar('amtYearBar',{x:ys,series:[{name:'金额(万元)',data:ys.map(y=>m[y])}]}),40);
+  }
+
+  // ---------- 行点击抽屉（横向/纵向/专利） ----------
+  function drawerKV(title,pairs,tag){ UI.drawer(title,`${tag?`<div class="mb-4">${tag}</div>`:''}${UI.descList(pairs)}`,{width:'520px'}); setTimeout(()=>window.refreshIcons&&refreshIcons(),20); }
+
+  // ---------- 分类配置 ----------
+  const CAT={
+    discipline:{ title:'学科与团队 · 明细', rows:DR.disciplines, fields:[], searchPh:'搜索学科 / 学院...', extra:discExtra,
+      columns:[
+        {key:'name',title:'学科',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'col',title:'支撑学院',sortable:false,render:r=>`<span class="f12 text-mute">${r.col}</span>`},
+        {key:'teams',title:'团队数',sortVal:r=>r.teams,render:r=>`<span class="num">${r.teams}</span>`},
+        {key:'profs',title:'教授',sortVal:r=>r.profs,render:r=>`<span class="num">${r.profs}</span>`},
+        {key:'assocProfs',title:'副教授',sortVal:r=>r.assocProfs,render:r=>`<span class="num">${r.assocProfs}</span>`},
+        {key:'talents',title:'人才标签',sortVal:r=>r.talents,render:r=>`<span class="num text-primary fw6">${r.talents}</span>`},
+        {key:'ach',title:'可转化成果',sortVal:r=>r.ach,render:r=>`<span class="num text-primary">${r.ach}</span>`},
+      ],
+      match:(r,v)=>(!v._q||lc(r.name+r.col).includes(lc(v._q))) },
+
+    talent:{ title:'高层次人才 · 明细', rows:DR.talentList, fields:['year','disc'], searchPh:'搜索姓名...', extra:talentExtra,
+      columns:[
+        {key:'name',title:'姓名',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'type',title:'称号',render:r=>talentTag(r.type)},
+        {key:'discipline',title:'学科',render:r=>r.discipline},
+        {key:'college',title:'学院',sortable:false,render:r=>`<span class="f12 text-mute">${r.college}</span>`},
+        {key:'year',title:'入选年份',sortVal:r=>r.year,render:r=>`<span class="num">${r.year}</span>`},
+      ],
+      match:(r,v)=>(!v.year||String(r.year)===v.year)&&(!v.disc||r.discipline===v.disc)&&(!v._q||lc(r.name).includes(lc(v._q))) },
+
+    patent:{ title:'专利 · 明细', rows:DB.patents, fields:['year','disc'], yearKey:'grantYear', searchPh:'搜索专利号 / 名称...', extra:patentExtra,
+      columns:[
+        {key:'no',title:'专利号',sortable:false,render:r=>`<span class="num f12 text-mute">${r.no}</span>`},
+        {key:'title',title:'名称',render:r=>`<span class="fw6">${r.title}</span>`},
+        {key:'type',title:'类型',render:r=>patTypeTag(r.type)},
+        {key:'status',title:'法律状态',render:r=>patStatusTag(r.status)},
+        {key:'grantYear',title:'授权年',sortVal:r=>r.grantYear,render:r=>`<span class="num">${r.grantYear}</span>`},
+        {key:'disciplineName',title:'学科',render:r=>r.disciplineName},
+        {key:'achTitle',title:'归属成果',sortable:false,render:r=>`<span class="f12 text-mute">${r.achTitle.slice(0,14)}</span>`},
+      ],
+      onRow:r=>drawerKV(r.title,[['专利号',`<span class="num">${r.no}</span>`],['类型',patTypeTag(r.type)],['法律状态',patStatusTag(r.status)],['学科',r.disciplineName],['归属成果',r.achTitle],['第一发明人',r.inventor],['申请/授权',`${r.applyYear} / ${r.grantYear}`],['权利要求',r.claims+' 项'],['被引',r.cited+' 次'],['可转化',r.transferable?'<span class="text-success fw7">是</span>':'否']],patTypeTag(r.type)),
+      match:(r,v)=>(!v.year||String(r.grantYear)===v.year)&&(!v.disc||r.disciplineName===v.disc)&&(!v._q||lc(r.no+r.title).includes(lc(v._q))) },
+
+    paper:{ title:'论文 · 年度明细', rows:DR.paperTrend, fields:['year'], search:false, extra:paperExtra,
+      columns:[
+        {key:'year',title:'年份',sortVal:r=>r.year,render:r=>`<span class="num fw6">${r.year}</span>`},
+        {key:'total',title:'论文总量',sortVal:r=>r.total,render:r=>`<span class="num text-primary fw6">${fmt(r.total)}</span>`},
+        {key:'top',title:'顶刊',sortVal:r=>r.top,render:r=>`<span class="num">${r.top}</span>`},
+        {key:'highCited',title:'高被引',sortVal:r=>r.highCited,render:r=>`<span class="num">${r.highCited}</span>`},
+      ],
+      match:(r,v)=>(!v.year||String(r.year)===v.year) },
+
+    hproject:{ title:'横向项目 · 明细', rows:DR.hprojects, fields:['year','disc'], searchPh:'搜索项目 / 签约方...', extra:s=>amountByYearExtra(DR.hprojects,'横向项目合同额（按年，万元）',s),
+      columns:[
+        {key:'year',title:'年份',sortVal:r=>r.year,render:r=>`<span class="num">${r.year}</span>`},
+        {key:'name',title:'项目名称',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'partner',title:'签约方',render:r=>r.partner},
+        {key:'contract',title:'合同类型',sortable:false,render:r=>`<span class="f12 text-mute">${r.contract}</span>`},
+        {key:'amount',title:'金额(万元)',sortVal:r=>r.amount,render:r=>`<span class="num text-primary fw7">${fmt(r.amount)}</span>`},
+        {key:'college',title:'承担学院',sortable:false,render:r=>`<span class="f12 text-mute">${r.college}</span>`},
+      ],
+      onRow:r=>drawerKV(r.name,[['年份',`<span class="num">${r.year}</span>`],['学科',r.disciplineName],['签约方',r.partner],['合同类型',r.contract],['合同金额',`<span class="num text-primary fw7">${fmt(r.amount)} 万元</span>`],['承担学院',r.college]],UI.tag('横向项目','blue')),
+      match:(r,v)=>(!v.year||String(r.year)===v.year)&&(!v.disc||r.disciplineName===v.disc)&&(!v._q||lc(r.name+r.partner).includes(lc(v._q))) },
+
+    vproject:{ title:'纵向项目 · 明细', rows:DR.vprojects, fields:['year','disc'], searchPh:'搜索项目名称...', extra:s=>amountByYearExtra(DR.vprojects,'纵向项目经费（按年，万元）',s),
+      columns:[
+        {key:'year',title:'年份',sortVal:r=>r.year,render:r=>`<span class="num">${r.year}</span>`},
+        {key:'name',title:'项目名称',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'source',title:'项目来源',render:r=>UI.tag(r.source,'blue')},
+        {key:'amount',title:'经费(万元)',sortVal:r=>r.amount,render:r=>`<span class="num text-primary fw7">${fmt(r.amount)}</span>`},
+        {key:'pi',title:'负责人',sortable:false,render:r=>r.pi},
+      ],
+      onRow:r=>drawerKV(r.name,[['年份',`<span class="num">${r.year}</span>`],['学科',r.disciplineName],['项目来源',UI.tag(r.source,'blue')],['经费',`<span class="num text-primary fw7">${fmt(r.amount)} 万元</span>`],['负责人',r.pi]],UI.tag('纵向项目','green')),
+      match:(r,v)=>(!v.year||String(r.year)===v.year)&&(!v.disc||r.disciplineName===v.disc)&&(!v._q||lc(r.name).includes(lc(v._q))) },
+
+    platform:{ title:'创新平台 · 明细', rows:DR.platforms, fields:[], searchPh:'搜索平台名称...',
+      columns:[
+        {key:'name',title:'平台名称',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'_cat',title:'类别',sortable:false,render:r=>{const c=platCat(r.name);return UI.tag(c,c==='国家重点实验室'?'purple':c==='协同创新中心'?'blue':'gray');}},
+        {key:'disc',title:'依托学科',render:r=>r.disc},
+      ],
+      match:(r,v)=>(!v._q||lc(r.name).includes(lc(v._q))) },
+
+    institute:{ title:'研究院 · 明细', rows:DR.institutes, fields:[], searchPh:'搜索研究院名称...',
+      columns:[
+        {key:'name',title:'名称',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'type',title:'类型',render:r=>UI.tag(r.type||'研究院','gray')},
+        {key:'_loc',title:'所在地',sortable:false,render:r=>insLoc(r)},
+        {key:'occupancy',title:'出租率',sortVal:r=>r.occupancy||0,render:r=>occBar(r.occupancy)},
+        {key:'ents',title:'入驻企业',sortVal:r=>r.ents||0,render:r=>`<span class="num text-primary">${r.ents||'—'}</span>`},
+      ],
+      match:(r,v)=>(!v._q||lc(r.name).includes(lc(v._q))) },
+
+    park:{ title:'科技园/园区 · 明细', rows:DB.parks, fields:[], searchPh:'搜索园区名称...',
+      extra:s=>{const el=document.querySelector(s);el.innerHTML=`<div class="f12 text-mute mb-2">各园区入驻企业数</div><div class="chart h220" id="parkEntBar"></div>`;
+        setTimeout(()=>Charts.bar('parkEntBar',{x:DB.parks.map(p=>p.name.slice(0,8)),series:[{name:'入驻企业',data:DB.parks.map(p=>p.ents)}]}),40);},
+      columns:[
+        {key:'name',title:'园区名称',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'type',title:'类型',render:r=>UI.tag(r.type,'gray')},
+        {key:'area',title:'面积(万㎡)',sortVal:r=>r.area,render:r=>`<span class="num">${r.area}</span>`},
+        {key:'ents',title:'入驻企业',sortVal:r=>r.ents,render:r=>`<span class="num text-primary fw6">${r.ents}</span>`},
+        {key:'occupancy',title:'出租率',sortVal:r=>r.occupancy,render:r=>occBar(r.occupancy)},
+        {key:'level',title:'级别',render:r=>UI.tag(r.level,r.level==='国家级'?'purple':r.level==='省级'?'blue':'gray')},
+      ],
+      match:(r,v)=>(!v._q||lc(r.name).includes(lc(v._q))) },
+
+    equityEnt:{ title:'参股企业 · 明细', rows:equityEnts, fields:['year','disc'], yearKey:'founded', searchPh:'搜索企业名称...',
+      columns:[
+        {key:'name',title:'企业名称',render:r=>`<span class="fw6">${r.name}</span>`},
+        {key:'disciplineName',title:'学科',render:r=>r.disciplineName},
+        {key:'type',title:'类型',render:r=>UI.tag(r.type,'blue')},
+        {key:'equity',title:'持股比例',sortVal:r=>r.equity,render:r=>`<span class="num">${r.equity}%</span>`},
+        {key:'valuation',title:'估值(万)',sortVal:r=>r.valuation,render:r=>`<span class="num text-primary fw6">${fmt(r.valuation)}</span>`},
+        {key:'founded',title:'成立年份',sortVal:r=>r.founded,render:r=>`<span class="num">${r.founded}</span>`},
+      ],
+      match:(r,v)=>(!v.year||String(r.founded)===v.year)&&(!v.disc||r.disciplineName===v.disc)&&(!v._q||lc(r.name).includes(lc(v._q))) },
+
+    alumniEnt:{ title:'校友企业 · 明细', placeholder:`<div style="background:color-mix(in srgb,var(--warning) 16%,transparent);border:1px solid var(--warning);border-radius:10px;padding:14px 16px;color:var(--warning);line-height:1.6">
+      <i data-lucide="info"></i> 校友企业数据<b>待校友会统筹</b>：出思路、数据落地难，当前为统计估值（约 8,600+ 家），明细数据治理中，待打通后在此提供按毕业年份 / 行业 / 地域的逐层钻取。</div>` },
+  };
+
+  // ---------- 打开某分类 ----------
+  function openCategory(cat){
+    const cfg=CAT[cat]; if(!cfg)return;
+    const fEl=document.getElementById('detailFilter'), xEl=document.getElementById('detailExtra'), tEl=document.getElementById('detailTable');
+    fEl.innerHTML='';xEl.innerHTML='';tEl.innerHTML='';
+    document.getElementById('detailTitle').textContent=cfg.title;
+    document.querySelectorAll('#cardWrap .ecard').forEach(c=>c.classList.toggle('active',c.dataset.cat===cat));
+
+    if(cfg.placeholder){ document.getElementById('detailCount').textContent='待统筹'; xEl.innerHTML=cfg.placeholder; if(window.refreshIcons)refreshIcons(); return; }
+
+    const rows=cfg.rows, yearKey=cfg.yearKey||'year';
+    const fields=[];
+    if(cfg.fields&&cfg.fields.includes('year')){
+      const ys=[...new Set(rows.map(r=>String(r[yearKey])))].filter(Boolean).sort();
+      if(ys.length)fields.push({key:'year',label:'全部年份',options:ys});
     }
-    document.getElementById('detailTitle').textContent=it.label+' · 资产明细';
-    document.getElementById('detailHint').textContent='当前查看：'+it.label;
-    document.getElementById('detailArea').innerHTML=body;
-    document.querySelectorAll('#inventoryGrid .ecard').forEach(c=>c.classList.toggle('active',c.dataset.key===key));
+    if(cfg.fields&&cfg.fields.includes('disc')) fields.push({key:'disc',label:'全部学科',options:DB.disciplines.map(d=>d.name)});
+
+    const tbl=UI.table('#detailTable',{columns:cfg.columns,rows,pageSize:10,onRow:cfg.onRow,empty:'未匹配到记录'});
+    const setCnt=(n,tot)=>document.getElementById('detailCount').textContent=(n===tot?'共 '+tot+' 条':'匹配 '+n+' / '+tot+' 条');
+    setCnt(rows.length,rows.length);
+
+    UI.filterBar('#detailFilter',{fields,search:cfg.search!==false,searchPh:cfg.searchPh||'搜索...',onChange:v=>{
+      const out=rows.filter(r=>cfg.match?cfg.match(r,v):true);
+      tbl.update(out); setCnt(out.length,rows.length);
+    }});
+
+    if(cfg.extra) cfg.extra('#detailExtra');
     if(window.refreshIcons)refreshIcons();
   }
-  // 默认展示第一类资产明细
-  if(INV.length)openInventory(INV[0].key);
 
-  // ---- 交互 ----
-  document.getElementById('btnReport').onclick=()=>UI.toast('已生成《高校产业数据资产盘点报告》（'+INV.length+' 类资产）','ok');
+  // 默认展开第一类
+  openCategory('discipline');
 
-  document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','学院与团队','参股企业和校属企业','创业园/园区']);
+  // ---------- 交互 ----------
+  document.getElementById('btnReport').onclick=()=>UI.toast('已生成《高校产业数据资产盘点报告》（11 类资产 · 含科研实力总览）','ok');
+  document.getElementById('srcNote').innerHTML=UI.srcNote(['成果与专利','学院与团队','研究院平台/科研院','创业园/园区','参股企业和校属企业','校友企业']);
+  if(window.refreshIcons)refreshIcons();
 })();</script>
 </body></html>
