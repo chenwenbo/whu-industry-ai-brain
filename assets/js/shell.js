@@ -4,6 +4,14 @@
    每页 <body data-page="xxx" data-theme="dark|light"> ，内容置于 <main class="wuda-view">
    ========================================================================== */
 (function(){
+  // ---------- 主题持久化（默认深色，右上角可切换，全站记忆）----------
+  // 各页面 <body data-theme="dark"> 仅为默认值；若用户切换过皮肤，以 localStorage 为准。
+  // 本段在页面内联脚本（图表初始化）之前执行，确保 ECharts 读到正确主题。
+  const savedTheme = localStorage.getItem('wuda-theme');
+  if(savedTheme==='light'||savedTheme==='dark'){
+    document.body.setAttribute('data-theme', savedTheme);
+  }
+
   const NAV = [
     {group:'决策分析', items:[
       {p:'data-foundation', t:'数据资产', i:'<i data-lucide="database"></i>', alias:['data-catalog']},
@@ -22,10 +30,6 @@
       {p:'park-list', t:'园区管理', i:'<i data-lucide="building"></i>', alias:['park-detail','cockpit-asset']},
       {p:'opc-services', t:'服务广场', i:'<i data-lucide="shopping-bag"></i>'},
       {p:'activity-calendar', t:'活动与培训', i:'<i data-lucide="calendar"></i>', alias:['activity-detail']},
-    ]},
-    {group:'系统', items:[
-      {p:'notifications', t:'通知·待办中心', i:'<i data-lucide="bell"></i>'},
-      {p:'_design-system', t:'设计系统', i:'<i data-lucide="palette"></i>'},
     ]},
   ];
 
@@ -86,7 +90,8 @@
   document.getElementById('themeBtn').onclick=()=>{
     const t=document.body.getAttribute('data-theme')==='light'?'dark':'light';
     document.body.setAttribute('data-theme',t);
-    UI&&UI.toast('已切换为'+(t==='light'?'浅色':'深色')+'皮肤，刷新后图表配色同步','warn');
+    localStorage.setItem('wuda-theme',t);
+    UI&&UI.toast('已切换为'+(t==='light'?'浅色':'深色')+'皮肤并全站记忆，刷新后图表配色同步','warn');
   };
 
   // ---------- 用户菜单 ----------
